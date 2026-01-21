@@ -1,0 +1,851 @@
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { formatTime } from '@/utils/helpers'
+import { exportSliceAsWav } from '@/utils/audioExport'
+import { getFileFromHandle } from '@/services/fileSystem'
+import type { Slice, SliceFolder, AudioFile } from '@/types/models'
+
+interface Props {
+  slices: Slice[]
+  folders: SliceFolder[]
+  audioFiles: AudioFile[]
+  currentlyPlayingSliceId?: string | null
+  isPlaying?: boolean
+}
+
+const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  selectSlice: [slice: Slice]
+  playSlice: [slice: Slice]
+  createFolder: []
+  deleteSlice: [sliceId: string]
+}>()
+
+const currentFolderId = ref<string | undefined>(undefined)
+const searchQuery = ref('')
+const selectedSliceIds = ref<Set<string>>(new Set())
+const isSelectionMode = ref(false)
+
+// Get current folder
+const currentFolder = computed(() => {
+  if (!currentFolderId.value) return null
+  return props.folders.find(f => f.id === currentFolderId.value)
+})
+
+// Get child folders of current folder
+const childFolders = computed(() => {
+  return props.folders.filter(f => f.parentId === currentFolderId.value)
+})
+
+// Get slices in current folder
+const currentSlices = computed(() => {
+  let slices: Slice[]
+  
+  if (currentFolderId.value) {
+    const folder = currentFolder.value
+    if (!folder) return []
+    slices = props.slices.filter(s => folder.sliceIds.includes(s.id))
+  } else {
+    // Root level: show slices not in any folder
+    const slicesInFolders = new Set<string>()
+    props.folders.forEach(f => {
+      f.sliceIds.forEach(id => slicesInFolders.add(id))
+    })
+    slices = props.slices.filter(s => !slicesInFolders.has(s.id))
+  }
+  
+  // Apply search filter
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase()
+    slices = slices.filter(slice => {
+      // Search in title
+      if (slice.title?.toLowerCase().includes(query)) return true
+      
+      // Search in tags
+      if (slice.tags?.some(tag => tag.toLowerCase().includes(query))) return true
+      
+      // Search in source file name
+      const sourceFile = props.audioFiles.find(f => f.id === slice.audioFileId)
+      if (sourceFile?.name.toLowerCase().includes(query)) return true
+      
+      return false
+    })
+  }
+  
+  return slices
+})
+
+// Search across all slices (ignoring folders)
+const globalSearchResults = computed(() => {
+  if (!searchQuery.value.trim()) return []
+  
+  const query = searchQuery.value.toLowerCase()
+  return props.slices.filter(slice => {
+    // Search in title
+    if (slice.title?.toLowerCase().includes(query)) return true
+    
+    // Search in tags
+    if (slice.tags?.some(tag => tag.toLowerCase().includes(query))) return true
+    
+    // Search in source file name
+    const sourceFile = props.audioFiles.find(f => f.id === slice.audioFileId)
+    if (sourceFile?.name.toLowerCase().includes(query)) return true
+    
+    return false
+  })
+})
+
+// Show global results when searching
+const displaySlices = computed(() => {
+  return searchQuery.value.trim() ? globalSearchResults.value : currentSlices.value
+})
+
+// Get audio file name for a slice
+const getAudioFileName = (audioFileId: string): string => {
+  const file = props.audioFiles.find(f => f.id === audioFileId)
+  return file?.name || 'Unknown'
+}
+
+// Navigation
+const navigateToFolder = (folderId?: string) => {
+  currentFolderId.value = folderId
+}
+
+// Breadcrumb navigation
+const breadcrumbs = computed(() => {
+  const crumbs: Array<{ id?: string; name: string }> = [
+    { id: undefined, name: 'Root' }
+  ]
+  
+  if (currentFolderId.value) {
+    let folderId: string | undefined = currentFolderId.value
+    const path: Array<{ id: string; name: string }> = []
+    
+    while (folderId) {
+      const folder = props.folders.find(f => f.id === folderId)
+      if (!folder) break
+      
+      path.unshift({ id: folder.id, name: folder.name })
+      folderId = folder.parentId
+    }
+    
+    crumbs.push(...path)
+  }
+  
+  return crumbs
+})
+
+// Selection management
+const toggleSelection = (sliceId: string, event: MouseEvent) => {
+  event.stopPropagation()
+  if (selectedSliceIds.value.has(sliceId)) {
+    selectedSliceIds.value.delete(sliceId)
+  } else {
+    selectedSliceIds.value.add(sliceId)
+  }
+}
+
+const selectAll = () => {
+  displaySlices.value.forEach(slice => selectedSliceIds.value.add(slice.id))
+}
+
+const deselectAll = () => {
+  selectedSliceIds.value.clear()
+  isSelectionMode.value = false
+}
+
+const toggleSelectionMode = () => {
+  isSelectionMode.value = !isSelectionMode.value
+  if (!isSelectionMode.value) {
+    selectedSliceIds.value.clear()
+  }
+}
+
+// Batch operations
+const deleteSelected = async () => {
+  if (selectedSliceIds.value.size === 0) return
+  
+  const count = selectedSliceIds.value.size
+  if (!confirm(`Delete ${count} slice${count > 1 ? 's' : ''}? This cannot be undone.`)) {
+    return
+  }
+  
+  for (const sliceId of selectedSliceIds.value) {
+    emit('deleteSlice', sliceId)
+  }
+  
+  selectedSliceIds.value.clear()
+  isSelectionMode.value = false
+}
+
+const exportSelected = async () => {
+  if (selectedSliceIds.value.size === 0) return
+  
+  const slicesToExport = displaySlices.value.filter(s => selectedSliceIds.value.has(s.id))
+  
+  for (const slice of slicesToExport) {
+    try {
+      const audioFile = props.audioFiles.find(f => f.id === slice.audioFileId)
+      if (!audioFile) continue
+      
+      const file = await getFileFromHandle(audioFile.fileHandle)
+      const arrayBuffer = await file.arrayBuffer()
+      const audioContext = new AudioContext()
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+      
+      await exportSliceAsWav(
+        audioBuffer,
+        slice.inPoint,
+        slice.outPoint,
+        slice.title || `slice-${slice.id.slice(0, 8)}`
+      )
+      
+      await audioContext.close()
+      
+      // Small delay between exports to prevent browser blocking
+      await new Promise(resolve => setTimeout(resolve, 100))
+    } catch (error) {
+      console.error(`Failed to export slice ${slice.id}:`, error)
+    }
+  }
+  
+  alert(`Exported ${slicesToExport.length} slice${slicesToExport.length > 1 ? 's' : ''}!`)
+}
+
+const handlePlaySlice = (slice: Slice, event: MouseEvent) => {
+  event.stopPropagation()
+  emit('playSlice', slice)
+}
+
+const handleExportSlice = async (slice: Slice, event: MouseEvent) => {
+  event.stopPropagation()
+  
+  try {
+    // Find the audio file
+    const audioFile = props.audioFiles.find(f => f.id === slice.audioFileId)
+    if (!audioFile) {
+      console.error('Audio file not found for slice')
+      return
+    }
+
+    // Load and decode the audio file
+    const file = await getFileFromHandle(audioFile.fileHandle)
+    const arrayBuffer = await file.arrayBuffer()
+    const audioContext = new AudioContext()
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+
+    // Export the slice
+    await exportSliceAsWav(
+      audioBuffer,
+      slice.inPoint,
+      slice.outPoint,
+      slice.title || `slice-${slice.id.slice(0, 8)}`
+    )
+
+    await audioContext.close()
+  } catch (error) {
+    console.error('Failed to export slice:', error)
+    alert('Failed to export slice. Please try again.')
+  }
+}
+</script>
+
+<template>
+  <div class="file-browser">
+    <!-- Breadcrumb navigation -->
+    <div class="breadcrumb">
+      <span
+        v-for="(crumb, index) in breadcrumbs"
+        :key="crumb.id || 'root'"
+        class="breadcrumb-item"
+      >
+        <button
+          @click="navigateToFolder(crumb.id)"
+          class="breadcrumb-link"
+          :class="{ active: index === breadcrumbs.length - 1 }"
+        >
+          {{ crumb.name }}
+        </button>
+        <span v-if="index < breadcrumbs.length - 1" class="breadcrumb-sep">/</span>
+      </span>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="search-box">
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Search slices by title, tags, or file..."
+          class="search-input"
+        />
+        <button
+          v-if="searchQuery"
+          @click="searchQuery = ''"
+          class="btn-clear-search"
+          title="Clear search"
+        >
+          ✕
+        </button>
+      </div>
+      <button 
+        @click="toggleSelectionMode" 
+        class="btn-toolbar"
+        :class="{ 'active': isSelectionMode }"
+      >
+        {{ isSelectionMode ? '✓ Selection Mode' : '☑ Select' }}
+      </button>
+      <button @click="emit('createFolder')" class="btn-toolbar">
+        📁 New Folder
+      </button>
+    </div>
+
+    <!-- Batch actions bar -->
+    <div v-if="isSelectionMode" class="batch-actions">
+      <div class="selection-info">
+        {{ selectedSliceIds.size }} selected
+      </div>
+      <div class="action-buttons">
+        <button @click="selectAll" class="btn-action">Select All</button>
+        <button @click="deselectAll" class="btn-action">Clear</button>
+        <button 
+          @click="exportSelected" 
+          class="btn-action btn-export"
+          :disabled="selectedSliceIds.size === 0"
+        >
+          💾 Export ({{ selectedSliceIds.size }})
+        </button>
+        <button 
+          @click="deleteSelected" 
+          class="btn-action btn-delete"
+          :disabled="selectedSliceIds.size === 0"
+        >
+          🗑 Delete ({{ selectedSliceIds.size }})
+        </button>
+      </div>
+    </div>
+
+    <!-- Search info -->
+    <div v-if="searchQuery.trim()" class="search-info">
+      Showing {{ displaySlices.length }} result{{ displaySlices.length !== 1 ? 's' : '' }} for "{{ searchQuery }}"
+    </div>
+
+    <!-- Browser content -->
+    <div class="browser-content">
+      <!-- Empty state -->
+      <div v-if="childFolders.length === 0 && displaySlices.length === 0" class="empty-state">
+        <p v-if="searchQuery.trim()">No slices found matching "{{ searchQuery }}"</p>
+        <p v-else>No folders or slices here</p>
+        <p class="hint">Create slices from audio regions or organize them in folders</p>
+      </div>
+
+      <!-- Folders list -->
+      <div v-if="childFolders.length > 0 && !searchQuery.trim()" class="folders-section">
+        <div
+          v-for="folder in childFolders"
+          :key="folder.id"
+          class="folder-item"
+          @click="navigateToFolder(folder.id)"
+        >
+          <span class="folder-icon">📁</span>
+          <span class="folder-name">{{ folder.name }}</span>
+          <span class="folder-count">({{ folder.sliceIds.length }})</span>
+        </div>
+      </div>
+
+      <!-- Slices list -->
+      <div v-if="displaySlices.length > 0" class="slices-section">
+        <div
+          v-for="slice in displaySlices"
+          :key="slice.id"
+          class="slice-item-browser"
+          :class="{ 
+            'is-playing': slice.id === currentlyPlayingSliceId,
+            'is-selected': selectedSliceIds.has(slice.id)
+          }"
+          @click="emit('selectSlice', slice)"
+        >
+          <input
+            v-if="isSelectionMode"
+            type="checkbox"
+            class="slice-checkbox"
+            :checked="selectedSliceIds.has(slice.id)"
+            @click="toggleSelection(slice.id, $event)"
+          />
+          <button 
+            class="play-btn-slice"
+            @click="handlePlaySlice(slice, $event)"
+            title="Play slice"
+          >
+            <span v-if="slice.id === currentlyPlayingSliceId && isPlaying" class="playing-icon">⏸</span>
+            <span v-else>▶</span>
+          </button>
+          <div class="slice-icon">🎵</div>
+          <div class="slice-details">
+            <div class="slice-title-row">
+              <span class="slice-title">{{ slice.title }}</span>
+              <span class="slice-duration">
+                {{ formatTime(slice.outPoint - slice.inPoint) }}
+              </span>
+            </div>
+            <div class="slice-source">
+              {{ getAudioFileName(slice.audioFileId) }}
+            </div>
+            <div v-if="slice.tags?.length" class="slice-tags-compact">
+              <span v-for="tag in slice.tags" :key="tag" class="tag-compact">
+                {{ tag }}
+              </span>
+            </div>
+          </div>
+          <button 
+            class="export-btn"
+            @click="handleExportSlice(slice, $event)"
+            title="Export slice as WAV"
+          >
+            💾
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.file-browser {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.9rem;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+}
+
+.breadcrumb-link {
+  background: none;
+  border: none;
+  color: #4a9eff;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.breadcrumb-link:hover {
+  background: rgba(74, 158, 255, 0.1);
+}
+
+.breadcrumb-link.active {
+  color: inherit;
+  cursor: default;
+}
+
+.breadcrumb-link.active:hover {
+  background: none;
+}
+
+.breadcrumb-sep {
+  margin: 0 0.25rem;
+  opacity: 0.5;
+}
+
+.toolbar {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.search-box {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.5rem 2.5rem 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: inherit;
+  font-size: 0.9rem;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.search-input:focus {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(74, 158, 255, 0.5);
+}
+
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.btn-clear-search {
+  position: absolute;
+  right: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: all 0.2s;
+}
+
+.btn-clear-search:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.search-info {
+  padding: 0.5rem 1rem;
+  background: rgba(74, 158, 255, 0.1);
+  border-bottom: 1px solid rgba(74, 158, 255, 0.2);
+  color: #4a9eff;
+  font-size: 0.85rem;
+}
+
+.btn-toolbar {
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.btn-toolbar.active {
+  background: rgba(74, 158, 255, 0.2);
+  border-color: rgba(74, 158, 255, 0.5);
+  color: #4a9eff;
+}
+
+.btn-toolbar:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.batch-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: rgba(74, 158, 255, 0.1);
+  border-bottom: 1px solid rgba(74, 158, 255, 0.3);
+  gap: 1rem;
+}
+
+.selection-info {
+  font-weight: 600;
+  color: #4a9eff;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-action {
+  padding: 0.4rem 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.85rem;
+}
+
+.btn-action:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-export {
+  background: rgba(46, 204, 113, 0.15);
+  border-color: rgba(46, 204, 113, 0.3);
+  color: #2ecc71;
+}
+
+.btn-export:hover:not(:disabled) {
+  background: rgba(46, 204, 113, 0.25);
+  border-color: rgba(46, 204, 113, 0.5);
+}
+
+.btn-delete {
+  background: rgba(231, 76, 60, 0.15);
+  border-color: rgba(231, 76, 60, 0.3);
+  color: #e74c3c;
+}
+
+.btn-delete:hover:not(:disabled) {
+  background: rgba(231, 76, 60, 0.25);
+  border-color: rgba(231, 76, 60, 0.5);
+}
+.browser-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  margin: 0.5rem 0;
+}
+
+.hint {
+  font-size: 0.85rem;
+}
+
+.folders-section,
+.slices-section {
+  margin-bottom: 1rem;
+}
+
+.folder-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 0.5rem;
+}
+
+.folder-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(74, 158, 255, 0.3);
+}
+
+.folder-icon {
+  font-size: 1.5rem;
+}
+
+.folder-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.folder-count {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.slice-item-browser {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 0.5rem;
+}
+
+.slice-item-browser.is-selected {
+  background: rgba(74, 158, 255, 0.1);
+  border-color: rgba(74, 158, 255, 0.4);
+}
+
+.slice-checkbox {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #4a9eff;
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+}
+
+.slice-item-browser.is-playing {
+  background: rgba(74, 158, 255, 0.15);
+  border-color: rgba(74, 158, 255, 0.5);
+  box-shadow: 0 0 20px rgba(74, 158, 255, 0.2);
+}
+
+.playing-icon {
+  display: inline-block;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+.play-btn-slice {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(74, 158, 255, 0.5);
+  background: rgba(74, 158, 255, 0.1);
+  color: #4a9eff;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.play-btn-slice:hover {
+  background: rgba(74, 158, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.export-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  background: rgba(46, 204, 113, 0.15);
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  color: #2ecc71;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.export-btn:hover {
+  background: rgba(46, 204, 113, 0.25);
+  border-color: rgba(46, 204, 113, 0.5);
+  transform: scale(1.05);
+}
+
+.export-btn:active {
+  transform: scale(0.95);
+}
+
+.slice-item-browser:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(74, 158, 255, 0.3);
+}
+
+.slice-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.slice-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.slice-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.slice-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slice-duration {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  font-family: 'Courier New', monospace;
+  margin-left: 0.5rem;
+}
+
+.slice-source {
+  font-size: 0.85rem;
+  opacity: 0.6;
+  margin-bottom: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slice-tags-compact {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.tag-compact {
+  padding: 0.125rem 0.5rem;
+  background: rgba(74, 158, 255, 0.15);
+  border-radius: 8px;
+  font-size: 0.75rem;
+  color: #4a9eff;
+}
+
+.play-btn-slice {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(74, 158, 255, 0.15);
+  border: 1px solid rgba(74, 158, 255, 0.3);
+  color: #4a9eff;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding-left: 2px;
+  flex-shrink: 0;
+}
+
+.play-btn-slice:hover {
+  background: rgba(74, 158, 255, 0.25);
+  border-color: rgba(74, 158, 255, 0.5);
+  transform: scale(1.1);
+}
+
+.play-btn-slice:active {
+  transform: scale(0.95);
+}
+</style>

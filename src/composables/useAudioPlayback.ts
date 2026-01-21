@@ -1,0 +1,170 @@
+/**
+ * Composable for managing audio playback
+ */
+
+import { ref, onUnmounted } from 'vue'
+import { AudioService } from '@/services/audio'
+import { getFileFromHandle } from '@/services/fileSystem'
+import type { Source, Slice } from '@/types/models'
+
+export function useAudioPlayback() {
+  const audioService = new AudioService()
+  
+  const isPlaying = ref(false)
+  const currentTime = ref(0)
+  const duration = ref(0)
+  const isLoading = ref(false)
+  const currentlyPlayingFileId = ref<string | null>(null)
+  const currentlyPlayingSliceId = ref<string | null>(null)
+  
+  let animationFrameId: number | null = null
+  let currentAudioFile: Source | null = null
+
+  // Update current time while playing
+  const updateTime = () => {
+    if (isPlaying.value) {
+      currentTime.value = audioService.getCurrentTime()
+      animationFrameId = requestAnimationFrame(updateTime)
+    }
+  }
+
+  /**
+   * Load an audio file
+   */
+  const loadAudioFile = async (audioFile: Source): Promise<void> => {
+    try {
+      isLoading.value = true
+      currentAudioFile = audioFile
+
+      const file = await getFileFromHandle(audioFile.fileHandle)
+      const buffer = await audioService.loadAudioFile(file)
+      
+      duration.value = buffer.duration
+      currentTime.value = 0
+      isLoading.value = false
+    } catch (error) {
+      console.error('Error loading audio file:', error)
+      isLoading.value = false
+      throw error
+    }
+  }
+
+  /**
+   * Play audio from a specific position
+   */
+  const play = (startTime = 0, playDuration?: number) => {
+    try {
+      audioService.play(startTime, playDuration)
+      isPlaying.value = true
+      updateTime()
+    } catch (error) {
+      console.error('Error playing audio:', error)
+      isPlaying.value = false
+    }
+  }
+
+  /**
+   * Play an entire audio file
+   */
+  const playAudioFile = async (audioFile: Source) => {
+    stop()
+    if (currentAudioFile?.id !== audioFile.id) {
+      await loadAudioFile(audioFile)
+    }
+    currentlyPlayingFileId.value = audioFile.id
+    currentlyPlayingSliceId.value = null
+    play(0)
+  }
+
+  /**
+   * Play a specific slice
+   */
+  const playSlice = async (slice: Slice, audioFile: Source) => {
+    stop()
+    if (currentAudioFile?.id !== audioFile.id) {
+      await loadAudioFile(audioFile)
+    }
+    currentlyPlayingFileId.value = audioFile.id
+    currentlyPlayingSliceId.value = slice.id
+    const sliceDuration = slice.endTime - slice.startTime
+    play(slice.startTime, sliceDuration)
+  }
+
+  /**
+   * Pause playback
+   */
+  const pause = () => {
+    audioService.pause()
+    isPlaying.value = false
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId)
+      animationFrameId = null
+    }
+  }
+
+  /**
+   * Toggle play/pause
+   */
+  const togglePlayPause = () => {
+    if (isPlaying.value) {
+      pause()
+    } else if (audioService.getAudioBuffer()) {
+      audioService.resume()
+      isPlaying.value = true
+      updateTime()
+    }
+  }
+
+  /**
+   * Stop playback
+   */
+  const stop = () => {
+    audioService.stop()
+    isPlaying.value = false
+    currentTime.value = 0
+    currentlyPlayingFileId.value = null
+    currentlyPlayingSliceId.value = null
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId)
+      animationFrameId = null
+    }
+  }
+
+  /**
+   * Seek to a specific time
+   */
+  const seek = (time: number) => {
+    const wasPlaying = isPlaying.value
+    stop()
+    currentTime.value = time
+    if (wasPlaying) {
+      play(time)
+    }
+  }
+
+  // Cleanup on unmount
+  onUnmounted(() => {
+    stop()
+    audioService.dispose()
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId)
+    }
+  })
+
+  return {
+    isPlaying,
+    currentTime,
+    duration,
+    isLoading,
+    currentlyPlayingFileId,
+    currentlyPlayingSliceId,
+    loadAudioFile,
+    play,
+    playAudioFile,
+    playSlice,
+    pause,
+    togglePlayPause,
+    stop,
+    seek,
+  }
+}
