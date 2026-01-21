@@ -1,27 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import HomeView from './views/HomeView.vue'
-import SliceBrowserView from './views/SliceBrowserView.vue'
-import SourceEditorView from './views/SourceEditorView.vue'
-import ProjectView from './views/ProjectView.vue'
-import { getAllAudioFiles, getAllSlices, getAllFolders, getAllProjects, saveSlice, saveFolder, saveProject, deleteSlice } from './services/db'
+import { ref, onMounted, provide } from 'vue'
+import { useRouter } from 'vue-router'
+import { getAllAudioFiles, getAllSlices, getAllFolders, getAllProjects, saveSlice, saveFolder, saveProject, deleteSlice, saveAudioFile } from './services/db'
 import { processAudioFile } from './services/audio'
 import { useAudioPlayback } from './composables/useAudioPlayback'
 import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
 import { useDragAndDrop } from './composables/useDragAndDrop'
-import { getFileFromHandle } from './services/fileSystem'
 import type { Source, Slice, SliceFolder, Project } from './types/models'
 
-type ViewType = 'home' | 'slice-browser' | 'source-editor' | 'project'
-
-interface ViewState {
-  view: ViewType
-  sourceId?: string
-  projectId?: string
-}
-
-// Navigation state
-const currentView = ref<ViewState>({ view: 'home' })
+const router = useRouter()
 
 // Audio playback
 const {
@@ -61,36 +48,40 @@ const folders = ref<SliceFolder[]>([])
 const projects = ref<Project[]>([])
 const selectedSlice = ref<Slice | null>(null)
 
-// Computed values for current view
-const currentSource = computed(() => {
-  if (currentView.value.view === 'source-editor' && currentView.value.sourceId) {
-    return sources.value.find(s => s.id === currentView.value.sourceId) || null
-  }
-  return null
+// Provide data to child components
+provide('sources', sources)
+provide('slices', slices)
+provide('folders', folders)
+provide('projects', projects)
+provide('audioPlayback', {
+  isPlaying,
+  currentTime,
+  duration,
+  isLoading,
+  currentlyPlayingFileId,
+  currentlyPlayingSliceId,
+  playAudioFile,
+  playSlice,
+  togglePlayPause,
+  seek,
+  stop,
 })
 
-const currentProject = computed(() => {
-  if (currentView.value.view === 'project' && currentView.value.projectId) {
-    return projects.value.find(p => p.id === currentView.value.projectId) || null
-  }
-  return null
-})
-
-// Navigation functions
+// Navigation functions using router
 const navigateToHome = () => {
-  currentView.value = { view: 'home' }
+  router.push('/')
 }
 
 const navigateToSliceBrowser = () => {
-  currentView.value = { view: 'slice-browser' }
+  router.push('/slices')
 }
 
 const navigateToSourceEditor = (sourceId: string) => {
-  currentView.value = { view: 'source-editor', sourceId }
+  router.push(`/source/${sourceId}`)
 }
 
 const navigateToProject = (projectId: string) => {
-  currentView.value = { view: 'project', projectId }
+  router.push(`/project/${projectId}`)
 }
 
 // File import handling
@@ -215,14 +206,14 @@ const handleCreateProject = async (project: Omit<Project, 'id' | 'createdAt' | '
         <div class="nav-links">
           <button 
             class="nav-link" 
-            :class="{ active: currentView.view === 'home' }"
+            :class="{ active: $route.name === 'home' }"
             @click="navigateToHome"
           >
             Home
           </button>
           <button 
             class="nav-link"
-            :class="{ active: currentView.view === 'slice-browser' }"
+            :class="{ active: $route.name === 'slice-browser' }"
             @click="navigateToSliceBrowser"
           >
             Slice Browser
@@ -233,41 +224,22 @@ const handleCreateProject = async (project: Omit<Project, 'id' | 'createdAt' | '
 
     <!-- Views -->
     <main class="main-content">
-      <HomeView
-        v-if="currentView.view === 'home'"
+      <router-view
         :sources="sources"
-        :projects="projects"
-        :slices="slices"
-        @openSource="navigateToSourceEditor"
-        @openProject="navigateToProject"
-        @filesImported="handleFilesImported"
-        @createProject="handleCreateProject"
-      />
-
-      <SliceBrowserView
-        v-else-if="currentView.view === 'slice-browser'"
         :slices="slices"
         :folders="folders"
-        :sources="sources"
-        :currentlyPlayingSliceId="currentlyPlayingSliceId"
-        :isPlaying="isPlaying"
-        @back="navigateToHome"
-        @selectSlice="handleSelectSlice"
-        @playSlice="handlePlaySlice"
-        @createFolder="handleCreateFolder"
-        @deleteSlice="handleDeleteSlice"
-      />
-
-      <SourceEditorView
-        v-else-if="currentView.view === 'source-editor'"
-        :source="currentSource"
-        :slices="slices"
+        :projects="projects"
         :currentlyPlayingSliceId="currentlyPlayingSliceId"
         :isPlaying="isPlaying"
         :currentTime="currentTime"
         :duration="duration"
         :isLoading="isLoading"
-        @back="navigateToHome"
+        @openSource="navigateToSourceEditor"
+        @openProject="navigateToProject"
+        @viewSource="navigateToSourceEditor"
+        @filesImported="handleFilesImported"
+        @createProject="handleCreateProject"
+        @createFolder="handleCreateFolder"
         @createSlice="handleCreateSlice"
         @updateSlice="handleUpdateSlice"
         @updateSource="handleUpdateSource"
@@ -277,18 +249,7 @@ const handleCreateProject = async (project: Omit<Project, 'id' | 'createdAt' | '
         @togglePlayPause="togglePlayPause"
         @stop="stop"
         @seek="seek"
-      />
-
-      <ProjectView
-        v-else-if="currentView.view === 'project'"
-        :project="currentProject"
-        :slices="slices"
-        :sources="sources"
-        :currentlyPlayingSliceId="currentlyPlayingSliceId"
-        :isPlaying="isPlaying"
         @back="navigateToHome"
-        @playSlice="handlePlaySlice"
-        @viewSource="navigateToSourceEditor"
       />
     </main>
 

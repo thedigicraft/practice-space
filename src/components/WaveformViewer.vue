@@ -10,6 +10,8 @@ interface Props {
   backgroundColor?: string
   duration?: number // Duration in seconds for time display
   slices?: Slice[] // Existing slices to display as highlights
+  currentTime?: number // Current playback time in seconds
+  isPlayingRegion: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -27,6 +29,10 @@ interface Region {
 
 const emit = defineEmits<{
   regionSelected: [region: { startTime: number; endTime: number }]
+  regionUpdated: [region: { startTime: number; endTime: number }]
+  playRegion: [region: { startTime: number; endTime: number }]
+  createSlice: []
+  selectSlice: [slice: Slice]
 }>()
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -39,6 +45,7 @@ const panOffset = ref(0) // 0-1, normalized offset
 const isDragging = ref(false)
 const region = ref<Region | null>(null)
 const currentRegion = ref<Region | null>(null)
+const handleBeingDragged = ref<'start' | 'end' | null>(null)
 
 // Compute visible range based on zoom and pan
 const visibleRange = computed(() => {
@@ -108,12 +115,16 @@ const drawWaveform = () => {
         const endX = Math.min(width, sliceEndInView * width)
         const regionWidth = endX - startX
 
+        const isSelected = region.value && 
+                           Math.abs(slice.startTime - region.value.start * props.duration) < 0.01 &&
+                           Math.abs(slice.endTime - region.value.end * props.duration) < 0.01
+
         // Draw more visible green overlay for saved slices
-        ctx.fillStyle = 'rgba(46, 204, 113, 0.3)'
+        ctx.fillStyle = isSelected ? 'rgba(74, 158, 255, 0.4)' : 'rgba(46, 204, 113, 0.3)'
         ctx.fillRect(startX, 0, regionWidth, height)
 
         // Draw green borders
-        ctx.strokeStyle = '#2ecc71'
+        ctx.strokeStyle = isSelected ? '#4a9eff' : '#2ecc71'
         ctx.lineWidth = 2
         ctx.beginPath()
         if (sliceStartInView >= 0 && sliceStartInView <= 1) {
@@ -160,6 +171,28 @@ const drawWaveform = () => {
         ctx.lineTo(endX, height)
       }
       ctx.stroke()
+
+      // Draggable handles
+      ctx.fillStyle = '#4a9eff'
+      ctx.fillRect(startX - 4, 0, 8, height)
+      ctx.fillRect(endX - 4, 0, 8, height)
+    }
+  }
+
+  // Draw playhead
+  if (props.currentTime !== undefined && props.duration > 0) {
+    const normalizedTime = props.currentTime / props.duration
+    const range = visibleRange.value
+    const playheadInView = (normalizedTime - range.start) / (range.end - range.start)
+
+    if (playheadInView >= 0 && playheadInView <= 1) {
+      const x = playheadInView * width
+      ctx.strokeStyle = '#ff6b6b' // A distinct color for the playhead
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(x, 0)
+      ctx.lineTo(x, height)
+      ctx.stroke()
     }
   }
 }
@@ -176,6 +209,35 @@ const handleMouseDown = (e: MouseEvent) => {
   const range = visibleRange.value
   const normalizedX = range.start + (canvasX * (range.end - range.start))
 
+  // Check if clicking on a handle
+  if (region.value) {
+    const handleWidth = 8 / props.width // 8px handle width
+    const startHandlePos = (region.value.start - range.start) / (range.end - range.start)
+    const endHandlePos = (region.value.end - range.start) / (range.end - range.start)
+    if (Math.abs(canvasX - startHandlePos) * props.width < 8) {
+      handleBeingDragged.value = 'start'
+      isDragging.value = true
+      return
+    }
+    if (Math.abs(canvasX - endHandlePos) * props.width < 8) {
+      handleBeingDragged.value = 'end'
+      isDragging.value = true
+      return
+    }
+  }
+
+  // Check if clicking on a slice
+  if (props.slices && props.duration > 0) {
+    for (const slice of props.slices) {
+      const sliceStart = slice.startTime / props.duration
+      const sliceEnd = slice.endTime / props.duration
+      if (normalizedX >= sliceStart && normalizedX <= sliceEnd) {
+        emit('selectSlice', slice)
+        return
+      }
+    }
+  }
+
   isDragging.value = true
   currentRegion.value = {
     start: normalizedX,
@@ -185,7 +247,7 @@ const handleMouseDown = (e: MouseEvent) => {
 }
 
 const handleMouseMove = (e: MouseEvent) => {
-  if (!isDragging.value || !canvasRef.value || !currentRegion.value) return
+  if (!isDragging.value || !canvasRef.value) return
 
   const rect = canvasRef.value.getBoundingClientRect()
   const x = e.clientX - rect.left
@@ -195,11 +257,36 @@ const handleMouseMove = (e: MouseEvent) => {
   const range = visibleRange.value
   const normalizedX = range.start + (canvasX * (range.end - range.start))
 
+  if (handleBeingDragged.value && region.value) {
+    if (handleBeingDragged.value === 'start') {
+      region.value.start = normalizedX
+    } else {
+      region.value.end = normalizedX
+    }
+    drawWaveform()
+    return
+  }
+
+  if (!currentRegion.value) return
+
   currentRegion.value.end = normalizedX
   drawWaveform()
 }
 
 const handleMouseUp = () => {
+  if (handleBeingDragged.value && region.value) {
+    handleBeingDragged.value = null
+    isDragging.value = false
+    const start = Math.min(region.value.start, region.value.end)
+    const end = Math.max(region.value.start, region.value.end)
+    region.value = { start, end }
+    emit('regionUpdated', {
+      startTime: start * props.duration,
+      endTime: end * props.duration,
+    })
+    return
+  }
+
   if (!isDragging.value || !currentRegion.value) return
 
   isDragging.value = false
@@ -208,8 +295,8 @@ const handleMouseUp = () => {
   const start = Math.min(currentRegion.value.start, currentRegion.value.end)
   const end = Math.max(currentRegion.value.start, currentRegion.value.end)
 
-  // Only keep region if it's meaningful (> 1% of total width)
-  if (end - start > 0.01) {
+  // Only keep region if it's meaningful (> 0.5% of total width)
+  if (end - start > 0.005) {
     region.value = { start, end }
     
     // Emit region in seconds
@@ -219,6 +306,8 @@ const handleMouseUp = () => {
         endTime: end * props.duration,
       })
     }
+  } else {
+    clearRegion()
   }
 
   currentRegion.value = null
@@ -285,14 +374,39 @@ const panRight = () => {
   drawWaveform()
 }
 
-// Mouse wheel zoom
+const setRegion = (startTime: number, endTime: number) => {
+  if (props.duration > 0) {
+    region.value = {
+      start: startTime / props.duration,
+      end: endTime / props.duration,
+    }
+    drawWaveform()
+  }
+}
+
+const handlePlayRegion = () => {
+  if (region.value && props.duration > 0) {
+    emit('playRegion', {
+      startTime: region.value.start * props.duration,
+      endTime: region.value.end * props.duration,
+    })
+  }
+}
+
+const handleCreateSlice = () => {
+  emit('createSlice')
+}
+
+// Handle wheel events for horizontal panning only
 const handleWheel = (e: WheelEvent) => {
-  e.preventDefault()
-  
-  if (e.deltaY < 0) {
-    zoomIn()
-  } else {
-    zoomOut()
+  // Only handle horizontal scrolling for panning
+  if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+    e.preventDefault()
+    const visibleWidth = 1 / zoomLevel.value
+    const panAmount = (e.deltaX / props.width) * visibleWidth
+    const maxOffset = 1 - visibleWidth
+    panOffset.value = Math.max(0, Math.min(maxOffset, panOffset.value + panAmount))
+    drawWaveform()
   }
 }
 
@@ -317,10 +431,11 @@ const formatTime = (seconds: number): string => {
 
 // Redraw when waveform data or dimensions change
 watch(
-  () => [props.waveformData, props.width, props.height, props.color],
+  () => [props.waveformData, props.width, props.height, props.color, props.currentTime],
   () => {
     drawWaveform()
-  }
+  },
+  { immediate: true }
 )
 
 onMounted(() => {
@@ -340,28 +455,28 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
 })
 
-defineExpose({ clearRegion })
+defineExpose({ clearRegion, setRegion })
 </script>
 
 <template>
   <div class="waveform-viewer">
     <!-- Zoom Controls -->
     <div class="zoom-controls">
-      <button @click="resetZoom" class="zoom-btn" title="Reset zoom (1:1)">
+      <button @click="resetZoom" class="btn btn-sm btn-outline-primary" title="Reset zoom (1:1)">
         🔍 Reset
       </button>
-      <button @click="zoomOut" class="zoom-btn" :disabled="zoomLevel === 1" title="Zoom out">
+      <button @click="zoomOut" class="btn btn-sm btn-outline-primary" :disabled="zoomLevel === 1" title="Zoom out">
         −
       </button>
       <span class="zoom-level">{{ zoomLevel.toFixed(1) }}×</span>
-      <button @click="zoomIn" class="zoom-btn" :disabled="zoomLevel >= 20" title="Zoom in">
+      <button @click="zoomIn" class="btn btn-sm btn-outline-primary" :disabled="zoomLevel >= 20" title="Zoom in">
         +
       </button>
       <div class="pan-controls" v-if="zoomLevel > 1">
-        <button @click="panLeft" class="pan-btn" title="Pan left">
+        <button @click="panLeft" class="btn btn-sm btn-outline-primary" title="Pan left">
           ←
         </button>
-        <button @click="panRight" class="pan-btn" title="Pan right">
+        <button @click="panRight" class="btn btn-sm btn-outline-primary" title="Pan right">
           →
         </button>
       </div>
@@ -382,11 +497,6 @@ defineExpose({ clearRegion })
       No waveform data
     </div>
 
-    <div v-if="regionInfo" class="region-info">
-      <span>Region: {{ formatTime(regionInfo.startTime) }} - {{ formatTime(regionInfo.endTime) }}</span>
-      <span class="duration">({{ formatTime(regionInfo.duration) }})</span>
-      <button @click="clearRegion" class="btn-clear">✕</button>
-    </div>
   </div>
 </template>
 
@@ -410,26 +520,7 @@ defineExpose({ clearRegion })
   font-size: 0.85rem;
 }
 
-.zoom-btn, .pan-btn {
-  padding: 0.4rem 0.75rem;
-  background: rgba(74, 158, 255, 0.15);
-  border: 1px solid rgba(74, 158, 255, 0.3);
-  border-radius: 4px;
-  color: #4a9eff;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.9rem;
-}
 
-.zoom-btn:hover:not(:disabled), .pan-btn:hover {
-  background: rgba(74, 158, 255, 0.25);
-  border-color: rgba(74, 158, 255, 0.5);
-}
-
-.zoom-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
 
 .zoom-level {
   min-width: 3rem;

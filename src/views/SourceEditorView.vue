@@ -2,7 +2,7 @@
   <div class="source-editor-view">
     <header class="view-header">
       <div class="header-content">
-        <button class="btn-back" @click="$emit('back')">
+        <button class="btn btn-outline-secondary" @click="$emit('back')">
           ← Back
         </button>
         <div class="source-title">
@@ -12,7 +12,7 @@
             @blur="saveSourceName"
             @keyup.enter="saveSourceName"
             @keyup.esc="cancelSourceNameEdit"
-            class="source-name-input"
+            class="form-control"
             ref="sourceNameInput"
           />
           <h1 
@@ -30,127 +30,80 @@
       </div>
     </header>
 
-    <div class="editor-content" v-if="source">
-      <!-- Waveform Section -->
-      <section class="waveform-section">
-        <div class="section-header">
-          <h2>Waveform</h2>
-          <p class="hint">Click and drag to select a region</p>
-        </div>
-        
-        <div class="waveform-container">
-          <WaveformViewer 
-            :waveformData="source.waveformData"
-            :duration="source.duration"
-            :width="1200"
-            :height="250"
-            :slices="sourceSlices"
-            @regionSelected="handleRegionSelected"
-            ref="waveformRef"
-          />
-        </div>
-
-        <!-- Playback Controls -->
-        <div class="playback-section">
-          <PlaybackControls
-            :isPlaying="isPlaying"
-            :currentTime="currentTime"
-            :duration="duration"
-            :isLoading="isLoading"
-            @play="togglePlayPause"
-            @pause="$emit('stop')"
-            @seek="seek"
-          />
-        </div>
-      </section>
-
-      <!-- Slices Section -->
-      <section class="slices-section">
-        <div class="section-header">
-          <h2>Slices from this source ({{ sourceSlices.length }})</h2>
-        </div>
-        
-        <div v-if="sourceSlices.length === 0" class="empty-state">
-          <p>No slices created yet.</p>
-          <p class="hint">Select a region on the waveform to create your first slice!</p>
-        </div>
-
-        <div v-else class="slices-list">
-          <div
-            v-for="slice in sourceSlices"
-            :key="slice.id"
-            class="slice-card"
-            :class="{ 'is-playing': currentlyPlayingSliceId === slice.id && isPlaying }"
-          >
-            <button 
-              class="play-btn"
-              @click="handlePlaySlice(slice)"
-            >
-              {{ currentlyPlayingSliceId === slice.id && isPlaying ? '⏸' : '▶' }}
-            </button>
-            <div class="slice-content">
-              <div class="slice-info" @click="handleSelectSlice(slice)">
-                <div class="slice-title-row">
-                  <input
-                    v-if="editingTitleId === slice.id"
-                    v-model="editingTitleValue"
-                    @blur="saveTitle(slice)"
-                    @keyup.enter="saveTitle(slice)"
-                    @keyup.esc="cancelTitleEdit"
-                    @click.stop
-                    class="title-input"
-                    ref="titleInput"
-                  />
-                  <h3 
-                    v-else
-                    class="slice-title"
-                    @dblclick.stop="startTitleEdit(slice)"
-                    :title="'Double-click to edit'"
-                  >
-                    {{ slice.title }}
-                  </h3>
-                </div>
-                <p class="slice-time">
-                  {{ formatTime(slice.startTime) }} - {{ formatTime(slice.endTime) }}
-                  <span class="slice-duration">({{ formatDuration(slice.endTime - slice.startTime) }})</span>
-                </p>
-                <p v-if="slice.notes" class="slice-notes">{{ slice.notes }}</p>
-                <div v-if="slice.tags && slice.tags.length > 0" class="slice-tags">
-                  <span v-for="tag in slice.tags" :key="tag" class="tag">{{ tag }}</span>
-                </div>
-              </div>
-              <div class="slice-waveform" v-if="source?.waveformData">
-                <canvas 
-                  :ref="el => setSliceCanvas(slice.id, el as HTMLCanvasElement)"
-                  :width="300"
-                  :height="60"
-                  class="mini-waveform"
-                ></canvas>
-              </div>
+    <div class="editor-layout">
+      <div class="main-content">
+        <div class="editor-content" v-if="source">
+          <!-- Waveform Section -->
+          <section class="waveform-section">
+            <div class="section-header">
+              <h2>Waveform</h2>
+              <p class="hint">Click and drag to select a region</p>
             </div>
-            <div class="slice-actions">
-              <button 
-                class="btn-edit"
-                @click="handleEditSlice(slice)"
-                title="Edit slice"
-              >
-                ✎
-              </button>
-              <button 
-                class="btn-delete"
-                @click="handleDeleteSlice(slice)"
-                title="Delete slice"
-              >
-                🗑
-              </button>
+            
+            <div class="waveform-container">
+              <WaveformViewer 
+                :waveformData="source.waveformData"
+                :duration="source.duration"
+                :width="1200"
+                :height="250"
+                :slices="sourceSlices"
+                :current-time="currentTime"
+                :is-playing-region="isPlayingRegion"
+                @regionSelected="handleRegionSelected"
+                @regionUpdated="handleRegionUpdated"
+                @playRegion="handlePlayRegion"
+                @createSlice="handleCreateSlice"
+                @selectSlice="handleSelectSlice"
+                ref="waveformRef"
+              />
             </div>
-          </div>
-        </div>
-      </section>
-    </div>
 
-    <div v-else class="empty-state">
-      <p>Source not found.</p>
+            <ContextualToolbar
+              :mode="toolbarMode"
+              :selection="selectedRegion"
+              :slice="selectedSlice"
+              :is-playing="isPlaying"
+              @play-region="handlePlayRegion"
+              @play-slice="handlePlaySlice"
+              @create-slice="handleCreateSlice"
+              @update-slice="handleUpdateSlice"
+              @delete-slice="handleDeleteSlice"
+              @clear-selection="clearSelection"
+            />
+
+            <SliceWaveformViewer
+              :slice="selectedSlice"
+              :source="source"
+              :current-time="currentTime"
+              :is-playing="isPlaying"
+            />
+
+            <!-- Playback Controls -->
+            <div class="playback-section">
+              <PlaybackControls
+                :isPlaying="isPlaying"
+                :currentTime="currentTime"
+                :duration="duration"
+                :isLoading="isLoading"
+                @play="togglePlayPause"
+                @pause="$emit('stop')"
+                @seek="seek"
+              />
+            </div>
+          </section>
+        </div>
+
+        <div v-else class="empty-state">
+          <p>Source not found.</p>
+        </div>
+      </div>
+
+      <SliceSidebar
+        :slices="sourceSlices"
+        :selected-slice-id="selectedSliceId"
+        @select-slice="handleSelectSlice"
+        @play-slice="handlePlaySlice"
+      />
     </div>
 
     <!-- Create/Edit Slice Dialog -->
@@ -161,7 +114,7 @@
       :startTime="selectedRegion.startTime"
       :endTime="selectedRegion.endTime"
       :existingSlice="editingSlice || undefined"
-      @create="handleCreateSlice"
+      @create="handleCreateSliceConfirm"
       @update="handleUpdateSlice"
       @cancel="handleCancelSlice"
     />
@@ -169,15 +122,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, inject } from 'vue'
+import type { Ref } from 'vue'
 import type { Source, Slice } from '../types/models'
 import WaveformViewer from '../components/WaveformViewer.vue'
 import PlaybackControls from '../components/PlaybackControls.vue'
 import CreateSliceDialog from '../components/CreateSliceDialog.vue'
+import ContextualToolbar from '../components/ContextualToolbar.vue'
+import SliceSidebar from '../components/SliceSidebar.vue'
+import SliceWaveformViewer from '../components/SliceWaveformViewer.vue'
 import { formatTime, formatFileSize } from '../utils/helpers'
 
 interface Props {
-  source: Source | null
+  id: string
   slices: Slice[]
   currentlyPlayingSliceId: string | null
   isPlaying: boolean
@@ -187,6 +144,14 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+// Inject sources from App.vue
+const sources = inject<Ref<Source[]>>('sources')!
+
+// Find the source by ID from route param
+const source = computed(() => {
+  return sources.value.find(s => s.id === props.id) || null
+})
 
 const emit = defineEmits<{
   back: []
@@ -205,13 +170,9 @@ const waveformRef = ref<InstanceType<typeof WaveformViewer> | null>(null)
 const showSliceDialog = ref(false)
 const selectedRegion = ref<{ startTime: number; endTime: number } | null>(null)
 const editingSlice = ref<Slice | null>(null)
-const sliceCanvases = ref<Map<string, HTMLCanvasElement>>(new Map())
-const editingTitleId = ref<string | null>(null)
-const editingTitleValue = ref('')
-const titleInput = ref<HTMLInputElement | null>(null)
-const editingSourceName = ref(false)
-const sourceNameValue = ref('')
-const sourceNameInput = ref<HTMLInputElement | null>(null)
+const isPlayingRegion = ref(false)
+const selectedSliceId = ref<string | null>(null)
+const toolbarMode = ref<'region' | 'slice' | null>(null)
 
 const sourceSlices = computed(() => {
   if (!props.source) return []
@@ -254,107 +215,79 @@ const saveSourceName = () => {
   cancelSourceNameEdit()
 }
 
-const startTitleEdit = (slice: Slice) => {
-  editingTitleId.value = slice.id
-  editingTitleValue.value = slice.title
-  // Focus input on next tick
-  setTimeout(() => {
-    if (titleInput.value) {
-      titleInput.value.focus()
-      titleInput.value.select()
-    }
-  }, 0)
-}
-
-const cancelTitleEdit = () => {
-  editingTitleId.value = null
-  editingTitleValue.value = ''
-}
-
-const saveTitle = (slice: Slice) => {
-  if (!editingTitleValue.value.trim()) {
-    cancelTitleEdit()
-    return
-  }
-
-  if (editingTitleValue.value.trim() !== slice.title) {
-    const updatedSlice: Slice = {
-      ...slice,
-      title: editingTitleValue.value.trim(),
-      updatedAt: Date.now(),
-    }
-    emit('updateSlice', updatedSlice)
-  }
-  
-  cancelTitleEdit()
-}
-
-const setSliceCanvas = (sliceId: string, canvas: HTMLCanvasElement | null) => {
-  if (canvas) {
-    sliceCanvases.value.set(sliceId, canvas)
-  }
-}
-
-const drawSliceWaveform = (canvas: HTMLCanvasElement, slice: Slice) => {
-  if (!props.source?.waveformData || !props.source.duration) return
-
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-
-  const width = canvas.width
-  const height = canvas.height
-
-  // Clear canvas
-  ctx.fillStyle = '#1a1a1a'
-  ctx.fillRect(0, 0, width, height)
-
-  // Calculate which portion of the waveform to display
-  const fullData = props.source.waveformData
-  const startRatio = slice.startTime / props.source.duration
-  const endRatio = slice.endTime / props.source.duration
-  
-  const startIdx = Math.floor(startRatio * fullData.length)
-  const endIdx = Math.ceil(endRatio * fullData.length)
-  const sliceData = fullData.slice(startIdx, endIdx)
-
-  // Draw waveform
-  const barWidth = width / sliceData.length
-  const centerY = height / 2
-
-  ctx.fillStyle = '#4a9eff'
-
-  for (let i = 0; i < sliceData.length; i++) {
-    const amplitude = sliceData[i]
-    const barHeight = amplitude * centerY
-    const x = i * barWidth
-    const y = centerY - barHeight / 2
-
-    ctx.fillRect(x, y, Math.max(1, barWidth), barHeight)
-  }
-}
-
-// Draw waveforms when slices or source data changes
-watch([() => props.source?.waveformData, sourceSlices], () => {
-  if (!props.source?.waveformData) return
-  
-  // Use setTimeout to ensure canvases are rendered
-  setTimeout(() => {
-    sourceSlices.value.forEach(slice => {
-      const canvas = sliceCanvases.value.get(slice.id)
-      if (canvas) {
-        drawSliceWaveform(canvas, slice)
-      }
-    })
-  }, 50)
-}, { immediate: true })
-
 const handleRegionSelected = (region: { startTime: number; endTime: number }) => {
   selectedRegion.value = region
   editingSlice.value = null
-  showSliceDialog.value = true
+  selectedSliceId.value = null
+  toolbarMode.value = 'region'
 }
 
-const handleCreateSlice = (slice: Omit<Slice, 'id' | 'createdAt' | 'updatedAt'>) => {
+const handleRegionUpdated = (region: { startTime: number; endTime: number }) => {
+  selectedRegion.value = region
+}
+
+const handlePlayRegion = () => {
+  if (!selectedRegion.value || !props.source) return
+  
+  // This is a simplified play/pause toggle for the region
+  if (isPlayingRegion.value) {
+    emit('stop')
+    isPlayingRegion.value = false
+  } else {
+    emit('playSlice', {
+      id: 'region-playback', // temporary ID
+      audioFileId: props.source.id,
+      startTime: selectedRegion.value.startTime,
+      endTime: selectedRegion.value.endTime,
+      title: 'Selected Region',
+      inPoint: selectedRegion.value.startTime,
+      outPoint: selectedRegion.value.endTime,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+    isPlayingRegion.value = true
+  }
+}
+
+watch(() => props.isPlaying, (newVal) => {
+  if (!newVal) {
+    isPlayingRegion.value = false
+  }
+})
+
+const handleSelectSlice = (slice: Slice) => {
+  emit('selectSlice', slice)
+  selectedSliceId.value = slice.id
+  toolbarMode.value = 'slice'
+  
+  // Also update the region on the waveform
+  if (waveformRef.value) {
+    selectedRegion.value = { startTime: slice.startTime, endTime: slice.endTime }
+    waveformRef.value.setRegion(slice.startTime, slice.endTime)
+  }
+}
+
+const selectedSlice = computed(() => {
+  if (!selectedSliceId.value) return null
+  return sourceSlices.value.find(s => s.id === selectedSliceId.value) || null
+})
+
+const clearSelection = () => {
+  selectedRegion.value = null
+  selectedSliceId.value = null
+  toolbarMode.value = null
+  if (waveformRef.value) {
+    waveformRef.value.clearRegion()
+  }
+}
+
+const handleCreateSlice = () => {
+  if (selectedRegion.value) {
+    showSliceDialog.value = true
+  }
+}
+
+const handleCreateSliceConfirm = (slice: Omit<Slice, 'id' | 'createdAt' | 'updatedAt'>) => {
   emit('createSlice', slice)
   showSliceDialog.value = false
   selectedRegion.value = null
@@ -378,8 +311,9 @@ const handleEditSlice = (slice: Slice) => {
   showSliceDialog.value = true
 }
 
-const handleDeleteSlice = (slice: Slice) => {
-  if (confirm(`Delete slice "${slice.title}"?`)) {
+const handleDeleteSlice = (sliceId: string) => {
+  const slice = sourceSlices.value.find(s => s.id === sliceId)
+  if (slice && confirm(`Delete slice "${slice.title}"?`)) {
     emit('deleteSlice', slice.id)
   }
 }
@@ -393,10 +327,6 @@ const handleCancelSlice = () => {
   if (waveformRef.value) {
     waveformRef.value.clearRegion()
   }
-}
-
-const handleSelectSlice = (slice: Slice) => {
-  emit('selectSlice', slice)
 }
 
 const handlePlaySlice = (slice: Slice) => {
@@ -420,6 +350,17 @@ const seek = (time: number) => {
   background: #1a1a1a;
 }
 
+.editor-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
 .view-header {
   background: #1e1e1e;
   border-bottom: 1px solid #333;
@@ -434,22 +375,7 @@ const seek = (time: number) => {
   margin: 0 auto;
 }
 
-.btn-back {
-  background: #2a2a2a;
-  color: #fff;
-  border: 1px solid #444;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.95rem;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
 
-.btn-back:hover {
-  background: #333;
-  border-color: #555;
-}
 
 .source-title {
   flex: 1;
@@ -476,19 +402,7 @@ const seek = (time: number) => {
   background: rgba(74, 158, 255, 0.1);
 }
 
-.source-name-input {
-  width: 100%;
-  background: #1a1a1a;
-  border: 2px solid #4a9eff;
-  color: #fff;
-  padding: 0.5rem;
-  border-radius: 4px;
-  font-size: 1.5rem;
-  font-weight: bold;
-  font-family: inherit;
-  outline: none;
-  margin: 0;
-}
+
 
 .source-info {
   margin: 0.25rem 0 0 0;
@@ -553,196 +467,5 @@ const seek = (time: number) => {
 
 .empty-state p {
   margin: 0.5rem 0;
-}
-
-/* Slices List */
-.slices-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.slice-card {
-  background: #2a2a2a;
-  border-radius: 6px;
-  padding: 1rem;
-  display: flex;
-  gap: 1rem;
-  align-items: stretch;
-  transition: all 0.2s;
-}
-
-.slice-card:hover {
-  background: #333;
-}
-
-.slice-card.is-playing {
-  background: #2d3e50;
-  border-left: 3px solid #4a9eff;
-}
-
-.play-btn {
-  background: #4a9eff;
-  color: white;
-  border: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.2s;
-  align-self: flex-start;
-}
-
-.play-btn:hover {
-  background: #357abd;
-  transform: scale(1.05);
-}
-
-.slice-content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.slice-info {
-  cursor: pointer;
-}
-
-.slice-title-row {
-  margin-bottom: 0.5rem;
-}
-
-.slice-title {
-  margin: 0;
-  font-size: 1rem;
-  color: #fff;
-  cursor: text;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.slice-title:hover {
-  background: rgba(74, 158, 255, 0.1);
-}
-
-.title-input {
-  width: 100%;
-  background: #1a1a1a;
-  border: 2px solid #4a9eff;
-  color: #fff;
-  padding: 0.5rem;
-  border-radius: 4px;
-  font-size: 1rem;
-  font-family: inherit;
-  outline: none;
-}
-
-.slice-time {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.85rem;
-  color: #888;
-}
-
-.slice-duration {
-  color: #666;
-  margin-left: 0.5rem;
-}
-
-.slice-notes {
-  margin: 0.5rem 0;
-  font-size: 0.9rem;
-  color: #aaa;
-  font-style: italic;
-  padding: 0.5rem;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
-  border-left: 3px solid #4a9eff;
-}
-
-.slice-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.tag {
-  background: #333;
-  color: #4a9eff;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-}
-
-.slice-waveform {
-  background: #1a1a1a;
-  border-radius: 4px;
-  padding: 0.5rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.mini-waveform {
-  display: block;
-  border-radius: 2px;
-}
-
-.slice-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex-shrink: 0;
-}
-
-.btn-edit {
-  background: #2a2a2a;
-  color: #4a9eff;
-  border: 1px solid #444;
-  width: 36px;
-  height: 36px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1.1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.2s;
-}
-
-.btn-edit:hover {
-  background: #333;
-  border-color: #4a9eff;
-  color: #fff;
-}
-
-.btn-delete {
-  background: #2a2a2a;
-  color: #ff6b6b;
-  border: 1px solid #444;
-  width: 36px;
-  height: 36px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1.1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.2s;
-}
-
-.btn-delete:hover {
-  background: #ff6b6b;
-  border-color: #ff6b6b;
-  color: #fff;
 }
 </style>

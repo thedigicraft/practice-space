@@ -278,7 +278,7 @@ const handleExportSlice = async (slice: Slice, event: MouseEvent) => {
           v-model="searchQuery"
           type="text"
           placeholder="Search slices by title, tags, or file..."
-          class="search-input"
+          class="form-control"
         />
         <button
           v-if="searchQuery"
@@ -479,26 +479,7 @@ const handleExportSlice = async (slice: Slice, event: MouseEvent) => {
   align-items: center;
 }
 
-.search-input {
-  width: 100%;
-  padding: 0.5rem 2.5rem 0.5rem 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: inherit;
-  font-size: 0.9rem;
-  outline: none;
-  transition: all 0.2s;
-}
 
-.search-input:focus {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(74, 158, 255, 0.5);
-}
-
-.search-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
-}
 
 .btn-clear-search {
   position: absolute;

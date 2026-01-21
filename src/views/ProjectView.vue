@@ -73,12 +73,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
+import type { Ref } from 'vue'
 import type { Project, Slice, Source } from '../types/models'
 import { formatTime } from '../utils/helpers'
 
 interface Props {
-  project: Project | null
+  id: string
   slices: Slice[]
   sources: Source[]
   currentlyPlayingSliceId: string | null
@@ -86,6 +87,14 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+// Inject projects from App.vue
+const projects = inject<Ref<Project[]>>('projects')!
+
+// Find the project by ID from route param
+const project = computed(() => {
+  return projects.value.find(p => p.id === props.id) || null
+})
 
 const emit = defineEmits<{
   back: []

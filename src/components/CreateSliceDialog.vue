@@ -84,65 +84,65 @@ const handleCancel = () => {
       <div class="modal-dialog" @click.stop>
         <div class="modal-header">
           <h2>{{ isEditMode ? 'Edit Slice' : 'Create Slice' }}</h2>
-          <button class="btn-close" @click="handleCancel">✕</button>
+          <button type="button" class="btn-close btn-close-white" @click="handleCancel" aria-label="Close"></button>
         </div>
 
         <div class="modal-body">
-          <div class="form-group">
-            <label>Source File</label>
-            <div class="readonly-field">{{ sourceName }}</div>
+          <div class="mb-3">
+            <label class="form-label">Source File</label>
+            <div class="form-control-plaintext">{{ sourceName }}</div>
           </div>
 
-          <div class="form-group">
-            <label>Region</label>
-            <div class="readonly-field">
+          <div class="mb-3">
+            <label class="form-label">Region</label>
+            <div class="form-control-plaintext">
               {{ formatTime(startTime) }} - {{ formatTime(endTime) }}
-              <span class="duration">({{ formatTime(endTime - startTime) }})</span>
+              <span class="text-muted">({{ formatTime(endTime - startTime) }})</span>
             </div>
           </div>
 
-          <div class="form-group">
-            <label for="slice-title">Title *</label>
+          <div class="mb-3">
+            <label for="slice-title" class="form-label">Title *</label>
             <input
               id="slice-title"
               v-model="title"
               type="text"
               placeholder="Enter slice title"
-              class="form-input"
+              class="form-control"
               autofocus
             />
           </div>
 
-          <div class="form-group">
-            <label for="slice-notes">Notes</label>
+          <div class="mb-3">
+            <label for="slice-notes" class="form-label">Notes</label>
             <textarea
               id="slice-notes"
               v-model="notes"
               placeholder="Add notes about this slice"
-              class="form-textarea"
+              class="form-control"
               rows="3"
             ></textarea>
           </div>
 
-          <div class="form-group">
-            <label for="slice-tags">Tags</label>
+          <div class="mb-3">
+            <label for="slice-tags" class="form-label">Tags</label>
             <input
               id="slice-tags"
               v-model="tags"
               type="text"
               placeholder="Comma-separated tags"
-              class="form-input"
+              class="form-control"
             />
           </div>
         </div>
 
         <div class="modal-footer">
-          <button @click="handleCancel" class="btn-secondary">
+          <button @click="handleCancel" class="btn btn-secondary">
             Cancel
           </button>
           <button
             @click="handleSave"
-            class="btn-primary"
+            class="btn btn-primary"
             :disabled="!title.trim()"
           >
             {{ isEditMode ? 'Save Changes' : 'Create Slice' }}
@@ -192,31 +192,8 @@ const handleCancel = () => {
   font-size: 1.5rem;
 }
 
-.btn-close {
-  background: none;
-  border: none;
-  color: inherit;
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-
-.btn-close:hover {
-  opacity: 1;
-}
-
 .modal-body {
   padding: 1.5rem;
-}
-
-.form-group {
-  margin-bottom: 1.25rem;
-}
-
-.form-group:last-child {
-  margin-bottom: 0;
 }
 
 .form-group label {
@@ -240,70 +217,11 @@ const handleCancel = () => {
   margin-left: 0.5rem;
 }
 
-.form-input,
-.form-textarea {
-  width: 100%;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: inherit;
-  font-family: inherit;
-  font-size: 1rem;
-  transition: border-color 0.2s;
-}
-
-.form-input:focus,
-.form-textarea:focus {
-  outline: none;
-  border-color: #4a9eff;
-}
-
-.form-textarea {
-  resize: vertical;
-}
-
 .modal-footer {
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
   padding: 1.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.btn-secondary,
-.btn-primary {
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-}
-
-.btn-secondary {
-  background: rgba(255, 255, 255, 0.1);
-  color: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.btn-primary {
-  background: #4a9eff;
-  color: white;
-  border: 1px solid #4a9eff;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #3a8eef;
-}
-
-.btn-secondary:disabled,
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 </style>
