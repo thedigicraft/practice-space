@@ -85,6 +85,9 @@ const save = () => {
     const updatedSlice: Slice = {
       ...props.slice,
       ...editableSlice.value,
+      // Use selection for updated start/end times if available
+      startTime: props.selection?.startTime ?? props.slice.startTime,
+      endTime: props.selection?.endTime ?? props.slice.endTime,
       tags: tagsInput.value.split(',').map(t => t.trim()).filter(Boolean),
       updatedAt: Date.now(),
     }

@@ -49,8 +49,10 @@
                 :slices="sourceSlices"
                 :current-time="currentTime"
                 :is-playing-region="isPlayingRegion"
+                :selected-slice-id="selectedSliceId"
                 @regionSelected="handleRegionSelected"
                 @regionUpdated="handleRegionUpdated"
+                @regionDragging="handleRegionDragging"
                 @playRegion="handlePlayRegion"
                 @createSlice="handleCreateSlice"
                 @selectSlice="handleSelectSlice"
@@ -72,7 +74,7 @@
             />
 
             <SliceWaveformViewer
-              :slice="selectedSlice"
+              :slice="selectedSliceForWaveform"
               :source="source"
               :current-time="currentTime"
               :is-playing="isPlaying"
@@ -175,8 +177,8 @@ const selectedSliceId = ref<string | null>(null)
 const toolbarMode = ref<'region' | 'slice' | null>(null)
 
 const sourceSlices = computed(() => {
-  if (!props.source) return []
-  return props.slices.filter(s => s.audioFileId === props.source!.id)
+  if (!source.value) return []
+  return props.slices.filter(s => s.audioFileId === source.value!.id)
 })
 
 const formatDuration = (seconds: number) => formatTime(seconds)
@@ -222,8 +224,24 @@ const handleRegionSelected = (region: { startTime: number; endTime: number }) =>
   toolbarMode.value = 'region'
 }
 
+const handleRegionDragging = (region: { startTime: number; endTime: number }) => {
+  // Update selected region for realtime visual feedback only
+  selectedRegion.value = region
+}
+
 const handleRegionUpdated = (region: { startTime: number; endTime: number }) => {
   selectedRegion.value = region
+  
+  // If we're editing an existing slice, auto-save the boundary changes
+  if (toolbarMode.value === 'slice' && selectedSlice.value) {
+    const updatedSlice: Slice = {
+      ...selectedSlice.value,
+      startTime: region.startTime,
+      endTime: region.endTime,
+      updatedAt: Date.now(),
+    }
+    emit('updateSlice', updatedSlice)
+  }
 }
 
 const handlePlayRegion = () => {
@@ -270,6 +288,29 @@ const handleSelectSlice = (slice: Slice) => {
 const selectedSlice = computed(() => {
   if (!selectedSliceId.value) return null
   return sourceSlices.value.find(s => s.id === selectedSliceId.value) || null
+})
+
+// Slice with realtime bounds for the waveform viewer during drag
+const selectedSliceForWaveform = computed(() => {
+  if (!selectedSlice.value) return null
+  
+  // If we're in slice mode and have a region that differs from the slice bounds,
+  // return a version with the realtime bounds (during drag)
+  if (selectedRegion.value && toolbarMode.value === 'slice') {
+    const regionDiffers = 
+      selectedRegion.value.startTime !== selectedSlice.value.startTime ||
+      selectedRegion.value.endTime !== selectedSlice.value.endTime
+    
+    if (regionDiffers) {
+      return {
+        ...selectedSlice.value,
+        startTime: selectedRegion.value.startTime,
+        endTime: selectedRegion.value.endTime,
+      }
+    }
+  }
+  
+  return selectedSlice.value
 })
 
 const clearSelection = () => {

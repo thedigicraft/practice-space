@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { Slice } from '@/types/models'
+import { Modal } from 'bootstrap'
 
 interface Props {
   sourceId: string
@@ -23,6 +24,42 @@ const isEditMode = computed(() => !!props.existingSlice)
 const title = ref('')
 const notes = ref('')
 const tags = ref('')
+
+const modalElement = ref<HTMLElement | null>(null)
+let modalInstance: Modal | null = null
+
+// Track pending action to emit after modal hides
+let pendingAction: { type: 'cancel' | 'create' | 'update', data?: any } | null = null
+
+onMounted(() => {
+  if (modalElement.value) {
+    modalInstance = new Modal(modalElement.value)
+    modalInstance.show()
+    
+    // Listen for modal hide event and emit the pending action
+    modalElement.value.addEventListener('hidden.bs.modal', () => {
+      if (pendingAction) {
+        if (pendingAction.type === 'cancel') {
+          emit('cancel')
+        } else if (pendingAction.type === 'create') {
+          emit('create', pendingAction.data)
+        } else if (pendingAction.type === 'update') {
+          emit('update', pendingAction.data)
+        }
+      } else {
+        // If no pending action, it means the modal was dismissed (X button or backdrop)
+        emit('cancel')
+      }
+      pendingAction = null
+    })
+  }
+})
+
+onBeforeUnmount(() => {
+  if (modalInstance) {
+    modalInstance.dispose()
+  }
+})
 
 // Initialize form with existing data in edit mode
 watch(() => props.existingSlice, (slice) => {
@@ -58,7 +95,7 @@ const handleSave = () => {
       tags: sliceTags.length > 0 ? sliceTags : undefined,
       updatedAt: Date.now(),
     }
-    emit('update', updatedSlice)
+    pendingAction = { type: 'update', data: updatedSlice }
   } else {
     // Create new slice
     const slice: Omit<Slice, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -69,84 +106,95 @@ const handleSave = () => {
       endTime: props.endTime,
       tags: sliceTags.length > 0 ? sliceTags : undefined,
     }
-    emit('create', slice)
+    pendingAction = { type: 'create', data: slice }
+  }
+  
+  // Hide modal - will emit after hidden
+  if (modalInstance) {
+    modalInstance.hide()
   }
 }
 
 const handleCancel = () => {
-  emit('cancel')
+  pendingAction = { type: 'cancel' }
+  if (modalInstance) {
+    modalInstance.hide()
+  }
 }
 </script>
 
 <template>
   <Teleport to="body">
-    <div class="modal-overlay" @click="handleCancel">
-      <div class="modal-dialog" @click.stop>
-        <div class="modal-header">
-          <h2>{{ isEditMode ? 'Edit Slice' : 'Create Slice' }}</h2>
-          <button type="button" class="btn-close btn-close-white" @click="handleCancel" aria-label="Close"></button>
-        </div>
-
-        <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label">Source File</label>
-            <div class="form-control-plaintext">{{ sourceName }}</div>
+    <div ref="modalElement" class="modal fade" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-light">
+          <div class="modal-header border-secondary">
+            <h5 class="modal-title">{{ isEditMode ? 'Edit Slice' : 'Create Slice' }}</h5>
+            <button type="button" class="btn-close btn-close-white" @click="handleCancel" aria-label="Close"></button>
           </div>
 
-          <div class="mb-3">
-            <label class="form-label">Region</label>
-            <div class="form-control-plaintext">
-              {{ formatTime(startTime) }} - {{ formatTime(endTime) }}
-              <span class="text-muted">({{ formatTime(endTime - startTime) }})</span>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Source File</label>
+              <div class="form-control-plaintext text-light">{{ sourceName }}</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Region</label>
+              <div class="form-control-plaintext text-light">
+                {{ formatTime(startTime) }} - {{ formatTime(endTime) }}
+                <span class="text-muted">({{ formatTime(endTime - startTime) }})</span>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="slice-title" class="form-label">Title *</label>
+              <input
+                id="slice-title"
+                v-model="title"
+                type="text"
+                placeholder="Enter slice title"
+                class="form-control"
+                autofocus
+              />
+            </div>
+
+            <div class="mb-3">
+              <label for="slice-notes" class="form-label">Notes</label>
+              <textarea
+                id="slice-notes"
+                v-model="notes"
+                placeholder="Add notes about this slice"
+                class="form-control"
+                rows="3"
+              ></textarea>
+            </div>
+
+            <div class="mb-3">
+              <label for="slice-tags" class="form-label">Tags</label>
+              <input
+                id="slice-tags"
+                v-model="tags"
+                type="text"
+                placeholder="Comma-separated tags"
+                class="form-control"
+              />
             </div>
           </div>
 
-          <div class="mb-3">
-            <label for="slice-title" class="form-label">Title *</label>
-            <input
-              id="slice-title"
-              v-model="title"
-              type="text"
-              placeholder="Enter slice title"
-              class="form-control"
-              autofocus
-            />
+          <div class="modal-footer border-secondary">
+            <button type="button" class="btn btn-secondary" @click="handleCancel">
+              Cancel
+            </button>
+            <button
+              type="button"
+              @click="handleSave"
+              class="btn btn-primary"
+              :disabled="!title.trim()"
+            >
+              {{ isEditMode ? 'Save Changes' : 'Create Slice' }}
+            </button>
           </div>
-
-          <div class="mb-3">
-            <label for="slice-notes" class="form-label">Notes</label>
-            <textarea
-              id="slice-notes"
-              v-model="notes"
-              placeholder="Add notes about this slice"
-              class="form-control"
-              rows="3"
-            ></textarea>
-          </div>
-
-          <div class="mb-3">
-            <label for="slice-tags" class="form-label">Tags</label>
-            <input
-              id="slice-tags"
-              v-model="tags"
-              type="text"
-              placeholder="Comma-separated tags"
-              class="form-control"
-            />
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button @click="handleCancel" class="btn btn-secondary">
-            Cancel
-          </button>
-          <button
-            @click="handleSave"
-            class="btn btn-primary"
-            :disabled="!title.trim()"
-          >
-            {{ isEditMode ? 'Save Changes' : 'Create Slice' }}
-          </button>
         </div>
       </div>
     </div>
@@ -154,74 +202,14 @@ const handleCancel = () => {
 </template>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.modal-dialog {
-  background: #2a2a2a;
+/* Custom dark theme adjustments for Bootstrap modal */
+.modal-content.bg-dark {
+  background-color: #2a2a2a !important;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  width: 100%;
-  max-width: 500px;
-  max-height: 90vh;
-  overflow: auto;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-size: 1.5rem;
-}
-
-.modal-body {
-  padding: 1.5rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-
-.readonly-field {
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  font-family: 'Courier New', monospace;
-  font-size: 0.9rem;
-}
-
-.duration {
-  opacity: 0.7;
-  margin-left: 0.5rem;
-}
-
-.modal-footer {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
-  padding: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+.modal-header.border-secondary,
+.modal-footer.border-secondary {
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 </style>

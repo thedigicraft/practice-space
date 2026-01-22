@@ -12,6 +12,7 @@ interface Props {
   slices?: Slice[] // Existing slices to display as highlights
   currentTime?: number // Current playback time in seconds
   isPlayingRegion: boolean
+  selectedSliceId?: string | null // ID of currently selected slice being edited
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -30,6 +31,7 @@ interface Region {
 const emit = defineEmits<{
   regionSelected: [region: { startTime: number; endTime: number }]
   regionUpdated: [region: { startTime: number; endTime: number }]
+  regionDragging: [region: { startTime: number; endTime: number }]
   playRegion: [region: { startTime: number; endTime: number }]
   createSlice: []
   selectSlice: [slice: Slice]
@@ -46,6 +48,9 @@ const isDragging = ref(false)
 const region = ref<Region | null>(null)
 const currentRegion = ref<Region | null>(null)
 const handleBeingDragged = ref<'start' | 'end' | null>(null)
+const isDraggingRegion = ref(false)
+const dragStartPosition = ref(0)
+const cursorStyle = ref('default')
 
 // Compute visible range based on zoom and pan
 const visibleRange = computed(() => {
@@ -100,6 +105,11 @@ const drawWaveform = () => {
   // Draw existing slices as highlights (on top of waveform)
   if (props.slices && props.slices.length > 0 && props.duration > 0) {
     props.slices.forEach(slice => {
+      // Skip drawing this slice if it's currently selected/being edited
+      // The blue selection region will be drawn instead
+      if (props.selectedSliceId && slice.id === props.selectedSliceId) {
+        return
+      }
       // Convert slice times to normalized positions (0-1)
       const sliceStart = slice.startTime / props.duration
       const sliceEnd = slice.endTime / props.duration
@@ -123,19 +133,42 @@ const drawWaveform = () => {
         ctx.fillStyle = isSelected ? 'rgba(74, 158, 255, 0.4)' : 'rgba(46, 204, 113, 0.3)'
         ctx.fillRect(startX, 0, regionWidth, height)
 
-        // Draw green borders
+        // Draw border around entire slice box
         ctx.strokeStyle = isSelected ? '#4a9eff' : '#2ecc71'
-        ctx.lineWidth = 2
-        ctx.beginPath()
-        if (sliceStartInView >= 0 && sliceStartInView <= 1) {
-          ctx.moveTo(startX, 0)
-          ctx.lineTo(startX, height)
+        ctx.lineWidth = 1
+        ctx.strokeRect(startX, 0, regionWidth, height)
+
+        // Draw label badge at top left
+        if (regionWidth > 40) { // Only show label if there's enough space
+          const labelPadding = 6
+          const labelHeight = 20
+          const maxLabelWidth = Math.min(regionWidth - 8, 150)
+          
+          // Measure text
+          ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+          ctx.textBaseline = 'top'
+          let labelText = slice.title
+          let textWidth = ctx.measureText(labelText).width
+          
+          // Truncate text if needed
+          if (textWidth > maxLabelWidth - labelPadding * 2) {
+            while (textWidth > maxLabelWidth - labelPadding * 2 - 10 && labelText.length > 0) {
+              labelText = labelText.slice(0, -1)
+              textWidth = ctx.measureText(labelText + '...').width
+            }
+            labelText += '...'
+          }
+          
+          const labelWidth = Math.min(textWidth + labelPadding * 2, maxLabelWidth)
+          
+          // Draw badge background
+          ctx.fillStyle = isSelected ? 'rgba(74, 158, 255, 0.9)' : 'rgba(46, 204, 113, 0.9)'
+          ctx.fillRect(startX + 4, 4, labelWidth, labelHeight)
+          
+          // Draw badge text
+          ctx.fillStyle = '#ffffff'
+          ctx.fillText(labelText, startX + 4 + labelPadding, 4 + (labelHeight - 11) / 2 + 1)
         }
-        if (sliceEndInView >= 0 && sliceEndInView <= 1) {
-          ctx.moveTo(endX, 0)
-          ctx.lineTo(endX, height)
-        }
-        ctx.stroke()
       }
     })
   }
@@ -158,19 +191,10 @@ const drawWaveform = () => {
       ctx.fillStyle = 'rgba(74, 158, 255, 0.2)'
       ctx.fillRect(startX, 0, regionWidth, height)
 
-      // Region borders
+      // Region border around entire box
       ctx.strokeStyle = '#4a9eff'
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      if (regionStartInView >= 0 && regionStartInView <= 1) {
-        ctx.moveTo(startX, 0)
-        ctx.lineTo(startX, height)
-      }
-      if (regionEndInView >= 0 && regionEndInView <= 1) {
-        ctx.moveTo(endX, 0)
-        ctx.lineTo(endX, height)
-      }
-      ctx.stroke()
+      ctx.lineWidth = 1
+      ctx.strokeRect(startX, 0, regionWidth, height)
 
       // Draggable handles
       ctx.fillStyle = '#4a9eff'
@@ -224,6 +248,13 @@ const handleMouseDown = (e: MouseEvent) => {
       isDragging.value = true
       return
     }
+    // Check if clicking inside the region to drag entire box
+    if (normalizedX >= region.value.start && normalizedX <= region.value.end) {
+      isDraggingRegion.value = true
+      isDragging.value = true
+      dragStartPosition.value = normalizedX
+      return
+    }
   }
 
   // Check if clicking on a slice
@@ -247,7 +278,7 @@ const handleMouseDown = (e: MouseEvent) => {
 }
 
 const handleMouseMove = (e: MouseEvent) => {
-  if (!isDragging.value || !canvasRef.value) return
+  if (!canvasRef.value) return
 
   const rect = canvasRef.value.getBoundingClientRect()
   const x = e.clientX - rect.left
@@ -257,6 +288,21 @@ const handleMouseMove = (e: MouseEvent) => {
   const range = visibleRange.value
   const normalizedX = range.start + (canvasX * (range.end - range.start))
 
+  // Update cursor based on hover position
+  if (region.value && !isDragging.value) {
+    const startHandlePos = (region.value.start - range.start) / (range.end - range.start)
+    const endHandlePos = (region.value.end - range.start) / (range.end - range.start)
+    if (Math.abs(canvasX - startHandlePos) * props.width < 8 || Math.abs(canvasX - endHandlePos) * props.width < 8) {
+      cursorStyle.value = 'ew-resize'
+    } else if (normalizedX >= region.value.start && normalizedX <= region.value.end) {
+      cursorStyle.value = 'move'
+    } else {
+      cursorStyle.value = 'default'
+    }
+  }
+
+  if (!isDragging.value) return
+
   if (handleBeingDragged.value && region.value) {
     if (handleBeingDragged.value === 'start') {
       region.value.start = normalizedX
@@ -264,6 +310,39 @@ const handleMouseMove = (e: MouseEvent) => {
       region.value.end = normalizedX
     }
     drawWaveform()
+    // Emit realtime update during drag
+    emit('regionDragging', {
+      startTime: region.value.start * props.duration,
+      endTime: region.value.end * props.duration,
+    })
+    return
+  }
+
+  if (isDraggingRegion.value && region.value) {
+    const delta = normalizedX - dragStartPosition.value
+    const regionWidth = region.value.end - region.value.start
+    let newStart = region.value.start + delta
+    let newEnd = region.value.end + delta
+    
+    // Constrain to bounds
+    if (newStart < 0) {
+      newStart = 0
+      newEnd = regionWidth
+    }
+    if (newEnd > 1) {
+      newEnd = 1
+      newStart = 1 - regionWidth
+    }
+    
+    region.value.start = newStart
+    region.value.end = newEnd
+    dragStartPosition.value = normalizedX
+    drawWaveform()
+    // Emit realtime update during drag
+    emit('regionDragging', {
+      startTime: region.value.start * props.duration,
+      endTime: region.value.end * props.duration,
+    })
     return
   }
 
@@ -283,6 +362,16 @@ const handleMouseUp = () => {
     emit('regionUpdated', {
       startTime: start * props.duration,
       endTime: end * props.duration,
+    })
+    return
+  }
+
+  if (isDraggingRegion.value && region.value) {
+    isDraggingRegion.value = false
+    isDragging.value = false
+    emit('regionUpdated', {
+      startTime: region.value.start * props.duration,
+      endTime: region.value.end * props.duration,
     })
     return
   }
@@ -431,7 +520,7 @@ const formatTime = (seconds: number): string => {
 
 // Redraw when waveform data or dimensions change
 watch(
-  () => [props.waveformData, props.width, props.height, props.color, props.currentTime],
+  () => [props.waveformData, props.width, props.height, props.color, props.currentTime, props.selectedSliceId, props.slices],
   () => {
     drawWaveform()
   },
@@ -486,6 +575,7 @@ defineExpose({ clearRegion, setRegion })
     <canvas 
       ref="canvasRef" 
       class="waveform-canvas"
+      :style="{ cursor: cursorStyle }"
       @mousedown="handleMouseDown"
       @mousemove="handleMouseMove"
       @mouseup="handleMouseUp"

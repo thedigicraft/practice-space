@@ -95,7 +95,12 @@ export async function deleteAudioFile(id: string): Promise<void> {
 // Slice operations
 export async function saveSlice(slice: Slice): Promise<void> {
   const db = await getDB()
-  await db.put('slices', slice)
+  // Ensure tags is a plain array (if it exists) to avoid cloning issues
+  const cleanSlice = {
+    ...slice,
+    tags: slice.tags ? [...slice.tags] : undefined
+  }
+  await db.put('slices', cleanSlice)
 }
 
 export async function getSlice(id: string): Promise<Slice | undefined> {
