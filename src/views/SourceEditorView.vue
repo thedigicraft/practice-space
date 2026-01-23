@@ -2,8 +2,8 @@
   <div class="source-editor-view">
     <header class="view-header">
       <div class="header-content">
-        <button class="btn btn-outline-secondary" @click="$emit('back')">
-          ← Back
+        <button class="btn btn-outline-secondary" @click="handleBack">
+          <i class="fas fa-arrow-left"></i> Back
         </button>
         <div class="source-title">
           <input
@@ -27,6 +27,13 @@
             {{ formatDuration(source.duration) }} • {{ formatFileSize(source.size) }}
           </p>
         </div>
+        <button 
+          @click="toggleSidebar" 
+          class="btn btn-outline-secondary"
+          :title="sidebarCollapsed ? 'Show slices' : 'Hide slices'"
+        >
+          <i :class="sidebarCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right'"></i> Slices ({{ sourceSlices.length }})
+        </button>
       </div>
     </header>
 
@@ -50,37 +57,21 @@
                 :current-time="currentTime"
                 :is-playing-region="isPlayingRegion"
                 :selected-slice-id="selectedSliceId"
+                :waveform-mode="waveformMode"
                 @regionSelected="handleRegionSelected"
                 @regionUpdated="handleRegionUpdated"
                 @regionDragging="handleRegionDragging"
+                @regionCleared="clearSelection"
                 @playRegion="handlePlayRegion"
                 @createSlice="handleCreateSlice"
                 @selectSlice="handleSelectSlice"
+                @seek="emit('seek', $event)"
+                @toggle-waveform-mode="waveformMode = waveformMode === 'line' ? 'bars' : 'line'"
                 ref="waveformRef"
               />
             </div>
 
-            <ContextualToolbar
-              :mode="toolbarMode"
-              :selection="selectedRegion"
-              :slice="selectedSlice"
-              :is-playing="isPlaying"
-              @play-region="handlePlayRegion"
-              @play-slice="handlePlaySlice"
-              @create-slice="handleCreateSlice"
-              @update-slice="handleUpdateSlice"
-              @delete-slice="handleDeleteSlice"
-              @clear-selection="clearSelection"
-            />
-
-            <SliceWaveformViewer
-              :slice="selectedSliceForWaveform"
-              :source="source"
-              :current-time="currentTime"
-              :is-playing="isPlaying"
-            />
-
-            <!-- Playback Controls -->
+            <!-- Playback Controls - Positioned directly below waveform -->
             <div class="playback-section">
               <PlaybackControls
                 :isPlaying="isPlaying"
@@ -92,6 +83,41 @@
                 @seek="seek"
               />
             </div>
+
+            <ContextualToolbar
+              :mode="toolbarMode"
+              :selection="selectedRegion"
+              :slice="selectedSlice"
+              :is-playing="isPlaying"
+              v-model:title="newSliceTitle"
+              @play-region="handlePlayRegion"
+              @seek-to-slice="handleSeekToSlice"
+              @zoom-to-slice="handleZoomToSlice"
+              @create-slice="handleCreateSlice"
+              @save-slice="handleSaveSliceFromToolbar"
+              @delete-slice="handleDeleteSlice"
+              @clear-selection="clearSelection"
+            />
+
+            <SliceWaveformViewer
+              v-if="selectedRegion || selectedSlice"
+              :slice="selectedSliceForWaveform"
+              :source="source"
+              :current-time="currentTime"
+              :is-playing="isPlaying"
+              :waveform-mode="waveformMode"
+              @toggle-waveform-mode="waveformMode = waveformMode === 'line' ? 'bars' : 'line'"
+            />
+
+            <SliceEditorForm
+              v-if="selectedSlice"
+              :slice="selectedSlice"
+              :selection="selectedRegion"
+              :hide-save-button="true"
+              @update="handleUpdateSlice"
+              @cancel="clearSelection"
+              ref="sliceEditorFormRef"
+            />
           </section>
         </div>
 
@@ -103,8 +129,10 @@
       <SliceSidebar
         :slices="sourceSlices"
         :selected-slice-id="selectedSliceId"
+        :is-collapsed="sidebarCollapsed"
         @select-slice="handleSelectSlice"
-        @play-slice="handlePlaySlice"
+        @seek-to-slice="handleSeekToSlice"
+        @filter-by-artist="handleFilterByArtist"
       />
     </div>
 
@@ -120,11 +148,22 @@
       @update="handleUpdateSlice"
       @cancel="handleCancelSlice"
     />
+
+    <!-- Loading Overlay -->
+    <div v-if="isLoading" class="loading-overlay">
+      <div class="loading-content">
+        <div class="spinner-border text-primary" role="status" style="width: 4rem; height: 4rem;">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="loading-text">Loading audio file...</p>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, inject } from 'vue'
+import { ref, computed, watch, inject, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import type { Ref } from 'vue'
 import type { Source, Slice } from '../types/models'
 import WaveformViewer from '../components/WaveformViewer.vue'
@@ -133,7 +172,10 @@ import CreateSliceDialog from '../components/CreateSliceDialog.vue'
 import ContextualToolbar from '../components/ContextualToolbar.vue'
 import SliceSidebar from '../components/SliceSidebar.vue'
 import SliceWaveformViewer from '../components/SliceWaveformViewer.vue'
+import SliceEditorForm from '../components/SliceEditorForm.vue'
 import { formatTime, formatFileSize } from '../utils/helpers'
+
+const router = useRouter()
 
 interface Props {
   id: string
@@ -166,15 +208,37 @@ const emit = defineEmits<{
   stop: []
   seek: [time: number]
   updateSource: [source: Source]
+  loadAudioFile: [source: Source]
 }>()
 
+// Load the audio file when component mounts or source changes
+onMounted(() => {
+  if (source.value) {
+    emit('loadAudioFile', source.value)
+  }
+})
+
+watch(source, (newSource) => {
+  if (newSource) {
+    emit('loadAudioFile', newSource)
+  }
+})
+
 const waveformRef = ref<InstanceType<typeof WaveformViewer> | null>(null)
+const sliceEditorFormRef = ref<InstanceType<typeof SliceEditorForm> | null>(null)
 const showSliceDialog = ref(false)
 const selectedRegion = ref<{ startTime: number; endTime: number } | null>(null)
 const editingSlice = ref<Slice | null>(null)
 const isPlayingRegion = ref(false)
 const selectedSliceId = ref<string | null>(null)
 const toolbarMode = ref<'region' | 'slice' | null>(null)
+const sidebarCollapsed = ref(true)
+const waveformMode = ref<'line' | 'bars'>('bars')
+const newSliceTitle = ref('')
+
+const toggleSidebar = () => {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+}
 
 const sourceSlices = computed(() => {
   if (!source.value) return []
@@ -222,6 +286,7 @@ const handleRegionSelected = (region: { startTime: number; endTime: number }) =>
   editingSlice.value = null
   selectedSliceId.value = null
   toolbarMode.value = 'region'
+  newSliceTitle.value = ''
 }
 
 const handleRegionDragging = (region: { startTime: number; endTime: number }) => {
@@ -292,6 +357,24 @@ const selectedSlice = computed(() => {
 
 // Slice with realtime bounds for the waveform viewer during drag
 const selectedSliceForWaveform = computed(() => {
+  // If we're in region mode (before creating a slice), create a temporary slice for preview
+  if (toolbarMode.value === 'region' && selectedRegion.value && source.value) {
+    return {
+      id: 'temp-preview',
+      audioFileId: source.value.id,
+      title: newSliceTitle.value || 'New Slice',
+      startTime: selectedRegion.value.startTime,
+      endTime: selectedRegion.value.endTime,
+      folderId: null,
+      projectIds: [],
+      composer: '',
+      performers: [],
+      type: '',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    } as Slice
+  }
+  
   if (!selectedSlice.value) return null
   
   // If we're in slice mode and have a region that differs from the slice bounds,
@@ -322,9 +405,37 @@ const clearSelection = () => {
   }
 }
 
-const handleCreateSlice = () => {
-  if (selectedRegion.value) {
-    showSliceDialog.value = true
+const handleCreateSlice = async () => {
+  if (selectedRegion.value && source.value) {
+    // Create slice directly without modal
+    const slice: Omit<Slice, 'id' | 'createdAt' | 'updatedAt'> = {
+      audioFileId: source.value.id,
+      title: newSliceTitle.value.trim() || 'Untitled Slice',
+      startTime: selectedRegion.value.startTime,
+      endTime: selectedRegion.value.endTime,
+      folderId: null,
+      projectIds: [],
+      composer: '',
+      performers: [],
+      type: '',
+    }
+    
+    const newSliceId = await emit('createSlice', slice)
+    
+    // Clear title and toolbar state
+    newSliceTitle.value = ''
+    toolbarMode.value = null
+    
+    // Wait for the slices to update, then select the new slice
+    setTimeout(() => {
+      const createdSlice = sourceSlices.value.find(s => s.audioFileId === source.value!.id && 
+        Math.abs(s.startTime - slice.startTime) < 0.001 && 
+        Math.abs(s.endTime - slice.endTime) < 0.001)
+      
+      if (createdSlice) {
+        handleSelectSlice(createdSlice)
+      }
+    }, 100)
   }
 }
 
@@ -352,6 +463,12 @@ const handleEditSlice = (slice: Slice) => {
   showSliceDialog.value = true
 }
 
+const handleSaveSliceFromToolbar = () => {
+  if (sliceEditorFormRef.value) {
+    sliceEditorFormRef.value.triggerSave()
+  }
+}
+
 const handleDeleteSlice = (sliceId: string) => {
   const slice = sourceSlices.value.find(s => s.id === sliceId)
   if (slice && confirm(`Delete slice "${slice.title}"?`)) {
@@ -370,8 +487,27 @@ const handleCancelSlice = () => {
   }
 }
 
-const handlePlaySlice = (slice: Slice) => {
-  emit('playSlice', slice)
+const handleBack = () => {
+  emit('back')
+}
+
+const handleFilterByArtist = (artistName: string) => {
+  router.push({ 
+    path: '/slices', 
+    query: { artist: artistName } 
+  })
+}
+
+const handleSeekToSlice = (slice: Slice) => {
+  // Just seek to the start of the slice
+  emit('seek', slice.startTime)
+}
+
+const handleZoomToSlice = (slice: Slice) => {
+  // Zoom the waveform to fit the slice with padding
+  if (waveformRef.value) {
+    waveformRef.value.zoomToRange(slice.startTime, slice.endTime, 0.15) // 15% padding on each side
+  }
 }
 
 const togglePlayPause = () => {
@@ -412,8 +548,6 @@ const seek = (time: number) => {
   display: flex;
   align-items: center;
   gap: 1rem;
-  max-width: 1400px;
-  margin: 0 auto;
 }
 
 
@@ -455,8 +589,6 @@ const seek = (time: number) => {
   flex: 1;
   overflow: auto;
   padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
   width: 100%;
 }
 
@@ -508,5 +640,33 @@ const seek = (time: number) => {
 
 .empty-state p {
   margin: 0.5rem 0;
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.loading-text {
+  color: #fff;
+  font-size: 1.25rem;
+  margin: 0;
+  font-weight: 500;
 }
 </style>

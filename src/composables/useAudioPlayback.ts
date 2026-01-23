@@ -33,6 +33,9 @@ export function useAudioPlayback() {
    */
   const loadAudioFile = async (audioFile: Source): Promise<void> => {
     try {
+      // Always stop any existing playback before loading new file
+      stop()
+      
       isLoading.value = true
       currentAudioFile = audioFile
 
@@ -54,6 +57,9 @@ export function useAudioPlayback() {
    */
   const play = (startTime = 0, playDuration?: number) => {
     try {
+      // Always stop first to prevent multiple instances
+      stop()
+      
       audioService.play(startTime, playDuration)
       isPlaying.value = true
       updateTime()
@@ -109,7 +115,10 @@ export function useAudioPlayback() {
     if (isPlaying.value) {
       pause()
     } else if (audioService.getAudioBuffer()) {
-      audioService.resume()
+      // Ensure we're fully stopped before starting playback
+      stop()
+      // Play from current position if buffer is loaded
+      audioService.play(currentTime.value)
       isPlaying.value = true
       updateTime()
     }

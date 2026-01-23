@@ -13,6 +13,7 @@ interface Props {
   currentTime?: number // Current playback time in seconds
   isPlayingRegion: boolean
   selectedSliceId?: string | null // ID of currently selected slice being edited
+  waveformMode?: 'line' | 'bars'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -21,6 +22,7 @@ const props = withDefaults(defineProps<Props>(), {
   color: '#4a9eff',
   backgroundColor: '#1a1a1a',
   duration: 0,
+  waveformMode: 'line',
 })
 
 interface Region {
@@ -32,9 +34,12 @@ const emit = defineEmits<{
   regionSelected: [region: { startTime: number; endTime: number }]
   regionUpdated: [region: { startTime: number; endTime: number }]
   regionDragging: [region: { startTime: number; endTime: number }]
+  regionCleared: []
   playRegion: [region: { startTime: number; endTime: number }]
   createSlice: []
   selectSlice: [slice: Slice]
+  seek: [time: number]
+  'toggle-waveform-mode': []
 }>()
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -49,6 +54,8 @@ const region = ref<Region | null>(null)
 const currentRegion = ref<Region | null>(null)
 const handleBeingDragged = ref<'start' | 'end' | null>(null)
 const isDraggingRegion = ref(false)
+const isDraggingPlayhead = ref(false)
+const playheadDragPosition = ref<number | null>(null) // Normalized 0-1 position during drag
 const dragStartPosition = ref(0)
 const cursorStyle = ref('default')
 
@@ -63,6 +70,29 @@ const visibleRange = computed(() => {
   }
 })
 
+// Compute playhead position as percentage for the handle
+const playheadPosition = computed(() => {
+  if (props.currentTime === undefined || props.duration <= 0) {
+    return null
+  }
+  
+  // Use drag position if actively dragging, otherwise use currentTime
+  const normalizedTime = isDraggingPlayhead.value && playheadDragPosition.value !== null
+    ? playheadDragPosition.value
+    : props.currentTime / props.duration
+  
+  const range = visibleRange.value
+  const playheadInView = (normalizedTime - range.start) / (range.end - range.start)
+  
+  // Only show if within visible range
+  if (playheadInView >= 0 && playheadInView <= 1) {
+    return `${playheadInView * 100}%`
+  }
+  
+  return null
+})
+
+// Draw the waveform
 const drawWaveform = () => {
   if (!canvasRef.value || !props.waveformData) return
 
@@ -88,18 +118,62 @@ const drawWaveform = () => {
   // Draw waveform for visible range
   const width = canvas.width
   const height = canvas.height
-  const barWidth = width / visibleData.length
+  const stepX = width / visibleData.length
   const centerY = height / 2
 
-  ctx.fillStyle = props.color
+  // Detect if data contains signed values (new format) or absolute values (old format)
+  // If all values are >= 0, it's old format (absolute)
+  let hasNegativeValues = false
+  for (let i = 0; i < Math.min(visibleData.length, 100); i++) {
+    if (visibleData[i] < 0) {
+      hasNegativeValues = true
+      break
+    }
+  }
 
-  for (let i = 0; i < visibleData.length; i++) {
-    const amplitude = visibleData[i]
-    const barHeight = amplitude * centerY
-    const x = i * barWidth
-    const y = centerY - barHeight / 2
+  if (props.waveformMode === 'bars') {
+    // Draw as bars (original style)
+    ctx.fillStyle = props.color
+    const barWidth = width / visibleData.length
 
-    ctx.fillRect(x, y, Math.max(1, barWidth), barHeight)
+    for (let i = 0; i < visibleData.length; i++) {
+      const amplitude = Math.abs(visibleData[i])
+      const barHeight = amplitude * centerY
+      const x = i * barWidth
+      const y = centerY - barHeight / 2
+
+      ctx.fillRect(x, y, Math.max(1, barWidth), barHeight)
+    }
+  } else {
+    // Draw as line
+    ctx.strokeStyle = props.color
+    ctx.lineWidth = 1.5
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+
+    // Draw single continuous waveform line
+    ctx.beginPath()
+    for (let i = 0; i < visibleData.length; i++) {
+      const amplitude = visibleData[i]
+      const x = i * stepX
+      let y
+      
+      if (hasNegativeValues) {
+        // New format: signed values that oscillate naturally
+        y = centerY - (amplitude * centerY * 0.9)
+      } else {
+        // Old format: absolute values - alternate above/below center for oscillation effect
+        const offset = (i % 2 === 0 ? 1 : -1) * amplitude * centerY * 0.9
+        y = centerY - offset
+      }
+      
+      if (i === 0) {
+        ctx.moveTo(x, y)
+      } else {
+        ctx.lineTo(x, y)
+      }
+    }
+    ctx.stroke()
   }
 
   // Draw existing slices as highlights (on top of waveform)
@@ -125,9 +199,7 @@ const drawWaveform = () => {
         const endX = Math.min(width, sliceEndInView * width)
         const regionWidth = endX - startX
 
-        const isSelected = region.value && 
-                           Math.abs(slice.startTime - region.value.start * props.duration) < 0.01 &&
-                           Math.abs(slice.endTime - region.value.end * props.duration) < 0.01
+        const isSelected = slice.id === props.selectedSliceId
 
         // Draw more visible green overlay for saved slices
         ctx.fillStyle = isSelected ? 'rgba(74, 158, 255, 0.4)' : 'rgba(46, 204, 113, 0.3)'
@@ -138,8 +210,8 @@ const drawWaveform = () => {
         ctx.lineWidth = 1
         ctx.strokeRect(startX, 0, regionWidth, height)
 
-        // Draw label badge at top left
-        if (regionWidth > 40) { // Only show label if there's enough space
+        // Draw label badge at top left - always show for better visibility
+        if (regionWidth > 30) { // Only show label if there's enough space
           const labelPadding = 6
           const labelHeight = 20
           const maxLabelWidth = Math.min(regionWidth - 8, 150)
@@ -161,8 +233,8 @@ const drawWaveform = () => {
           
           const labelWidth = Math.min(textWidth + labelPadding * 2, maxLabelWidth)
           
-          // Draw badge background
-          ctx.fillStyle = isSelected ? 'rgba(74, 158, 255, 0.9)' : 'rgba(46, 204, 113, 0.9)'
+          // Draw badge background - black for better contrast
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'
           ctx.fillRect(startX + 4, 4, labelWidth, labelHeight)
           
           // Draw badge text
@@ -203,7 +275,7 @@ const drawWaveform = () => {
     }
   }
 
-  // Draw playhead
+  // Draw playhead line (handle is separate HTML element)
   if (props.currentTime !== undefined && props.duration > 0) {
     const normalizedTime = props.currentTime / props.duration
     const range = visibleRange.value
@@ -211,7 +283,9 @@ const drawWaveform = () => {
 
     if (playheadInView >= 0 && playheadInView <= 1) {
       const x = playheadInView * width
-      ctx.strokeStyle = '#ff6b6b' // A distinct color for the playhead
+      
+      // Draw vertical line only
+      ctx.strokeStyle = '#ff6b6b'
       ctx.lineWidth = 2
       ctx.beginPath()
       ctx.moveTo(x, 0)
@@ -222,6 +296,62 @@ const drawWaveform = () => {
 }
 
 // Mouse event handlers
+const handlePlayheadHandleMouseDown = (e: MouseEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+  isDraggingPlayhead.value = true
+  
+  // Add window listeners for smooth dragging
+  const handleWindowMouseMove = (e: MouseEvent) => {
+    if (!canvasRef.value || !isDraggingPlayhead.value) return
+    
+    const rect = canvasRef.value.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const canvasX = Math.max(0, Math.min(1, x / rect.width))
+    const range = visibleRange.value
+    const normalizedX = range.start + (canvasX * (range.end - range.start))
+    
+    playheadDragPosition.value = normalizedX
+    const newTime = normalizedX * props.duration
+    emit('seek', Math.max(0, Math.min(props.duration, newTime)))
+  }
+  
+  const handleWindowMouseUp = () => {
+    isDraggingPlayhead.value = false
+    playheadDragPosition.value = null
+    window.removeEventListener('mousemove', handleWindowMouseMove)
+    window.removeEventListener('mouseup', handleWindowMouseUp)
+  }
+  
+  window.addEventListener('mousemove', handleWindowMouseMove)
+  window.addEventListener('mouseup', handleWindowMouseUp)
+}
+
+const handleDoubleClick = (e: MouseEvent) => {
+  if (!canvasRef.value) return
+
+  const rect = canvasRef.value.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  const canvasX = Math.max(0, Math.min(1, x / rect.width))
+  
+  // Convert canvas position to actual waveform position accounting for zoom/pan
+  const range = visibleRange.value
+  const normalizedX = range.start + (canvasX * (range.end - range.start))
+
+  // Check if double-clicking on a slice
+  if (props.slices && props.duration > 0) {
+    for (const slice of props.slices) {
+      const sliceStart = slice.startTime / props.duration
+      const sliceEnd = slice.endTime / props.duration
+      if (normalizedX >= sliceStart && normalizedX <= sliceEnd) {
+        // Zoom to this slice
+        zoomToRange(slice.startTime, slice.endTime, 0.15)
+        return
+      }
+    }
+  }
+}
+
 const handleMouseDown = (e: MouseEvent) => {
   if (!canvasRef.value) return
 
@@ -288,21 +418,24 @@ const handleMouseMove = (e: MouseEvent) => {
   const range = visibleRange.value
   const normalizedX = range.start + (canvasX * (range.end - range.start))
 
-  // Update cursor based on hover position
-  if (region.value && !isDragging.value) {
-    const startHandlePos = (region.value.start - range.start) / (range.end - range.start)
-    const endHandlePos = (region.value.end - range.start) / (range.end - range.start)
-    if (Math.abs(canvasX - startHandlePos) * props.width < 8 || Math.abs(canvasX - endHandlePos) * props.width < 8) {
-      cursorStyle.value = 'ew-resize'
-    } else if (normalizedX >= region.value.start && normalizedX <= region.value.end) {
-      cursorStyle.value = 'move'
-    } else {
-      cursorStyle.value = 'default'
+  // Update cursor based on hover position when not dragging
+  if (!isDragging.value) {
+    if (region.value) {
+      const startHandlePos = (region.value.start - range.start) / (range.end - range.start)
+      const endHandlePos = (region.value.end - range.start) / (range.end - range.start)
+      if (Math.abs(canvasX - startHandlePos) * props.width < 8 || Math.abs(canvasX - endHandlePos) * props.width < 8) {
+        cursorStyle.value = 'ew-resize'
+        return
+      } else if (normalizedX >= region.value.start && normalizedX <= region.value.end) {
+        cursorStyle.value = 'move'
+        return
+      }
     }
+    cursorStyle.value = 'default'
+    return
   }
 
-  if (!isDragging.value) return
-
+  // Handle region handle dragging
   if (handleBeingDragged.value && region.value) {
     if (handleBeingDragged.value === 'start') {
       region.value.start = normalizedX
@@ -310,7 +443,6 @@ const handleMouseMove = (e: MouseEvent) => {
       region.value.end = normalizedX
     }
     drawWaveform()
-    // Emit realtime update during drag
     emit('regionDragging', {
       startTime: region.value.start * props.duration,
       endTime: region.value.end * props.duration,
@@ -318,6 +450,7 @@ const handleMouseMove = (e: MouseEvent) => {
     return
   }
 
+  // Handle region box dragging
   if (isDraggingRegion.value && region.value) {
     const delta = normalizedX - dragStartPosition.value
     const regionWidth = region.value.end - region.value.start
@@ -338,7 +471,6 @@ const handleMouseMove = (e: MouseEvent) => {
     region.value.end = newEnd
     dragStartPosition.value = normalizedX
     drawWaveform()
-    // Emit realtime update during drag
     emit('regionDragging', {
       startTime: region.value.start * props.duration,
       endTime: region.value.end * props.duration,
@@ -346,10 +478,11 @@ const handleMouseMove = (e: MouseEvent) => {
     return
   }
 
-  if (!currentRegion.value) return
-
-  currentRegion.value.end = normalizedX
-  drawWaveform()
+  // Handle new region selection
+  if (currentRegion.value) {
+    currentRegion.value.end = normalizedX
+    drawWaveform()
+  }
 }
 
 const handleMouseUp = () => {
@@ -412,6 +545,7 @@ const handleMouseLeave = () => {
 const clearRegion = () => {
   region.value = null
   currentRegion.value = null
+  emit('regionCleared')
   drawWaveform()
 }
 
@@ -419,11 +553,12 @@ const clearRegion = () => {
 const zoomIn = () => {
   zoomLevel.value = Math.min(zoomLevel.value * 1.5, 20) // Max 20x zoom
   
-  // Adjust pan to keep center point stable
-  const range = visibleRange.value
-  const centerPoint = (range.start + range.end) / 2
+  // Adjust pan to keep playhead position as center point
+  const playheadPosition = props.currentTime !== undefined && props.duration > 0 
+    ? props.currentTime / props.duration 
+    : 0.5 // Default to center if no playhead
   const newVisibleWidth = 1 / zoomLevel.value
-  panOffset.value = centerPoint - newVisibleWidth / 2
+  panOffset.value = playheadPosition - newVisibleWidth / 2
   
   drawWaveform()
 }
@@ -434,11 +569,12 @@ const zoomOut = () => {
   if (zoomLevel.value === 1) {
     panOffset.value = 0
   } else {
-    // Adjust pan to keep center point stable
-    const range = visibleRange.value
-    const centerPoint = (range.start + range.end) / 2
+    // Adjust pan to keep playhead position as center point
+    const playheadPosition = props.currentTime !== undefined && props.duration > 0 
+      ? props.currentTime / props.duration 
+      : 0.5 // Default to center if no playhead
     const newVisibleWidth = 1 / zoomLevel.value
-    panOffset.value = centerPoint - newVisibleWidth / 2
+    panOffset.value = playheadPosition - newVisibleWidth / 2
   }
   
   drawWaveform()
@@ -447,6 +583,32 @@ const zoomOut = () => {
 const resetZoom = () => {
   zoomLevel.value = 1
   panOffset.value = 0
+  drawWaveform()
+}
+
+const zoomToRange = (startTime: number, endTime: number, padding = 0.1) => {
+  if (props.duration <= 0) return
+  
+  // Convert times to normalized positions
+  const startNorm = startTime / props.duration
+  const endNorm = endTime / props.duration
+  const rangeWidth = endNorm - startNorm
+  
+  // Add padding on both sides (as a fraction of the range)
+  const paddedWidth = rangeWidth * (1 + padding * 2)
+  
+  // Calculate required zoom level to fit the padded range
+  const requiredZoom = 1 / paddedWidth
+  zoomLevel.value = Math.max(1, Math.min(requiredZoom, 20)) // Clamp between 1x and 20x
+  
+  // Center the view on the middle of the range
+  const rangeCenter = (startNorm + endNorm) / 2
+  const visibleWidth = 1 / zoomLevel.value
+  panOffset.value = rangeCenter - visibleWidth / 2
+  
+  // Ensure pan is within bounds
+  panOffset.value = Math.max(0, Math.min(1 - visibleWidth, panOffset.value))
+  
   drawWaveform()
 }
 
@@ -520,7 +682,7 @@ const formatTime = (seconds: number): string => {
 
 // Redraw when waveform data or dimensions change
 watch(
-  () => [props.waveformData, props.width, props.height, props.color, props.currentTime, props.selectedSliceId, props.slices],
+  () => [props.waveformData, props.width, props.height, props.color, props.currentTime, props.selectedSliceId, props.slices, props.waveformMode],
   () => {
     drawWaveform()
   },
@@ -544,15 +706,18 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
 })
 
-defineExpose({ clearRegion, setRegion })
+defineExpose({ clearRegion, setRegion, zoomToRange })
 </script>
 
 <template>
   <div class="waveform-viewer">
     <!-- Zoom Controls -->
     <div class="zoom-controls">
+      <button @click="emit('toggle-waveform-mode')" class="btn btn-sm btn-outline-primary" :title="props.waveformMode === 'line' ? 'Switch to bars view' : 'Switch to line view'">
+        <i :class="props.waveformMode === 'line' ? 'fas fa-chart-bar' : 'fas fa-chart-line'"></i>
+      </button>
       <button @click="resetZoom" class="btn btn-sm btn-outline-primary" title="Reset zoom (1:1)">
-        🔍 Reset
+        <i class="fas fa-search-minus"></i> Reset
       </button>
       <button @click="zoomOut" class="btn btn-sm btn-outline-primary" :disabled="zoomLevel === 1" title="Zoom out">
         −
@@ -563,25 +728,36 @@ defineExpose({ clearRegion, setRegion })
       </button>
       <div class="pan-controls" v-if="zoomLevel > 1">
         <button @click="panLeft" class="btn btn-sm btn-outline-primary" title="Pan left">
-          ←
+          <i class="fas fa-chevron-left"></i>
         </button>
         <button @click="panRight" class="btn btn-sm btn-outline-primary" title="Pan right">
-          →
+          <i class="fas fa-chevron-right"></i>
         </button>
       </div>
       <span class="zoom-hint">Scroll to zoom</span>
     </div>
 
-    <canvas 
-      ref="canvasRef" 
-      class="waveform-canvas"
-      :style="{ cursor: cursorStyle }"
-      @mousedown="handleMouseDown"
-      @mousemove="handleMouseMove"
-      @mouseup="handleMouseUp"
-      @mouseleave="handleMouseLeave"
-      @wheel="handleWheel"
-    ></canvas>
+    <div class="canvas-wrapper">
+      <!-- Playhead handle -->
+      <div 
+        v-if="playheadPosition !== null"
+        class="playhead-handle"
+        :style="{ left: playheadPosition }"
+        @mousedown.stop="handlePlayheadHandleMouseDown"
+      ></div>
+
+      <canvas 
+        ref="canvasRef" 
+        class="waveform-canvas"
+        :style="{ cursor: cursorStyle }"
+        @mousedown="handleMouseDown"
+        @mousemove="handleMouseMove"
+        @mouseup="handleMouseUp"
+        @mouseleave="handleMouseLeave"
+        @dblclick="handleDoubleClick"
+        @wheel="handleWheel"
+      ></canvas>
+    </div>
     
     <div v-if="!waveformData" class="waveform-placeholder">
       No waveform data
@@ -633,9 +809,39 @@ defineExpose({ clearRegion, setRegion })
   font-size: 0.75rem;
 }
 
+.canvas-wrapper {
+  position: relative;
+  flex: 1;
+  width: 100%;
+}
+
+.playhead-handle {
+  position: absolute;
+  top: -8px;
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  background: #ff6b6b;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  cursor: grab;
+  z-index: 10;
+  transition: transform 0.1s ease;
+  pointer-events: auto;
+}
+
+.playhead-handle:hover {
+  transform: scale(1.2);
+}
+
+.playhead-handle:active {
+  cursor: grabbing;
+  transform: scale(1.1);
+}
+
 .waveform-canvas {
   width: 100%;
-  flex: 1;
+  height: 100%;
   display: block;
   cursor: crosshair;
   border-radius: 4px;

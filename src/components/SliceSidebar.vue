@@ -1,11 +1,5 @@
 <template>
   <aside class="slice-sidebar" :class="{ 'is-collapsed': isCollapsed }">
-    <div class="sidebar-header">
-      <h3 v-if="!isCollapsed">Slices ({{ slices.length }})</h3>
-      <button @click="toggleCollapse" class="btn btn-sm btn-outline-secondary rounded-circle" style="width: 30px; height: 30px; padding: 0;">
-        {{ isCollapsed ? '‹' : '›' }}
-      </button>
-    </div>
     <div v-if="!isCollapsed" class="sidebar-content">
       <div v-if="slices.length === 0" class="empty-state">
         No slices yet.
@@ -14,6 +8,8 @@
         <thead>
           <tr>
             <th>Title</th>
+            <th>Composer</th>
+            <th>Performer</th>
             <th>Duration</th>
             <th>Actions</th>
           </tr>
@@ -26,9 +22,35 @@
             @click="emit('selectSlice', slice)"
           >
             <td>{{ slice.title }}</td>
-            <td>{{ formatDuration(slice.endTime - slice.startTime) }}</td>
             <td>
-              <button @click.stop="emit('playSlice', slice)" class="btn btn-sm btn-link">▶</button>
+              <span v-if="slice.composers && slice.composers.length > 0">
+                <a
+                  v-for="(composer, idx) in slice.composers"
+                  :key="composer"
+                  @click.stop="emit('filterByArtist', composer)"
+                  class="artist-link"
+                >
+                  {{ composer }}<span v-if="idx < slice.composers.length - 1">, </span>
+                </a>
+              </span>
+              <span v-else>—</span>
+            </td>
+            <td>
+              <span v-if="slice.performers && slice.performers.length > 0">
+                <a
+                  v-for="(performer, idx) in slice.performers"
+                  :key="performer"
+                  @click.stop="emit('filterByArtist', performer)"
+                  class="artist-link"
+                >
+                  {{ performer }}<span v-if="idx < slice.performers.length - 1">, </span>
+                </a>
+              </span>
+              <span v-else>—</span>
+            </td>
+            <td>{{ formatTime(slice.endTime - slice.startTime) }}</td>
+            <td>
+              <button @click.stop="emit('seekToSlice', slice)" class="btn btn-sm btn-link" title="Jump to slice start"><i class="fas fa-step-backward"></i></button>
             </td>
           </tr>
         </tbody>
@@ -38,36 +60,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import type { Slice } from '../types/models'
 import { formatTime } from '../utils/helpers'
 
 interface Props {
   slices: Slice[]
   selectedSliceId: string | null
+  isCollapsed: boolean
 }
 
 defineProps<Props>()
 
 const emit = defineEmits<{
   selectSlice: [slice: Slice]
-  playSlice: [slice: Slice]
+  seekToSlice: [slice: Slice]
+  filterByArtist: [artistName: string]
 }>()
-
-const isCollapsed = ref(false)
-
-const toggleCollapse = () => {
-  isCollapsed.value = !isCollapsed.value
-}
-
-const formatDuration = (seconds: number) => {
-  return `${seconds.toFixed(2)}s`
-}
 </script>
 
 <style scoped>
 .slice-sidebar {
-  width: 350px;
+  width: 600px;
   background: #1e1e1e;
   border-left: 1px solid #333;
   display: flex;
@@ -75,20 +88,9 @@ const formatDuration = (seconds: number) => {
   transition: width 0.3s ease;
 }
 .slice-sidebar.is-collapsed {
-  width: 50px;
-}
-
-.sidebar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  border-bottom: 1px solid #333;
-}
-.sidebar-header h3 {
-  margin: 0;
-  font-size: 1.1rem;
-  white-space: nowrap;
+  width: 0;
+  border-left: none;
+  overflow: hidden;
 }
 
 .sidebar-content {
@@ -116,6 +118,30 @@ const formatDuration = (seconds: number) => {
   color: #888;
   text-transform: uppercase;
 }
+.slices-table th:nth-child(1),
+.slices-table td:nth-child(1) {
+  width: 30%;
+}
+.slices-table th:nth-child(2),
+.slices-table td:nth-child(2) {
+  width: 20%;
+  font-size: 0.85rem;
+}
+.slices-table th:nth-child(3),
+.slices-table td:nth-child(3) {
+  width: 20%;
+  font-size: 0.85rem;
+}
+.slices-table th:nth-child(4),
+.slices-table td:nth-child(4) {
+  width: 15%;
+  font-family: 'Courier New', monospace;
+}
+.slices-table th:nth-child(5),
+.slices-table td:nth-child(5) {
+  width: 15%;
+  text-align: center;
+}
 .slices-table tbody tr {
   cursor: pointer;
   transition: background 0.2s;
@@ -125,5 +151,15 @@ const formatDuration = (seconds: number) => {
 }
 .slices-table tbody tr.is-selected {
   background: #3a4a5a;
+}
+.artist-link {
+  color: #4a9eff;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.artist-link:hover {
+  color: #6bb3ff;
+  text-decoration: underline;
 }
 </style>

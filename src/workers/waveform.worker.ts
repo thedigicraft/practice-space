@@ -44,7 +44,7 @@ self.onmessage = async (e: MessageEvent<WaveformRequest>) => {
 
 /**
  * Generate downsampled waveform data for visualization
- * Takes the average peak amplitude for each pixel-width slice of audio
+ * Stores min and max sample values for each pixel slice
  */
 function generateWaveform(
   channelData: Float32Array,
@@ -58,15 +58,16 @@ function generateWaveform(
     const start = i * samplesPerPixel
     const end = Math.min(start + samplesPerPixel, totalSamples)
     
+    let min = 0
     let max = 0
     for (let j = start; j < end; j++) {
-      const abs = Math.abs(channelData[j])
-      if (abs > max) {
-        max = abs
-      }
+      const sample = channelData[j]
+      if (sample < min) min = sample
+      if (sample > max) max = sample
     }
     
-    waveformData[i] = max
+    // Store the value with the largest absolute magnitude
+    waveformData[i] = Math.abs(max) > Math.abs(min) ? max : min
   }
 
   return waveformData

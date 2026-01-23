@@ -18,6 +18,7 @@ const {
   isLoading,
   currentlyPlayingFileId,
   currentlyPlayingSliceId,
+  loadAudioFile,
   playAudioFile,
   playSlice,
   togglePlayPause,
@@ -124,6 +125,14 @@ const handleSelectSlice = (slice: Slice) => {
   selectedSlice.value = slice
 }
 
+const handleLoadAudioFile = async (source: Source) => {
+  try {
+    await loadAudioFile(source)
+  } catch (error) {
+    console.error('Failed to load audio file:', error)
+  }
+}
+
 const handlePlaySlice = async (slice: Slice) => {
   // Find the source file
   const source = sources.value.find(f => f.id === slice.audioFileId)
@@ -147,6 +156,8 @@ const handleCreateSlice = async (slice: Omit<Slice, 'id' | 'createdAt' | 'update
   
   await saveSlice(newSlice)
   slices.value = await getAllSlices()
+  
+  return newSlice.id
 }
 
 const handleUpdateSlice = async (slice: Slice) => {
@@ -201,7 +212,7 @@ const handleCreateProject = async (project: Omit<Project, 'id' | 'createdAt' | '
     <nav class="nav-bar">
       <div class="nav-content">
         <div class="nav-brand" @click="navigateToHome">
-          🎵 Practice Space
+          Practice Space
         </div>
         <div class="nav-links">
           <button 
@@ -246,6 +257,7 @@ const handleCreateProject = async (project: Omit<Project, 'id' | 'createdAt' | '
         @deleteSlice="handleDeleteSlice"
         @selectSlice="handleSelectSlice"
         @playSlice="handlePlaySlice"
+        @loadAudioFile="handleLoadAudioFile"
         @togglePlayPause="togglePlayPause"
         @stop="stop"
         @seek="seek"
@@ -256,7 +268,7 @@ const handleCreateProject = async (project: Omit<Project, 'id' | 'createdAt' | '
     <!-- Drag and Drop Overlay -->
     <div v-if="isDragging" class="drop-overlay">
       <div class="drop-message">
-        <div class="drop-icon">📁</div>
+        <div class="drop-icon"><i class="fas fa-folder-open fa-3x"></i></div>
         <p>Drop audio files here to import</p>
       </div>
     </div>
@@ -305,8 +317,6 @@ body {
 }
 
 .nav-content {
-  max-width: 1400px;
-  margin: 0 auto;
   height: 100%;
   padding: 0 2rem;
   display: flex;

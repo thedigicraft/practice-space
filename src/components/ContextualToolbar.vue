@@ -4,12 +4,19 @@
       <!-- Region Selection Mode -->
       <template v-if="mode === 'region'">
         <button @click.stop="emit('playRegion')" class="btn btn-primary rounded-circle p-0" style="width: 40px; height: 40px;">
-          {{ isPlaying ? '⏸' : '▶' }}
+          <i :class="isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
         </button>
         <div class="region-info">
-          <p><strong>New Selection</strong></p>
           <p>{{ formatTime(selection.startTime) }} - {{ formatTime(selection.endTime) }}</p>
         </div>
+        <input 
+          type="text" 
+          class="form-control slice-title-input" 
+          placeholder="Slice title (optional)"
+          :value="title"
+          @input="emit('update:title', ($event.target as HTMLInputElement).value)"
+          @keyup.enter="emit('createSlice')"
+        />
         <div class="actions">
           <button @click.stop="emit('createSlice')" class="btn btn-primary">
             Create Slice
@@ -21,16 +28,20 @@
 
       <!-- Slice Edit Mode -->
       <template v-if="mode === 'slice' && slice">
-        <button @click.stop="emit('playSlice', slice)" class="btn btn-primary rounded-circle p-0" style="width: 40px; height: 40px;">
-          {{ isPlaying ? '⏸' : '▶' }}
-        </button>
-        <div class="slice-edit-form">
-          <input v-model="editableSlice.title" placeholder="Slice Title" class="form-control form-control-sm" />
-          <input v-model="editableSlice.notes" placeholder="Notes" class="form-control form-control-sm" />
-          <input v-model="tagsInput" placeholder="Tags (comma-separated)" class="form-control form-control-sm" @keyup.enter="save" />
+        <div class="btn-group" role="group">
+          <button @click.stop="emit('seekToSlice', slice)" class="btn btn-primary" style="width: 40px; height: 40px;" title="Jump playhead to slice start">
+            <i class="fas fa-step-backward"></i>
+          </button>
+          <button @click.stop="emit('zoomToSlice', slice)" class="btn btn-outline-primary" style="width: 40px; height: 40px;" title="Zoom to fit slice">
+            <i class="fas fa-search-plus"></i>
+          </button>
+        </div>
+        <div class="slice-info">
+          <p><strong>{{ slice.title }}</strong></p>
+          <p class="text-muted">{{ formatTime(selection?.startTime ?? slice.startTime) }} - {{ formatTime(selection?.endTime ?? slice.endTime) }}</p>
         </div>
         <div class="actions">
-          <button @click="save" class="btn btn-success">Save</button>
+          <button @click="emit('saveSlice')" class="btn btn-success">Save</button>
           <button @click="emit('deleteSlice', slice.id)" class="btn btn-danger">Delete</button>
         </div>
         <button @click.stop="emit('clearSelection')" class="btn btn-sm btn-outline-secondary">✕</button>
@@ -57,43 +68,21 @@ interface Props {
   selection: Selection | null
   slice: Slice | null
   isPlaying: boolean
+  title?: string
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
   playRegion: []
-  playSlice: [slice: Slice]
+  seekToSlice: [slice: Slice]
+  zoomToSlice: [slice: Slice]
   createSlice: []
-  updateSlice: [slice: Slice]
+  saveSlice: []
   deleteSlice: [sliceId: string]
   clearSelection: []
+  'update:title': [value: string]
 }>()
-
-const editableSlice = ref<Partial<Slice>>({})
-const tagsInput = ref('')
-
-watch(() => props.slice, (newSlice) => {
-  if (newSlice) {
-    editableSlice.value = { ...newSlice }
-    tagsInput.value = newSlice.tags?.join(', ') || ''
-  }
-}, { immediate: true })
-
-const save = () => {
-  if (props.mode === 'slice' && props.slice) {
-    const updatedSlice: Slice = {
-      ...props.slice,
-      ...editableSlice.value,
-      // Use selection for updated start/end times if available
-      startTime: props.selection?.startTime ?? props.slice.startTime,
-      endTime: props.selection?.endTime ?? props.slice.endTime,
-      tags: tagsInput.value.split(',').map(t => t.trim()).filter(Boolean),
-      updatedAt: Date.now(),
-    }
-    emit('updateSlice', updatedSlice)
-  }
-}
 </script>
 
 <style scoped>
@@ -127,15 +116,35 @@ const save = () => {
   margin: 0;
 }
 
-.slice-edit-form {
-  flex: 1;
-  display: flex;
-  gap: 0.75rem;
+.slice-info {
+  font-size: 0.9rem;
+  color: #ccc;
+}
+.slice-info p {
+  margin: 0;
+}
+.slice-info .text-muted {
+  color: #888 !important;
+  font-size: 0.85rem;
 }
 
 .actions {
   display: flex;
   gap: 0.5rem;
   margin-left: auto;
+}
+
+.slice-title-input {
+  flex: 1;
+  max-width: 300px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  color: #fff;
+}
+
+.slice-title-input:focus {
+  background: #2a2a2a;
+  border-color: #0d6efd;
+  color: #fff;
 }
 </style>

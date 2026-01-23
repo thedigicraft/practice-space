@@ -1,7 +1,12 @@
 <template>
   <div class="slice-waveform-viewer">
     <div v-if="slice && source" class="waveform-wrapper">
-      <h4>{{ slice.title }} Waveform</h4>
+      <div class="waveform-header">
+        <h4>{{ slice.title }} Waveform</h4>
+        <button @click="emit('toggle-waveform-mode')" class="btn-mode" :title="props.waveformMode === 'line' ? 'Switch to bars view' : 'Switch to line view'">
+          {{ props.waveformMode === 'line' ? '▬' : '〜' }}
+        </button>
+      </div>
       <canvas ref="canvasRef" :width="800" :height="100"></canvas>
     </div>
     <div v-else class="empty-state">
@@ -19,10 +24,18 @@ interface Props {
   source: Source | null
   currentTime: number
   isPlaying: boolean
+  waveformMode?: 'line' | 'bars'
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  waveformMode: 'line',
+})
 const canvasRef = ref<HTMLCanvasElement | null>(null)
+
+const emit = defineEmits<{
+  'toggle-waveform-mode': []
+}>()
+const waveformMode = ref<'line' | 'bars'>('line')
 
 const drawWaveform = () => {
   if (!canvasRef.value || !props.slice || !props.source?.waveformData) return
@@ -42,18 +55,65 @@ const drawWaveform = () => {
   const endIdx = Math.ceil((endTime / duration) * waveformData.length)
   const sliceData = waveformData.slice(startIdx, endIdx)
 
-  const barWidth = width / sliceData.length
+  const stepX = width / sliceData.length
   const centerY = height / 2
-  ctx.fillStyle = '#4a9eff'
+  
+  // Detect if data contains signed values (new format) or absolute values (old format)
+  let hasNegativeValues = false
+  for (let i = 0; i < Math.min(sliceData.length, 100); i++) {
+    if (sliceData[i] < 0) {
+      hasNegativeValues = true
+      break
+    }
+  }
+  
+  if (props.waveformMode === 'bars') {
+    // Draw as bars (original style)
+    ctx.fillStyle = '#4a9eff'
+    const barWidth = width / sliceData.length
 
-  for (let i = 0; i < sliceData.length; i++) {
-    const amp = sliceData[i]
-    const barHeight = amp * centerY
-    ctx.fillRect(i * barWidth, centerY - barHeight / 2, Math.max(1, barWidth), barHeight)
+    for (let i = 0; i < sliceData.length; i++) {
+      const amplitude = Math.abs(sliceData[i])
+      const barHeight = amplitude * centerY
+      const x = i * barWidth
+      const y = centerY - barHeight / 2
+
+      ctx.fillRect(x, y, Math.max(1, barWidth), barHeight)
+    }
+  } else {
+    // Draw as line
+    ctx.strokeStyle = '#4a9eff'
+    ctx.lineWidth = 1.5
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+
+    // Draw single continuous waveform line
+    ctx.beginPath()
+    for (let i = 0; i < sliceData.length; i++) {
+      const amplitude = sliceData[i]
+      const x = i * stepX
+      let y
+      
+      if (hasNegativeValues) {
+        // New format: signed values that oscillate naturally
+        y = centerY - (amplitude * centerY * 0.9)
+      } else {
+        // Old format: absolute values - alternate above/below center for oscillation effect
+        const offset = (i % 2 === 0 ? 1 : -1) * amplitude * centerY * 0.9
+        y = centerY - offset
+      }
+      
+      if (i === 0) {
+        ctx.moveTo(x, y)
+      } else {
+        ctx.lineTo(x, y)
+      }
+    }
+    ctx.stroke()
   }
 
-  // Draw playhead
-  if (props.isPlaying && props.currentTime >= startTime && props.currentTime <= endTime) {
+  // Draw playhead (show whenever currentTime is within slice range)
+  if (props.currentTime >= startTime && props.currentTime <= endTime) {
     const relativeTime = props.currentTime - startTime
     const sliceDuration = endTime - startTime
     const playheadX = (relativeTime / sliceDuration) * width
@@ -67,7 +127,7 @@ const drawWaveform = () => {
   }
 }
 
-watch(() => [props.slice, props.currentTime, props.isPlaying], () => {
+watch(() => [props.slice, props.currentTime, props.isPlaying, props.waveformMode], () => {
   drawWaveform()
 }, { deep: true, immediate: true })
 
@@ -80,10 +140,30 @@ onMounted(drawWaveform)
   background: #1e1e1e;
   border-top: 1px solid #333;
 }
+.waveform-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
 .waveform-wrapper h4 {
-  margin: 0 0 0.5rem 0;
+  margin: 0;
   font-size: 1rem;
   color: #ccc;
+}
+.btn-mode {
+  padding: 0.25rem 0.75rem;
+  background: rgba(74, 158, 255, 0.15);
+  border: 1px solid rgba(74, 158, 255, 0.3);
+  color: #4a9eff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+.btn-mode:hover {
+  background: rgba(74, 158, 255, 0.25);
+  border-color: rgba(74, 158, 255, 0.5);
 }
 canvas {
   display: block;

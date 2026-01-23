@@ -3,7 +3,7 @@
     <header class="view-header">
       <div class="header-content">
         <button class="btn-back" @click="$emit('back')">
-          ← Back
+          <i class="fas fa-arrow-left"></i> Back
         </button>
         <div class="project-header-info" v-if="project">
           <div class="project-color-bar" :style="{ backgroundColor: project.color || '#4a9eff' }"></div>
@@ -39,7 +39,7 @@
               class="play-btn"
               @click="handlePlaySlice(slice)"
             >
-              {{ currentlyPlayingSliceId === slice.id && isPlaying ? '⏸' : '▶' }}
+              <i :class="currentlyPlayingSliceId === slice.id && isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
             </button>
             <div class="slice-info">
               <h3 class="slice-title">{{ slice.title }}</h3>
@@ -59,7 +59,7 @@
               @click="handleViewSource(slice.audioFileId)"
               title="View in Source Editor"
             >
-              View Source →
+              View Source <i class="fas fa-arrow-right"></i>
             </button>
           </div>
         </div>
@@ -141,8 +141,6 @@ const handleViewSource = (sourceId: string) => {
   display: flex;
   align-items: flex-start;
   gap: 1rem;
-  max-width: 1400px;
-  margin: 0 auto;
 }
 
 .btn-back {

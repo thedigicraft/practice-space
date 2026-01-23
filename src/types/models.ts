@@ -37,6 +37,10 @@ export interface Slice {
   createdAt: number // timestamp
   updatedAt: number // timestamp
   tags?: string[]
+  type?: string // Type classification (e.g., "Etude", "Scale", "Exercise")
+  composers?: string[] // Composer credits
+  performers?: string[] // Performer credits (future)
+  writers?: string[] // Additional writing credits (future)
 }
 
 /**

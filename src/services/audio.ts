@@ -27,6 +27,9 @@ export class AudioService {
    * Load an audio file and decode it
    */
   async loadAudioFile(file: File): Promise<AudioBuffer> {
+    // Stop any existing playback before loading new audio
+    this.stop()
+    
     const arrayBuffer = await file.arrayBuffer()
     const audioContext = this.getAudioContext()
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
@@ -42,6 +45,7 @@ export class AudioService {
       throw new Error('No audio buffer loaded')
     }
 
+    // Always stop any existing source first
     this.stop()
 
     const audioContext = this.getAudioContext()
@@ -60,7 +64,8 @@ export class AudioService {
     }
 
     source.onended = () => {
-      if (this.isPlaying) {
+      // Only clear state if this is still the current source
+      if (this.currentSource === source) {
         this.isPlaying = false
         this.currentSource = null
       }

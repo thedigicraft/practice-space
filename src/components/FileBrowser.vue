@@ -65,6 +65,12 @@ const currentSlices = computed(() => {
       // Search in tags
       if (slice.tags?.some(tag => tag.toLowerCase().includes(query))) return true
       
+      // Search in composers
+      if (slice.composers?.some(composer => composer.toLowerCase().includes(query))) return true
+      
+      // Search in performers
+      if (slice.performers?.some(performer => performer.toLowerCase().includes(query))) return true
+      
       // Search in source file name
       const sourceFile = props.audioFiles.find(f => f.id === slice.audioFileId)
       if (sourceFile?.name.toLowerCase().includes(query)) return true
@@ -87,6 +93,12 @@ const globalSearchResults = computed(() => {
     
     // Search in tags
     if (slice.tags?.some(tag => tag.toLowerCase().includes(query))) return true
+    
+    // Search in composers
+    if (slice.composers?.some(composer => composer.toLowerCase().includes(query))) return true
+    
+    // Search in performers
+    if (slice.performers?.some(performer => performer.toLowerCase().includes(query))) return true
     
     // Search in source file name
     const sourceFile = props.audioFiles.find(f => f.id === slice.audioFileId)
@@ -249,6 +261,21 @@ const handleExportSlice = async (slice: Slice, event: MouseEvent) => {
     alert('Failed to export slice. Please try again.')
   }
 }
+
+const filterByArtist = (artistName: string, event: MouseEvent) => {
+  event.stopPropagation()
+  searchQuery.value = artistName
+  // Clear folder navigation to show global search results
+  currentFolderId.value = undefined
+}
+
+// Expose method for parent to set filter
+defineExpose({
+  setSearchFilter: (filter: string) => {
+    searchQuery.value = filter
+    currentFolderId.value = undefined
+  }
+})
 </script>
 
 <template>
@@ -286,7 +313,7 @@ const handleExportSlice = async (slice: Slice, event: MouseEvent) => {
           class="btn-clear-search"
           title="Clear search"
         >
-          ✕
+          <i class="fas fa-times"></i>
         </button>
       </div>
       <button 
@@ -297,7 +324,7 @@ const handleExportSlice = async (slice: Slice, event: MouseEvent) => {
         {{ isSelectionMode ? '✓ Selection Mode' : '☑ Select' }}
       </button>
       <button @click="emit('createFolder')" class="btn-toolbar">
-        📁 New Folder
+        <i class="fas fa-folder-plus"></i> New Folder
       </button>
     </div>
 
@@ -348,7 +375,7 @@ const handleExportSlice = async (slice: Slice, event: MouseEvent) => {
           class="folder-item"
           @click="navigateToFolder(folder.id)"
         >
-          <span class="folder-icon">📁</span>
+          <span class="folder-icon"><i class="fas fa-folder"></i></span>
           <span class="folder-name">{{ folder.name }}</span>
           <span class="folder-count">({{ folder.sliceIds.length }})</span>
         </div>
@@ -378,19 +405,52 @@ const handleExportSlice = async (slice: Slice, event: MouseEvent) => {
             @click="handlePlaySlice(slice, $event)"
             title="Play slice"
           >
-            <span v-if="slice.id === currentlyPlayingSliceId && isPlaying" class="playing-icon">⏸</span>
-            <span v-else>▶</span>
+            <span v-if="slice.id === currentlyPlayingSliceId && isPlaying" class="playing-icon"><i class="fas fa-pause"></i></span>
+            <span v-else><i class="fas fa-play"></i></span>
           </button>
           <div class="slice-icon">🎵</div>
           <div class="slice-details">
-            <div class="slice-title-row">
-              <span class="slice-title">{{ slice.title }}</span>
-              <span class="slice-duration">
-                {{ formatTime(slice.outPoint - slice.inPoint) }}
-              </span>
-            </div>
-            <div class="slice-source">
-              {{ getAudioFileName(slice.audioFileId) }}
+            <div class="slice-grid">
+              <div class="grid-col title-col">
+                <div class="slice-title">{{ slice.title }}</div>
+                <div class="slice-source">{{ getAudioFileName(slice.audioFileId) }}</div>
+              </div>
+              <div class="grid-col composer-col">
+                <div class="col-label">Composer</div>
+                <div class="col-value">
+                  <span v-if="slice.composers && slice.composers.length > 0">
+                    <a
+                      v-for="(composer, idx) in slice.composers"
+                      :key="composer"
+                      @click="filterByArtist(composer, $event)"
+                      class="artist-link"
+                    >
+                      {{ composer }}<span v-if="idx < slice.composers.length - 1">, </span>
+                    </a>
+                  </span>
+                  <span v-else>—</span>
+                </div>
+              </div>
+              <div class="grid-col performer-col">
+                <div class="col-label">Performer</div>
+                <div class="col-value">
+                  <span v-if="slice.performers && slice.performers.length > 0">
+                    <a
+                      v-for="(performer, idx) in slice.performers"
+                      :key="performer"
+                      @click="filterByArtist(performer, $event)"
+                      class="artist-link"
+                    >
+                      {{ performer }}<span v-if="idx < slice.performers.length - 1">, </span>
+                    </a>
+                  </span>
+                  <span v-else>—</span>
+                </div>
+              </div>
+              <div class="grid-col duration-col">
+                <div class="col-label">Duration</div>
+                <div class="col-value duration-value">{{ formatTime(slice.endTime - slice.startTime) }}</div>
+              </div>
             </div>
             <div v-if="slice.tags?.length" class="slice-tags-compact">
               <span v-for="tag in slice.tags" :key="tag" class="tag-compact">
@@ -759,11 +819,22 @@ const handleExportSlice = async (slice: Slice, event: MouseEvent) => {
   min-width: 0;
 }
 
-.slice-title-row {
+.slice-grid {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1.5fr 100px;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  align-items: start;
+}
+
+.grid-col {
+  min-width: 0;
+}
+
+.title-col {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.25rem;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .slice-title {
@@ -773,20 +844,44 @@ const handleExportSlice = async (slice: Slice, event: MouseEvent) => {
   white-space: nowrap;
 }
 
-.slice-duration {
-  font-size: 0.85rem;
-  opacity: 0.7;
-  font-family: 'Courier New', monospace;
-  margin-left: 0.5rem;
-}
-
 .slice-source {
   font-size: 0.85rem;
   opacity: 0.6;
-  margin-bottom: 0.25rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.col-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  opacity: 0.5;
+  margin-bottom: 0.25rem;
+  letter-spacing: 0.5px;
+}
+
+.col-value {
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artist-link {
+  color: #4a9eff;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.artist-link:hover {
+  color: #6bb3ff;
+  text-decoration: underline;
+}
+
+.duration-value {
+  font-family: 'Courier New', monospace;
+  font-weight: 500;
 }
 
 .slice-tags-compact {

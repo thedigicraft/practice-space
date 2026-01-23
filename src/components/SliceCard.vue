@@ -12,7 +12,7 @@
       style="width: 40px; height: 40px;"
       @click.stop="handlePlayPauseClick"
     >
-      {{ isThisSlicePlaying ? '⏸' : '▶' }}
+      <i :class="isThisSlicePlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
     </button>
     <div class="slice-content">
       <div class="slice-info" @click="emit('selectSlice', slice)">

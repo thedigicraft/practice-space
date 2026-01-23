@@ -3,7 +3,7 @@
     <header class="view-header">
       <div class="header-content">
         <button class="btn-back" @click="$emit('back')">
-          ← Back
+          <i class="fas fa-arrow-left"></i> Back
         </button>
         <h1>Slice Browser</h1>
       </div>
@@ -11,6 +11,7 @@
 
     <div class="browser-content">
       <FileBrowser
+        ref="fileBrowserRef"
         :slices="slices"
         :folders="folders"
         :audioFiles="sources"
@@ -26,8 +27,13 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, watch, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import type { Source, Slice, SliceFolder } from '../types/models'
 import FileBrowser from '../components/FileBrowser.vue'
+
+const route = useRoute()
+const fileBrowserRef = ref<InstanceType<typeof FileBrowser> | null>(null)
 
 interface Props {
   slices: Slice[]
@@ -35,6 +41,7 @@ interface Props {
   sources: Source[]
   currentlyPlayingSliceId: string | null
   isPlaying: boolean
+  initialFilter?: string
 }
 
 const props = defineProps<Props>()
@@ -46,6 +53,13 @@ const emit = defineEmits<{
   createFolder: [folder: Omit<SliceFolder, 'id' | 'createdAt'>]
   deleteSlice: [sliceId: string]
 }>()
+
+// Watch for artist filter in route query
+watch(() => route.query.artist, (artistName) => {
+  if (artistName && typeof artistName === 'string' && fileBrowserRef.value) {
+    fileBrowserRef.value.setSearchFilter(artistName)
+  }
+}, { immediate: true })
 
 const handleSelectSlice = (slice: Slice) => {
   emit('selectSlice', slice)
@@ -82,8 +96,6 @@ const handleDeleteSlice = (sliceId: string) => {
   display: flex;
   align-items: center;
   gap: 1rem;
-  max-width: 1400px;
-  margin: 0 auto;
 }
 
 .btn-back {

@@ -135,8 +135,6 @@ const handleCreateProject = (project: Omit<Project, 'id' | 'createdAt' | 'update
 <style scoped>
 .home-view {
   padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
 }
 
 .view-header {
