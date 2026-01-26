@@ -166,19 +166,28 @@ export async function processAudioFile(file: File): Promise<any> {
   
   const now = Date.now()
   
+  // Extract title from filename (without extension)
+  const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '')
+  
+  // Try to get file creation date (file.lastModified is best we can get from File API)
+  const createdAt = file.lastModified || now
+  
   // Create a synthetic file handle (for dropped files, we store the file directly)
   // Note: This won't persist across sessions like File System Access API handles
   const audioFile = {
     id: crypto.randomUUID(),
     name: file.name,
+    title: nameWithoutExt,
     fileHandle: null as any, // Will be set below
     duration: audioBuffer.duration,
     sampleRate: audioBuffer.sampleRate,
     numberOfChannels: audioBuffer.numberOfChannels,
     waveformData,
     size: file.size,
-    createdAt: now,
+    createdAt,
     importedAt: now,
+    location: undefined,
+    notes: undefined,
   }
   
   // Store the actual File object as a pseudo-handle

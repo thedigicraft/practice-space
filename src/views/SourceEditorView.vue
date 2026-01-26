@@ -21,11 +21,34 @@
             :title="'Double-click to edit'"
             class="editable-title"
           >
-            {{ source?.name || 'Source Editor' }}
+            {{ source?.title || source?.name || 'Source Editor' }}
           </h1>
-          <p class="source-info mt-1" v-if="source">
-            {{ formatDuration(source.duration) }} • {{ formatFileSize(source.size) }}
-          </p>
+          <div class="source-metadata d-flex justify-content-center flex-wrap" v-if="source">
+            <span class="metadata-item">
+              <i class="fas fa-file-audio me-1"></i>{{ source.name }}
+            </span>
+            <span class="metadata-item">
+              <i class="fas fa-clock me-1"></i>{{ formatDuration(source.duration) }}
+            </span>
+            <span class="metadata-item">
+              <i class="fas fa-hdd me-1"></i>{{ formatFileSize(source.size) }}
+            </span>
+            <span class="metadata-item">
+              <i class="fas fa-wave-square me-1"></i>{{ source.sampleRate }}Hz
+            </span>
+            <span class="metadata-item">
+              <i class="fas fa-volume-up me-1"></i>{{ source.numberOfChannels }} channel{{ source.numberOfChannels > 1 ? 's' : '' }}
+            </span>
+            <span v-if="source.location" class="metadata-item">
+              <i class="fas fa-map-marker-alt me-1"></i>{{ source.location }}
+            </span>
+            <span class="metadata-item">
+              <i class="fas fa-calendar-plus me-1"></i>Imported {{ formatDate(source.importedAt) }}
+            </span>
+            <span v-if="source.createdAt" class="metadata-item">
+              <i class="fas fa-calendar me-1"></i>Created {{ formatDate(source.createdAt) }}
+            </span>
+          </div>
         </div>
         <button 
           @click="toggleSidebar" 
@@ -39,13 +62,9 @@
 
     <div class="editor-layout">
       <div class="main-content">
-        <div class="editor-content p-4" v-if="source">
+        <div class="editor-content xp-4" v-if="source">
           <!-- Waveform Section -->
           <section class="waveform-section p-4">
-            <div class="section-header">
-              <h2 class="m-0">Waveform</h2>
-              <p class="hint m-0">Click and drag to select a region</p>
-            </div>
             
             <div class="waveform-container">
               <WaveformViewer 
@@ -261,6 +280,17 @@ const sourceSlices = computed(() => {
 })
 
 const formatDuration = (seconds: number) => formatTime(seconds)
+
+const formatDate = (timestamp: number) => {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+  
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Yesterday'
+  if (diffDays < 7) return `${diffDays} days ago`
+  return date.toLocaleDateString()
+}
 
 const startSourceNameEdit = () => {
   if (!props.source) return
@@ -598,7 +628,23 @@ const seek = (time: number) => {
   background: rgba(74, 158, 255, 0.1);
 }
 
+.source-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
 
+.metadata-item {
+  font-size: 0.75rem;
+  color: #888;
+  display: inline-flex;
+  align-items: center;
+}
+
+.metadata-item i {
+  opacity: 0.7;
+}
 
 .source-info {
   margin: 0.25rem 0 0 0;

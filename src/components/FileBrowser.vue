@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { formatTime } from '@/utils/helpers'
 import { exportSlice, type ExportFormat } from '@/utils/audioExport'
 import { getFileFromHandle } from '@/services/fileSystem'
@@ -23,6 +24,7 @@ const emit = defineEmits<{
   deleteSlice: [sliceId: string]
 }>()
 
+const router = useRouter()
 const currentFolderId = ref<string | undefined>(undefined)
 const searchQuery = ref('')
 const selectedSliceIds = ref<Set<string>>(new Set())
@@ -109,6 +111,9 @@ const currentSlices = computed(() => {
       const sourceFile = props.audioFiles.find(f => f.id === slice.audioFileId)
       if (sourceFile?.name.toLowerCase().includes(query)) return true
       
+      // Search in source file location
+      if (sourceFile?.location?.toLowerCase().includes(query)) return true
+      
       return false
     })
   }
@@ -140,6 +145,9 @@ const globalSearchResults = computed(() => {
     // Search in source file name
     const sourceFile = props.audioFiles.find(f => f.id === slice.audioFileId)
     if (sourceFile?.name.toLowerCase().includes(query)) return true
+    
+    // Search in source file location
+    if (sourceFile?.location?.toLowerCase().includes(query)) return true
     
     return false
   })
@@ -349,6 +357,14 @@ const filterByType = (type: string, event: MouseEvent) => {
   currentFolderId.value = undefined
 }
 
+const filterByLocation = (location: string, event: MouseEvent) => {
+  event.stopPropagation()
+  router.push({
+    path: '/slices',
+    query: { location }
+  })
+}
+
 // Expose method for parent to set filter
 defineExpose({
   setSearchFilter: (filter: string) => {
@@ -536,6 +552,20 @@ defineExpose({
                     class="type-link"
                   >
                     {{ slice.type }}
+                  </a>
+                  <span v-else>—</span>
+                </div>
+              </div>
+              <div class="grid-col location-col">
+                <div class="col-label">Location</div>
+                <div class="col-value">
+                  <a
+                    v-if="audioFiles.find(f => f.id === slice.audioFileId)?.location"
+                    @click="filterByLocation(audioFiles.find(f => f.id === slice.audioFileId)!.location!, $event)"
+                    class="location-link"
+                  >
+                    <i class="fas fa-map-marker-alt me-1"></i>
+                    {{ audioFiles.find(f => f.id === slice.audioFileId)?.location }}
                   </a>
                   <span v-else>—</span>
                 </div>
@@ -911,7 +941,7 @@ defineExpose({
 
 .slice-grid {
   display: grid;
-  grid-template-columns: 2fr 1.5fr 1.5fr 1fr 100px;
+  grid-template-columns: 2fr 1.5fr 1.5fr 1fr 1.2fr 100px;
   gap: 1rem;
   margin-bottom: 0.5rem;
   align-items: start;
@@ -977,6 +1007,18 @@ defineExpose({
 }
 
 .type-link:hover {
+  color: #b36bff;
+  text-decoration: underline;
+}
+
+.location-link {
+  color: #9d4aff;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.location-link:hover {
   color: #b36bff;
   text-decoration: underline;
 }

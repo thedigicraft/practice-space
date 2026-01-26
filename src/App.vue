@@ -165,9 +165,13 @@ const handleUpdateSlice = async (slice: Slice) => {
   slices.value = await getAllSlices()
 }
 
-const handleUpdateSource = async (source: Source) => {
-  await saveAudioFile(source)
-  sources.value = await getAllAudioFiles()
+const handleUpdateSource = async (sourceId: string, metadata: Partial<Source>) => {
+  const source = sources.value.find(s => s.id === sourceId)
+  if (source) {
+    const updatedSource = { ...source, ...metadata }
+    await saveAudioFile(updatedSource)
+    sources.value = await getAllAudioFiles()
+  }
 }
 
 const handleDeleteSlice = async (sliceId: string) => {
@@ -204,6 +208,27 @@ const handleCreateProject = async (project: Omit<Project, 'id' | 'createdAt' | '
   await saveProject(newProject)
   projects.value = await getAllProjects()
 }
+
+const handleProjectCreated = async () => {
+  // Reload projects after one is created by the dialog
+  projects.value = await getAllProjects()
+}
+
+const getViewName = (routeName: string | symbol | null | undefined): string => {
+  if (!routeName || typeof routeName !== 'string') return ''
+  
+  const names: Record<string, string> = {
+    'library': 'Library',
+    'sources': 'Sources',
+    'source-editor': 'Source Editor',
+    'slice-browser': 'Slice Browser',
+    'grouped-slices': 'Grouped Slices',
+    'project': 'Project',
+    'projects': 'Projects'
+  }
+  
+  return names[routeName] || ''
+}
 </script>
 
 <template>
@@ -213,6 +238,7 @@ const handleCreateProject = async (project: Omit<Project, 'id' | 'createdAt' | '
       <div class="nav-content px-4">
         <div class="nav-brand" @click="navigateToHome">
           Practice Space
+          <span v-if="$route.name !== 'home'" class="view-name">/ {{ getViewName($route.name) }}</span>
         </div>
         <div class="nav-links">
           <button 
@@ -221,6 +247,20 @@ const handleCreateProject = async (project: Omit<Project, 'id' | 'createdAt' | '
             @click="navigateToHome"
           >
             Home
+          </button>
+          <button 
+            class="nav-link"
+            :class="{ active: $route.name === 'library' }"
+            @click="() => router.push('/library')"
+          >
+            Library
+          </button>
+          <button 
+            class="nav-link"
+            :class="{ active: $route.name === 'sources' }"
+            @click="() => router.push('/sources')"
+          >
+            Sources
           </button>
           <button 
             class="nav-link"
@@ -250,6 +290,7 @@ const handleCreateProject = async (project: Omit<Project, 'id' | 'createdAt' | '
         @viewSource="navigateToSourceEditor"
         @filesImported="handleFilesImported"
         @createProject="handleCreateProject"
+        @projectCreated="handleProjectCreated"
         @createFolder="handleCreateFolder"
         @createSlice="handleCreateSlice"
         @updateSlice="handleUpdateSlice"
@@ -334,6 +375,12 @@ body {
 
 .nav-brand:hover {
   color: #4a9eff;
+}
+
+.view-name {
+  font-weight: 400;
+  color: #888;
+  font-size: 1rem;
 }
 
 .nav-links {

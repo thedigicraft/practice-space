@@ -4,6 +4,9 @@ import SourceEditorView from '../views/SourceEditorView.vue'
 import ProjectView from '../views/ProjectView.vue'
 import SliceBrowserView from '../views/SliceBrowserView.vue'
 import GroupedSlicesView from '../views/GroupedSlicesView.vue'
+import LibraryView from '../views/LibraryView.vue'
+import SourcesView from '../views/SourcesView.vue'
+import ProjectsView from '../views/ProjectsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -12,6 +15,21 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: HomeView
+    },
+    {
+      path: '/library',
+      name: 'library',
+      component: LibraryView
+    },
+    {
+      path: '/sources',
+      name: 'sources',
+      component: SourcesView
+    },
+    {
+      path: '/projects',
+      name: 'projects',
+      component: ProjectsView
     },
     {
       path: '/source/:id',

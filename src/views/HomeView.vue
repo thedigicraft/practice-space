@@ -1,19 +1,18 @@
 <template>
-  <div class="home-view p-4">
-    <header class="view-header">
-      <h1 class="mb-2">Practice Space</h1>
-      <p class="subtitle m-0">Your local-first music practice companion</p>
-    </header>
+  <div class="home-view xp-4">
 
     <div class="home-content">
       <!-- Grouped Slices Section -->
       <section class="home-section" v-if="Object.keys(groupedSlices).length > 0">
         <div class="section-header">
           <h2 class="m-0">My Library</h2>
+          <a class="view-all-link" @click="$router.push('/library')">
+            View All <i class="fas fa-arrow-right ms-1"></i>
+          </a>
         </div>
 
         <div class="library-grid">
-          <div v-for="(groups, sliceType) in groupedSlices" :key="sliceType" class="library-type-section">
+          <div v-for="(groups, sliceType) in recentGroupedSlices" :key="sliceType" class="library-type-section">
             <h3 class="type-header">{{ formatTypeName(sliceType) }}</h3>
             <div class="grouped-items">
               <div
@@ -30,6 +29,10 @@
                   <p class="item-meta">
                     {{ sliceGroup.count }} {{ sliceGroup.count === 1 ? 'slice' : 'slices' }}
                   </p>
+                  <p v-if="sliceGroup.locations.size > 0" class="item-locations">
+                    <i class="fas fa-map-marker-alt me-1"></i>
+                    {{ Array.from(sliceGroup.locations).join(', ') }}
+                  </p>
                 </div>
               </div>
             </div>
@@ -41,7 +44,9 @@
       <section class="home-section">
         <div class="section-header">
           <h2 class="m-0">Sources</h2>
-          <ImportControls @filesImported="handleFilesImported" />
+          <a v-if="sources.length > 0" class="view-all-link" @click="$router.push('/sources')">
+            View All <i class="fas fa-arrow-right ms-1"></i>
+          </a>
         </div>
         
         <div v-if="sources.length === 0" class="empty-state text-center py-5 px-3">
@@ -51,56 +56,28 @@
 
         <div v-else class="source-grid">
           <div
-            v-for="source in sources"
+            v-for="source in recentSources"
             :key="source.id"
             class="source-card p-3"
-            @click="$emit('openSource', source.id)"
           >
-            <div class="source-icon">🎵</div>
-            <div class="source-info">
-              <h3 class="source-name mb-2">{{ source.name }}</h3>
+            <div class="source-icon">
+              <i class="fas fa-file-audio"></i>
+            </div>
+            <div class="source-info" @click="$emit('openSource', source.id)">
+              <h3 class="source-name mb-2">{{ source.title || source.name }}</h3>
               <p class="source-meta my-1">
                 {{ formatDuration(source.duration) }} • {{ formatFileSize(source.size) }}
+              </p>
+              <p v-if="source.location" class="source-location my-1" @click.stop="filterByLocation(source.location)">
+                <i class="fas fa-map-marker-alt me-1"></i>{{ source.location }}
               </p>
               <p class="source-date">
                 Imported {{ formatDate(source.importedAt) }}
               </p>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Projects Section -->
-      <section class="home-section">
-        <div class="section-header">
-          <h2>Projects</h2>
-          <button class="btn-primary" @click="showCreateProject = true">
-            + New Project
-          </button>
-        </div>
-
-        <div v-if="projects.length === 0" class="empty-state">
-          <p>No projects created yet.</p>
-          <p class="hint">Create a project to organize your practice slices!</p>
-        </div>
-
-        <div v-else class="project-grid">
-          <div
-            v-for="project in projects"
-            :key="project.id"
-            class="project-card"
-            @click="$emit('openProject', project.id)"
-          >
-            <div class="project-color" :style="{ backgroundColor: project.color || '#4a9eff' }"></div>
-            <div class="project-info">
-              <h3 class="project-name">{{ project.name }}</h3>
-              <p class="project-description" v-if="project.description">
-                {{ project.description }}
-              </p>
-              <p class="project-meta">
-                {{ project.sliceIds.length }} slice{{ project.sliceIds.length !== 1 ? 's' : '' }}
-              </p>
-            </div>
+            <button class="btn-edit" @click.stop="editSource(source)" title="Edit Metadata">
+              <i class="fas fa-edit"></i>
+            </button>
           </div>
         </div>
       </section>
@@ -109,10 +86,23 @@
     <!-- Create Project Dialog -->
     <CreateProjectDialog
       v-if="showCreateProject"
-      :slices="slices"
-      @create="handleCreateProject"
-      @cancel="showCreateProject = false"
+      :show="showCreateProject"
+      @created="handleCreateProject"
+      @close="showCreateProject = false"
     />
+
+    <!-- Source Metadata Editor -->
+    <SourceMetadataEditor
+      v-if="editingSource"
+      :source="editingSource"
+      @save="handleSaveSourceMetadata"
+      @close="editingSource = null"
+    />
+
+    <!-- Bottom Action Bar -->
+    <div class="action-bar">
+      <ImportControls @filesImported="handleFilesImported" />
+    </div>
   </div>
 </template>
 
@@ -122,6 +112,7 @@ import { useRouter } from 'vue-router'
 import type { Source, Project, Slice } from '../types/models'
 import ImportControls from '../components/ImportControls.vue'
 import CreateProjectDialog from '../components/CreateProjectDialog.vue'
+import SourceMetadataEditor from '../components/SourceMetadataEditor.vue'
 import { formatTime, formatFileSize } from '../utils/helpers'
 
 interface Props {
@@ -136,15 +127,17 @@ const emit = defineEmits<{
   openSource: [sourceId: string]
   openProject: [projectId: string]
   filesImported: [files: Source[]]
-  createProject: [project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>]
+  projectCreated: []
+  updateSource: [sourceId: string, metadata: Partial<Source>]
 }>()
 
 const router = useRouter()
 const showCreateProject = ref(false)
+const editingSource = ref<Source | null>(null)
 
 // Group slices by type and title
 const groupedSlices = computed(() => {
-  const groups: Record<string, Record<string, { count: number; slices: Slice[] }>> = {}
+  const groups: Record<string, Record<string, { count: number; slices: Slice[]; locations: Set<string> }>> = {}
   
   props.slices.forEach(slice => {
     // Only group slices that have a type and title
@@ -155,14 +148,51 @@ const groupedSlices = computed(() => {
     }
     
     if (!groups[slice.type][slice.title]) {
-      groups[slice.type][slice.title] = { count: 0, slices: [] }
+      groups[slice.type][slice.title] = { count: 0, slices: [], locations: new Set() }
     }
     
     groups[slice.type][slice.title].count++
     groups[slice.type][slice.title].slices.push(slice)
+    
+    // Add location from source file
+    const source = props.sources.find(s => s.id === slice.audioFileId)
+    if (source?.location) {
+      groups[slice.type][slice.title].locations.add(source.location)
+    }
   })
   
   return groups
+})
+
+// Show only 3 most recent items in each type
+const recentGroupedSlices = computed(() => {
+  const limitedGroups: typeof groupedSlices.value = {}
+  
+  Object.keys(groupedSlices.value).forEach(type => {
+    const titles = Object.keys(groupedSlices.value[type])
+    limitedGroups[type] = {}
+    
+    // Get first 3 titles (most common ones by count)
+    titles.slice(0, 3).forEach(title => {
+      limitedGroups[type][title] = groupedSlices.value[type][title]
+    })
+  })
+  
+  return limitedGroups
+})
+
+// Show only 3 most recent sources
+const recentSources = computed(() => {
+  return [...props.sources]
+    .sort((a, b) => b.importedAt - a.importedAt)
+    .slice(0, 3)
+})
+
+// Show only 3 most recent projects
+const recentProjects = computed(() => {
+  return [...props.projects]
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 3)
 })
 
 const formatTypeName = (type: string) => {
@@ -188,6 +218,13 @@ const openGroupedSlices = (type: string, title: string) => {
   })
 }
 
+const filterByLocation = (location: string) => {
+  router.push({
+    path: '/slices',
+    query: { location }
+  })
+}
+
 const formatDuration = (seconds: number) => formatTime(seconds)
 
 const formatDate = (timestamp: number) => {
@@ -205,16 +242,25 @@ const handleFilesImported = (files: Source[]) => {
   emit('filesImported', files)
 }
 
-const handleCreateProject = (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
-  emit('createProject', project)
+const handleCreateProject = (_project: Project) => {
+  // CreateProjectDialog already creates and saves the project with id, timestamps
   showCreateProject.value = false
+  emit('projectCreated') // Trigger reload of projects in parent
+}
+
+const editSource = (source: Source) => {
+  editingSource.value = source
+}
+
+const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
+  if (editingSource.value) {
+    emit('updateSource', editingSource.value.id, metadata)
+    editingSource.value = null
+  }
 }
 </script>
 
 <style scoped>
-.home-view {
-  padding: 2rem;
-}
 
 .view-header {
   text-align: center;
@@ -237,6 +283,7 @@ const handleCreateProject = (project: Omit<Project, 'id' | 'createdAt' | 'update
   display: flex;
   flex-direction: column;
   gap: 3rem;
+  padding-bottom: 80px;
 }
 
 .home-section {
@@ -256,6 +303,26 @@ const handleCreateProject = (project: Omit<Project, 'id' | 'createdAt' | 'update
   margin: 0;
   font-size: 1.5rem;
   color: #fff;
+}
+
+.section-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.view-all-link {
+  color: #4a9eff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
+.view-all-link:hover {
+  color: #6bb3ff;
 }
 
 .empty-state {
@@ -353,6 +420,12 @@ const handleCreateProject = (project: Omit<Project, 'id' | 'createdAt' | 'update
   color: #888;
 }
 
+.item-locations {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.75rem;
+  color: #9d4aff;
+}
+
 /* Source Grid */
 .source-grid {
   display: grid;
@@ -364,17 +437,21 @@ const handleCreateProject = (project: Omit<Project, 'id' | 'createdAt' | 'update
   background: #2a2a2a;
   border-radius: 8px;
   padding: 1.5rem;
-  cursor: pointer;
   transition: all 0.2s;
   display: flex;
   gap: 1rem;
   align-items: flex-start;
+  position: relative;
 }
 
 .source-card:hover {
   background: #333;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.source-card:hover .btn-edit {
+  opacity: 1;
 }
 
 .source-icon {
@@ -385,6 +462,31 @@ const handleCreateProject = (project: Omit<Project, 'id' | 'createdAt' | 'update
 .source-info {
   flex: 1;
   min-width: 0;
+  cursor: pointer;
+}
+
+.btn-edit {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: #1a1a1a;
+  border: 1px solid #404040;
+  color: #888;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s;
+}
+
+.btn-edit:hover {
+  background: #4a9eff;
+  border-color: #4a9eff;
+  color: white;
 }
 
 .source-name {
@@ -397,10 +499,22 @@ const handleCreateProject = (project: Omit<Project, 'id' | 'createdAt' | 'update
 }
 
 .source-meta,
+.source-location,
 .source-date {
   margin: 0.25rem 0;
   font-size: 0.85rem;
   color: #888;
+}
+
+.source-location {
+  color: #9d4aff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.source-location:hover {
+  color: #b36bff;
+  text-decoration: underline;
 }
 
 /* Project Grid */
@@ -468,5 +582,19 @@ const handleCreateProject = (project: Omit<Project, 'id' | 'createdAt' | 'update
 
 .btn-primary:hover {
   background: #357abd;
+}
+
+.action-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #252525;
+  border-top: 1px solid #353535;
+  padding: 1rem;
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  z-index: 100;
 }
 </style>

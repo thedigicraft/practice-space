@@ -54,17 +54,17 @@ const emit = defineEmits<{
   deleteSlice: [sliceId: string]
 }>()
 
-// Watch for artist filter in route query
-watch(() => route.query.artist, (artistName) => {
-  if (artistName && typeof artistName === 'string' && fileBrowserRef.value) {
-    fileBrowserRef.value.setSearchFilter(artistName)
-  }
-}, { immediate: true })
-
-// Watch for type filter in route query
-watch(() => route.query.type, (type) => {
-  if (type && typeof type === 'string' && fileBrowserRef.value) {
-    fileBrowserRef.value.setSearchFilter(type)
+// Watch for filters in route query
+watch(() => [route.query.artist, route.query.type, route.query.location], ([artistName, type, location]) => {
+  if (fileBrowserRef.value) {
+    // Priority: location > type > artist (apply the first one found)
+    if (location && typeof location === 'string') {
+      fileBrowserRef.value.setSearchFilter(location)
+    } else if (type && typeof type === 'string') {
+      fileBrowserRef.value.setSearchFilter(type)
+    } else if (artistName && typeof artistName === 'string') {
+      fileBrowserRef.value.setSearchFilter(artistName)
+    }
   }
 }, { immediate: true })
 

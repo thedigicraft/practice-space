@@ -38,6 +38,10 @@
                 <i class="fas fa-file-audio me-1"></i>
                 {{ getSourceName(slice.audioFileId) }}
               </div>
+              <div v-if="audioFiles[slice.audioFileId]?.location" class="slice-location mt-1">
+                <i class="fas fa-map-marker-alt me-1"></i>
+                {{ audioFiles[slice.audioFileId].location }}
+              </div>
             </div>
             <div class="slice-actions">
               <button class="btn-icon" @click="playSlice(slice)" :title="playingSliceId === slice.id ? 'Pause' : 'Play'">
@@ -221,6 +225,11 @@ onMounted(() => {
 .slice-source {
   font-size: 0.8rem;
   color: #777;
+}
+
+.slice-location {
+  font-size: 0.8rem;
+  color: #9d4aff;
 }
 
 .slice-actions {

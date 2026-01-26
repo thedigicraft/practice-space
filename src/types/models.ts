@@ -11,13 +11,17 @@
 export interface Source {
   id: string
   name: string
+  title?: string // User-editable title (defaults to filename without extension)
   fileHandle: FileSystemFileHandle // For File System Access API
   duration: number // in seconds
   sampleRate: number
   numberOfChannels: number
   waveformData?: Float32Array // Downsampled waveform for visualization
   importedAt: number // timestamp
+  createdAt?: number // File creation date timestamp
   size: number // file size in bytes
+  location?: string // User-defined location/origin of the file
+  notes?: string // User notes about the source file
 }
 
 // Legacy alias for backwards compatibility during transition
