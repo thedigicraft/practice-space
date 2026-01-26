@@ -95,10 +95,21 @@ export async function deleteAudioFile(id: string): Promise<void> {
 // Slice operations
 export async function saveSlice(slice: Slice): Promise<void> {
   const db = await getDB()
-  // Ensure tags is a plain array (if it exists) to avoid cloning issues
-  const cleanSlice = {
-    ...slice,
-    tags: slice.tags ? [...slice.tags] : undefined
+  // Create a clean copy without Vue reactive proxies
+  const cleanSlice: Slice = {
+    id: slice.id,
+    audioFileId: slice.audioFileId,
+    title: slice.title,
+    notes: slice.notes,
+    startTime: slice.startTime,
+    endTime: slice.endTime,
+    createdAt: slice.createdAt,
+    updatedAt: slice.updatedAt,
+    tags: slice.tags ? [...slice.tags] : undefined,
+    type: slice.type,
+    composers: slice.composers ? [...slice.composers] : undefined,
+    performers: slice.performers ? [...slice.performers] : undefined,
+    writers: slice.writers ? [...slice.writers] : undefined
   }
   await db.put('slices', cleanSlice)
 }

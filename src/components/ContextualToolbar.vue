@@ -1,5 +1,5 @@
 <template>
-  <div class="contextual-toolbar">
+  <div class="contextual-toolbar p-3">
     <div v-if="selection" class="toolbar-content">
       <!-- Region Selection Mode -->
       <template v-if="mode === 'region'">
@@ -7,7 +7,7 @@
           <i :class="isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
         </button>
         <div class="region-info">
-          <p>{{ formatTime(selection.startTime) }} - {{ formatTime(selection.endTime) }}</p>
+          <p class="m-0">{{ formatTime(selection.startTime) }} - {{ formatTime(selection.endTime) }}</p>
         </div>
         <input 
           type="text" 
@@ -37,7 +37,7 @@
           </button>
         </div>
         <div class="slice-info">
-          <p><strong>{{ slice.title }}</strong></p>
+          <p class="m-0"><strong>{{ slice.title }}</strong></p>
           <p class="text-muted">{{ formatTime(selection?.startTime ?? slice.startTime) }} - {{ formatTime(selection?.endTime ?? slice.endTime) }}</p>
         </div>
         <div class="actions">

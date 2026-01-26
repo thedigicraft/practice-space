@@ -1,15 +1,15 @@
 <template>
   <div class="project-view">
     <header class="view-header">
-      <div class="header-content">
-        <button class="btn-back" @click="$emit('back')">
+      <div class="header-content px-4 py-3">
+        <button class="btn-back py-2 px-3" @click="$emit('back')">
           <i class="fas fa-arrow-left"></i> Back
         </button>
         <div class="project-header-info" v-if="project">
           <div class="project-color-bar" :style="{ backgroundColor: project.color || '#4a9eff' }"></div>
           <div class="project-title">
-            <h1>{{ project.name }}</h1>
-            <p class="project-description" v-if="project.description">
+            <h1 class="m-0">{{ project.name }}</h1>
+            <p class="project-description mt-2" v-if="project.description">
               {{ project.description }}
             </p>
           </div>
@@ -17,22 +17,22 @@
       </div>
     </header>
 
-    <div class="project-content" v-if="project">
-      <section class="slices-section">
+    <div class="project-content p-4" v-if="project">
+      <section class="slices-section p-4">
         <div class="section-header">
-          <h2>Slices in this project ({{ projectSlices.length }})</h2>
+          <h2 class="m-0">Slices in this project ({{ projectSlices.length }})</h2>
         </div>
 
-        <div v-if="projectSlices.length === 0" class="empty-state">
-          <p>This project has no slices yet.</p>
-          <p class="hint">Add slices to this project from the Slice Browser!</p>
+        <div v-if="projectSlices.length === 0" class="empty-state text-center py-5 px-3">
+          <p class="my-2">This project has no slices yet.</p>
+          <p class="hint my-2">Add slices to this project from the Slice Browser!</p>
         </div>
 
         <div v-else class="slices-list">
           <div
             v-for="slice in projectSlices"
             :key="slice.id"
-            class="slice-card"
+            class="slice-card p-3"
             :class="{ 'is-playing': currentlyPlayingSliceId === slice.id && isPlaying }"
           >
             <button 
@@ -42,8 +42,8 @@
               <i :class="currentlyPlayingSliceId === slice.id && isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
             </button>
             <div class="slice-info">
-              <h3 class="slice-title">{{ slice.title }}</h3>
-              <p class="slice-source" v-if="getSourceName(slice.audioFileId)">
+              <h3 class="slice-title mb-2">{{ slice.title }}</h3>
+              <p class="slice-source mb-1" v-if="getSourceName(slice.audioFileId)">
                 Source: {{ getSourceName(slice.audioFileId) }}
               </p>
               <p class="slice-time">

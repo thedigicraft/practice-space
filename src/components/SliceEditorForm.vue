@@ -1,22 +1,21 @@
 <template>
-  <div v-if="slice" class="slice-editor-form">
-    <h3 class="editor-title">Edit Slice</h3>
+  <div v-if="slice" class="slice-editor-form xp-4">
     
     <div class="form-grid">
       <div class="form-group">
-        <label for="edit-title" class="form-label">Title</label>
+        <label for="edit-title" class="form-label visually-hidden">Title</label>
         <input
           id="edit-title"
           v-model="editableSlice.title"
           type="text"
           placeholder="Slice title"
-          class="form-control"
+          class="form-control form-control-sm"
           @keyup.enter="save"
         />
       </div>
 
       <div class="form-group">
-        <label for="edit-composers" class="form-label">Composers</label>
+        <label for="edit-composers" class="form-label visually-hidden">Composers</label>
         <div class="position-relative">
           <input
             id="edit-composers"
@@ -26,7 +25,7 @@
             @blur="handleComposerBlur"
             type="text"
             placeholder="Comma-separated composer names"
-            class="form-control"
+            class="form-control form-control-sm"
             @keyup.enter="save"
           />
           <div v-if="showComposerSuggestions && composerSuggestions.length > 0" class="autocomplete-dropdown">
@@ -43,7 +42,7 @@
       </div>
 
       <div class="form-group">
-        <label for="edit-performers" class="form-label">Performers</label>
+        <label for="edit-performers" class="form-label visually-hidden">Performers</label>
         <div class="position-relative">
           <input
             id="edit-performers"
@@ -53,7 +52,7 @@
             @blur="handlePerformerBlur"
             type="text"
             placeholder="Comma-separated performer names"
-            class="form-control"
+            class="form-control form-control-sm"
             @keyup.enter="save"
           />
           <div v-if="showPerformerSuggestions && performerSuggestions.length > 0" class="autocomplete-dropdown">
@@ -70,7 +69,7 @@
       </div>
 
       <div class="form-group">
-        <label for="edit-type" class="form-label">Type</label>
+        <label for="edit-type" class="form-label visually-hidden">Type</label>
         <div class="position-relative">
           <input
             id="edit-type"
@@ -80,7 +79,7 @@
             @blur="handleTypeBlur"
             type="text"
             placeholder="e.g., Etude, Scale, Exercise"
-            class="form-control"
+            class="form-control form-control-sm"
             @keyup.enter="save"
           />
           <div v-if="showTypeSuggestions && typeSuggestions.length > 0" class="autocomplete-dropdown">
@@ -97,35 +96,35 @@
       </div>
 
       <div class="form-group full-width">
-        <label for="edit-notes" class="form-label">Notes</label>
+        <label for="edit-notes" class="form-label visually-hidden">Notes</label>
         <textarea
           id="edit-notes"
           v-model="editableSlice.notes"
           placeholder="Add notes about this slice"
-          class="form-control"
+          class="form-control form-control-sm"
           rows="3"
           @keyup.ctrl.enter="save"
         ></textarea>
       </div>
 
       <div class="form-group">
-        <label for="edit-tags" class="form-label">Tags</label>
+        <label for="edit-tags" class="form-label visually-hidden">Tags</label>
         <input
           id="edit-tags"
           v-model="tagsInput"
           type="text"
           placeholder="Comma-separated tags"
-          class="form-control"
+          class="form-control form-control-sm"
           @keyup.enter="save"
         />
       </div>
     </div>
 
     <div v-if="!hideSaveButton" class="form-actions">
-      <button @click="save" class="btn btn-success">
+      <button @click="save" class="btn btn-success btn-sm">
         Save Changes
       </button>
-      <button @click="$emit('cancel')" class="btn btn-secondary">
+      <button @click="$emit('cancel')" class="btn btn-secondary btn-sm">
         Cancel
       </button>
     </div>
@@ -283,7 +282,7 @@ defineExpose({
   border: 1px solid #333;
   border-radius: 8px;
   padding: 1.5rem;
-  margin-top: 1rem;
+  /* margin-top: 1rem; */
 }
 
 .editor-title {
@@ -315,14 +314,14 @@ defineExpose({
   color: #aaa;
 }
 
-.form-control {
+/* .form-control {
   background: #2a2a2a;
   border: 1px solid #444;
   color: #e0e0e0;
   padding: 0.5rem 0.75rem;
   border-radius: 4px;
   font-size: 0.9rem;
-}
+} */
 
 .form-control:focus {
   outline: none;

@@ -195,3 +195,13 @@ export async function processAudioFile(file: File): Promise<any> {
   
   return audioFile
 }
+
+/**
+ * Decode audio data from an ArrayBuffer
+ */
+export async function loadAudioBuffer(arrayBuffer: ArrayBuffer): Promise<AudioBuffer> {
+  const audioContext = new AudioContext()
+  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+  await audioContext.close()
+  return audioBuffer
+}

@@ -1,6 +1,6 @@
 <template>
   <div
-    class="slice-card"
+    class="slice-card p-3"
     :class="{ 
       'is-playing': isThisSlicePlaying,
       'is-selected': isSelected 
@@ -29,20 +29,20 @@
           />
           <h3 
             v-else
-            class="slice-title"
+            class="slice-title m-0"
             @dblclick.stop="startTitleEdit"
             :title="'Double-click to edit'"
           >
             {{ slice.title }}
           </h3>
         </div>
-        <p class="slice-time">
+        <p class="slice-time mb-2">
           {{ formatTime(slice.startTime) }} - {{ formatTime(slice.endTime) }}
           <span class="slice-duration">({{ formatDuration(slice.endTime - slice.startTime) }})</span>
         </p>
-        <p v-if="slice.notes" class="slice-notes">{{ slice.notes }}</p>
-        <div v-if="slice.tags && slice.tags.length > 0" class="slice-tags">
-          <span v-for="tag in slice.tags" :key="tag" class="tag">{{ tag }}</span>
+        <p v-if="slice.notes" class="slice-notes my-2">{{ slice.notes }}</p>
+        <div v-if="slice.tags && slice.tags.length > 0" class="slice-tags my-2">
+          <span v-for="tag in slice.tags" :key="tag" class="tag px-2 py-1">{{ tag }}</span>
         </div>
       </div>
       <div class="slice-waveform" v-if="source?.waveformData">

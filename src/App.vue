@@ -210,7 +210,7 @@ const handleCreateProject = async (project: Omit<Project, 'id' | 'createdAt' | '
   <div class="app" :class="{ 'is-dragging': isDragging }">
     <!-- Navigation Bar -->
     <nav class="nav-bar">
-      <div class="nav-content">
+      <div class="nav-content px-4">
         <div class="nav-brand" @click="navigateToHome">
           Practice Space
         </div>
@@ -366,7 +366,8 @@ body {
 /* Main Content */
 .main-content {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Drag and Drop Overlay */

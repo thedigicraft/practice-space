@@ -3,6 +3,7 @@ import HomeView from '../views/HomeView.vue'
 import SourceEditorView from '../views/SourceEditorView.vue'
 import ProjectView from '../views/ProjectView.vue'
 import SliceBrowserView from '../views/SliceBrowserView.vue'
+import GroupedSlicesView from '../views/GroupedSlicesView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -28,6 +29,11 @@ const router = createRouter({
       path: '/slices',
       name: 'slice-browser',
       component: SliceBrowserView
+    },
+    {
+      path: '/grouped-slices',
+      name: 'grouped-slices',
+      component: GroupedSlicesView
     }
   ]
 })

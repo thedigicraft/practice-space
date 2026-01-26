@@ -1,6 +1,6 @@
 <template>
   <aside class="slice-sidebar" :class="{ 'is-collapsed': isCollapsed }">
-    <div v-if="!isCollapsed" class="sidebar-content">
+    <div v-if="!isCollapsed" class="sidebar-content p-4">
       <div v-if="slices.length === 0" class="empty-state">
         No slices yet.
       </div>
@@ -10,6 +10,7 @@
             <th>Title</th>
             <th>Composer</th>
             <th>Performer</th>
+            <th>Type</th>
             <th>Duration</th>
             <th>Actions</th>
           </tr>
@@ -48,6 +49,16 @@
               </span>
               <span v-else>—</span>
             </td>
+            <td>
+              <a
+                v-if="slice.type"
+                @click.stop="emit('filterByType', slice.type)"
+                class="type-link"
+              >
+                {{ slice.type }}
+              </a>
+              <span v-else>—</span>
+            </td>
             <td>{{ formatTime(slice.endTime - slice.startTime) }}</td>
             <td>
               <button @click.stop="emit('seekToSlice', slice)" class="btn btn-sm btn-link" title="Jump to slice start"><i class="fas fa-step-backward"></i></button>
@@ -75,6 +86,7 @@ const emit = defineEmits<{
   selectSlice: [slice: Slice]
   seekToSlice: [slice: Slice]
   filterByArtist: [artistName: string]
+  filterByType: [type: string]
 }>()
 </script>
 
@@ -135,11 +147,16 @@ const emit = defineEmits<{
 .slices-table th:nth-child(4),
 .slices-table td:nth-child(4) {
   width: 15%;
-  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
 }
 .slices-table th:nth-child(5),
 .slices-table td:nth-child(5) {
   width: 15%;
+  font-family: 'Courier New', monospace;
+}
+.slices-table th:nth-child(6),
+.slices-table td:nth-child(6) {
+  width: 10%;
   text-align: center;
 }
 .slices-table tbody tr {
@@ -160,6 +177,16 @@ const emit = defineEmits<{
 }
 .artist-link:hover {
   color: #6bb3ff;
+  text-decoration: underline;
+}
+.type-link {
+  color: #9d4aff;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.type-link:hover {
+  color: #b36bff;
   text-decoration: underline;
 }
 </style>

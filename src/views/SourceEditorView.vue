@@ -1,7 +1,7 @@
 <template>
   <div class="source-editor-view">
     <header class="view-header">
-      <div class="header-content">
+      <div class="header-content px-4 py-3">
         <button class="btn btn-outline-secondary" @click="handleBack">
           <i class="fas fa-arrow-left"></i> Back
         </button>
@@ -23,7 +23,7 @@
           >
             {{ source?.name || 'Source Editor' }}
           </h1>
-          <p class="source-info" v-if="source">
+          <p class="source-info mt-1" v-if="source">
             {{ formatDuration(source.duration) }} • {{ formatFileSize(source.size) }}
           </p>
         </div>
@@ -39,12 +39,12 @@
 
     <div class="editor-layout">
       <div class="main-content">
-        <div class="editor-content" v-if="source">
+        <div class="editor-content p-4" v-if="source">
           <!-- Waveform Section -->
-          <section class="waveform-section">
+          <section class="waveform-section p-4">
             <div class="section-header">
-              <h2>Waveform</h2>
-              <p class="hint">Click and drag to select a region</p>
+              <h2 class="m-0">Waveform</h2>
+              <p class="hint m-0">Click and drag to select a region</p>
             </div>
             
             <div class="waveform-container">
@@ -72,7 +72,7 @@
             </div>
 
             <!-- Playback Controls - Positioned directly below waveform -->
-            <div class="playback-section">
+            <div class="playback-section mt-3">
               <PlaybackControls
                 :isPlaying="isPlaying"
                 :currentTime="currentTime"
@@ -99,30 +99,39 @@
               @clear-selection="clearSelection"
             />
 
-            <SliceWaveformViewer
-              v-if="selectedRegion || selectedSlice"
-              :slice="selectedSliceForWaveform"
-              :source="source"
-              :current-time="currentTime"
-              :is-playing="isPlaying"
-              :waveform-mode="waveformMode"
-              @toggle-waveform-mode="waveformMode = waveformMode === 'line' ? 'bars' : 'line'"
-            />
+            <div v-if="selectedRegion || selectedSlice" class="slice-preview-area mt-">
+              <div class="slice-preview-content">
+                <SliceWaveformViewer
+                  :slice="selectedSliceForWaveform"
+                  :source="source"
+                  :current-time="currentTime"
+                  :is-playing="isPlaying"
+                  :waveform-mode="waveformMode"
+                  @toggle-waveform-mode="waveformMode = waveformMode === 'line' ? 'bars' : 'line'"
+                />
+              </div>
 
-            <SliceEditorForm
-              v-if="selectedSlice"
-              :slice="selectedSlice"
-              :selection="selectedRegion"
-              :hide-save-button="true"
-              @update="handleUpdateSlice"
-              @cancel="clearSelection"
-              ref="sliceEditorFormRef"
-            />
+              <div v-if="selectedSlice" :class="['details-sidebar', { collapsed: detailsSidebarCollapsed }]">
+                <button @click="toggleDetailsSidebar" class="sidebar-toggle-btn py-4 px-2">
+                  <i :class="detailsSidebarCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right'"></i>
+                </button>
+                <div v-if="!detailsSidebarCollapsed" class="details-content px-4">
+                  <SliceEditorForm
+                    :slice="selectedSlice"
+                    :selection="selectedRegion"
+                    :hide-save-button="true"
+                    @update="handleUpdateSlice"
+                    @cancel="clearSelection"
+                    ref="sliceEditorFormRef"
+                  />
+                </div>
+              </div>
+            </div>
           </section>
         </div>
 
-        <div v-else class="empty-state">
-          <p>Source not found.</p>
+        <div v-else class="empty-state text-center py-5 px-3">
+          <p class="my-2">Source not found.</p>
         </div>
       </div>
 
@@ -133,6 +142,7 @@
         @select-slice="handleSelectSlice"
         @seek-to-slice="handleSeekToSlice"
         @filter-by-artist="handleFilterByArtist"
+        @filter-by-type="handleFilterByType"
       />
     </div>
 
@@ -233,11 +243,16 @@ const isPlayingRegion = ref(false)
 const selectedSliceId = ref<string | null>(null)
 const toolbarMode = ref<'region' | 'slice' | null>(null)
 const sidebarCollapsed = ref(true)
+const detailsSidebarCollapsed = ref(false)
 const waveformMode = ref<'line' | 'bars'>('bars')
 const newSliceTitle = ref('')
 
 const toggleSidebar = () => {
   sidebarCollapsed.value = !sidebarCollapsed.value
+}
+
+const toggleDetailsSidebar = () => {
+  detailsSidebarCollapsed.value = !detailsSidebarCollapsed.value
 }
 
 const sourceSlices = computed(() => {
@@ -498,6 +513,13 @@ const handleFilterByArtist = (artistName: string) => {
   })
 }
 
+const handleFilterByType = (type: string) => {
+  router.push({ 
+    path: '/slices', 
+    query: { type: type } 
+  })
+}
+
 const handleSeekToSlice = (slice: Slice) => {
   // Just seek to the start of the slice
   emit('seek', slice.startTime)
@@ -541,7 +563,6 @@ const seek = (time: number) => {
 .view-header {
   background: #1e1e1e;
   border-bottom: 1px solid #333;
-  padding: 1rem 2rem;
 }
 
 .header-content {
@@ -588,7 +609,6 @@ const seek = (time: number) => {
 .editor-content {
   flex: 1;
   overflow: auto;
-  padding: 2rem;
   width: 100%;
 }
 
@@ -596,7 +616,6 @@ const seek = (time: number) => {
 .slices-section {
   background: #1e1e1e;
   border-radius: 8px;
-  padding: 1.5rem;
   margin-bottom: 2rem;
 }
 
@@ -639,7 +658,7 @@ const seek = (time: number) => {
 }
 
 .empty-state p {
-  margin: 0.5rem 0;
+  color: inherit;
 }
 
 .loading-overlay {
@@ -668,5 +687,54 @@ const seek = (time: number) => {
   font-size: 1.25rem;
   margin: 0;
   font-weight: 500;
+}
+
+.slice-preview-area {
+  display: flex;
+  gap: 0;
+  position: relative;
+}
+
+.slice-preview-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.details-sidebar {
+  width: 500px;
+  background: #1e1e1e;
+  border-left: 1px solid #333;
+  transition: width 0.3s ease, margin-left 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.details-sidebar.collapsed {
+  width: 40px;
+}
+
+.sidebar-toggle-btn {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  color: #aaa;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.2s;
+}
+
+.sidebar-toggle-btn:hover {
+  background: #333;
+  color: #fff;
+}
+
+.details-content {
+  overflow-y: auto;
+  height: 100%;
 }
 </style>

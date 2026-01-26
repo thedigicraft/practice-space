@@ -1,15 +1,15 @@
 <template>
   <div class="slice-browser-view">
     <header class="view-header">
-      <div class="header-content">
-        <button class="btn-back" @click="$emit('back')">
+      <div class="header-content px-4 py-3">
+        <button class="btn-back py-2 px-3" @click="$emit('back')">
           <i class="fas fa-arrow-left"></i> Back
         </button>
-        <h1>Slice Browser</h1>
+        <h1 class="m-0">Slice Browser</h1>
       </div>
     </header>
 
-    <div class="browser-content">
+    <div class="browser-content p-4">
       <FileBrowser
         ref="fileBrowserRef"
         :slices="slices"
@@ -58,6 +58,13 @@ const emit = defineEmits<{
 watch(() => route.query.artist, (artistName) => {
   if (artistName && typeof artistName === 'string' && fileBrowserRef.value) {
     fileBrowserRef.value.setSearchFilter(artistName)
+  }
+}, { immediate: true })
+
+// Watch for type filter in route query
+watch(() => route.query.type, (type) => {
+  if (type && typeof type === 'string' && fileBrowserRef.value) {
+    fileBrowserRef.value.setSearchFilter(type)
   }
 }, { immediate: true })
 

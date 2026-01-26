@@ -1,15 +1,15 @@
 <template>
-  <div class="slice-waveform-viewer">
+  <div class="slice-waveform-viewer p-3">
     <div v-if="slice && source" class="waveform-wrapper">
       <div class="waveform-header">
-        <h4>{{ slice.title }} Waveform</h4>
+        <h4 class="m-0">{{ slice.title }} Waveform</h4>
         <button @click="emit('toggle-waveform-mode')" class="btn-mode" :title="props.waveformMode === 'line' ? 'Switch to bars view' : 'Switch to line view'">
           {{ props.waveformMode === 'line' ? '▬' : '〜' }}
         </button>
       </div>
       <canvas ref="canvasRef" :width="800" :height="100"></canvas>
     </div>
-    <div v-else class="empty-state">
+    <div v-else class="empty-state text-center py-4">
       <p>No slice selected</p>
     </div>
   </div>

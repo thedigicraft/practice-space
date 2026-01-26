@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { formatTime } from '@/utils/helpers'
-import { exportSliceAsWav } from '@/utils/audioExport'
+import { exportSlice, type ExportFormat } from '@/utils/audioExport'
 import { getFileFromHandle } from '@/services/fileSystem'
 import type { Slice, SliceFolder, AudioFile } from '@/types/models'
+import ToastNotification from './ToastNotification.vue'
 
 interface Props {
   slices: Slice[]
@@ -26,6 +27,36 @@ const currentFolderId = ref<string | undefined>(undefined)
 const searchQuery = ref('')
 const selectedSliceIds = ref<Set<string>>(new Set())
 const isSelectionMode = ref(false)
+
+// Export dropdown state
+const exportDropdownOpen = ref<string | null>(null)
+
+const toggleExportDropdown = (sliceId: string, event: MouseEvent) => {
+  event.stopPropagation()
+  exportDropdownOpen.value = exportDropdownOpen.value === sliceId ? null : sliceId
+}
+
+const closeExportDropdown = () => {
+  exportDropdownOpen.value = null
+}
+
+// Toast notification state
+const toastVisible = ref(false)
+const toastMessage = ref('')
+const toastType = ref<'success' | 'error' | 'info' | 'loading'>('info')
+const toastProgress = ref<number | undefined>(undefined)
+
+const showToast = (message: string, type: 'success' | 'error' | 'info' | 'loading', progress?: number) => {
+  toastMessage.value = message
+  toastType.value = type
+  toastProgress.value = progress
+  toastVisible.value = true
+}
+
+const hideToast = () => {
+  toastVisible.value = false
+  toastProgress.value = undefined
+}
 
 // Get current folder
 const currentFolder = computed(() => {
@@ -71,6 +102,9 @@ const currentSlices = computed(() => {
       // Search in performers
       if (slice.performers?.some(performer => performer.toLowerCase().includes(query))) return true
       
+      // Search in type
+      if (slice.type?.toLowerCase().includes(query)) return true
+      
       // Search in source file name
       const sourceFile = props.audioFiles.find(f => f.id === slice.audioFileId)
       if (sourceFile?.name.toLowerCase().includes(query)) return true
@@ -99,6 +133,9 @@ const globalSearchResults = computed(() => {
     
     // Search in performers
     if (slice.performers?.some(performer => performer.toLowerCase().includes(query))) return true
+    
+    // Search in type
+    if (slice.type?.toLowerCase().includes(query)) return true
     
     // Search in source file name
     const sourceFile = props.audioFiles.find(f => f.id === slice.audioFileId)
@@ -195,34 +232,57 @@ const exportSelected = async () => {
   if (selectedSliceIds.value.size === 0) return
   
   const slicesToExport = displaySlices.value.filter(s => selectedSliceIds.value.has(s.id))
+  const total = slicesToExport.length
+  let completed = 0
+  let failed = 0
+  
+  showToast(`Exporting ${total} slice${total > 1 ? 's' : ''}...`, 'loading', 0)
   
   for (const slice of slicesToExport) {
     try {
       const audioFile = props.audioFiles.find(f => f.id === slice.audioFileId)
-      if (!audioFile) continue
+      if (!audioFile) {
+        failed++
+        continue
+      }
       
       const file = await getFileFromHandle(audioFile.fileHandle)
       const arrayBuffer = await file.arrayBuffer()
       const audioContext = new AudioContext()
       const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
       
-      await exportSliceAsWav(
+      await exportSlice(
         audioBuffer,
-        slice.inPoint,
-        slice.outPoint,
-        slice.title || `slice-${slice.id.slice(0, 8)}`
+        slice.startTime,
+        slice.endTime,
+        slice.title || `slice-${slice.id.slice(0, 8)}`,
+        slice,
+        { format: 'wav', quality: 90, includeMetadata: true }
       )
       
       await audioContext.close()
+      completed++
+      
+      // Update progress
+      const progress = Math.round((completed / total) * 100)
+      showToast(`Exporting... ${completed}/${total}`, 'loading', progress)
       
       // Small delay between exports to prevent browser blocking
       await new Promise(resolve => setTimeout(resolve, 100))
     } catch (error) {
       console.error(`Failed to export slice ${slice.id}:`, error)
+      failed++
     }
   }
   
-  alert(`Exported ${slicesToExport.length} slice${slicesToExport.length > 1 ? 's' : ''}!`)
+  // Show final result
+  if (failed === 0) {
+    showToast(`Successfully exported ${completed} slice${completed > 1 ? 's' : ''}!`, 'success')
+  } else if (completed > 0) {
+    showToast(`Exported ${completed} slice${completed > 1 ? 's' : ''}, ${failed} failed`, 'info')
+  } else {
+    showToast(`Failed to export slices`, 'error')
+  }
 }
 
 const handlePlaySlice = (slice: Slice, event: MouseEvent) => {
@@ -230,41 +290,61 @@ const handlePlaySlice = (slice: Slice, event: MouseEvent) => {
   emit('playSlice', slice)
 }
 
-const handleExportSlice = async (slice: Slice, event: MouseEvent) => {
+const handleExportSlice = async (slice: Slice, format: ExportFormat, event: MouseEvent) => {
   event.stopPropagation()
+  closeExportDropdown()
+  
+  const formatLabel = format.toUpperCase()
+  showToast(`Exporting "${slice.title}" as ${formatLabel}...`, 'loading', format === 'mp3' ? 0 : undefined)
   
   try {
     // Find the audio file
     const audioFile = props.audioFiles.find(f => f.id === slice.audioFileId)
     if (!audioFile) {
-      console.error('Audio file not found for slice')
+      showToast('Audio file not found for slice', 'error')
       return
     }
-
-    // Load and decode the audio file
+  // Load and decode the audio file
     const file = await getFileFromHandle(audioFile.fileHandle)
     const arrayBuffer = await file.arrayBuffer()
     const audioContext = new AudioContext()
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
 
-    // Export the slice
-    await exportSliceAsWav(
+    // Export the slice with metadata and progress tracking
+    await exportSlice(
       audioBuffer,
-      slice.inPoint,
-      slice.outPoint,
-      slice.title || `slice-${slice.id.slice(0, 8)}`
+      slice.startTime,
+      slice.endTime,
+      slice.title || `slice-${slice.id.slice(0, 8)}`,
+      slice,
+      { 
+        format, 
+        quality: 90, 
+        includeMetadata: true,
+        onProgress: format === 'mp3' ? (progress) => {
+          showToast(`Exporting "${slice.title}" as ${formatLabel}... ${progress}%`, 'loading', progress)
+        } : undefined
+      }
     )
 
     await audioContext.close()
+    showToast(`Successfully exported "${slice.title}" as ${formatLabel}!`, 'success')
   } catch (error) {
     console.error('Failed to export slice:', error)
-    alert('Failed to export slice. Please try again.')
+    showToast(`Failed to export: ${(error as Error).message}`, 'error')
   }
 }
 
 const filterByArtist = (artistName: string, event: MouseEvent) => {
   event.stopPropagation()
   searchQuery.value = artistName
+  // Clear folder navigation to show global search results
+  currentFolderId.value = undefined
+}
+
+const filterByType = (type: string, event: MouseEvent) => {
+  event.stopPropagation()
+  searchQuery.value = type
   // Clear folder navigation to show global search results
   currentFolderId.value = undefined
 }
@@ -281,7 +361,7 @@ defineExpose({
 <template>
   <div class="file-browser">
     <!-- Breadcrumb navigation -->
-    <div class="breadcrumb">
+    <div class="breadcrumb py-3 px-3">
       <span
         v-for="(crumb, index) in breadcrumbs"
         :key="crumb.id || 'root'"
@@ -299,7 +379,7 @@ defineExpose({
     </div>
 
     <!-- Toolbar -->
-    <div class="toolbar">
+    <div class="toolbar py-3 px-3">
       <div class="search-box">
         <input
           v-model="searchQuery"
@@ -329,7 +409,7 @@ defineExpose({
     </div>
 
     <!-- Batch actions bar -->
-    <div v-if="isSelectionMode" class="batch-actions">
+    <div v-if="isSelectionMode" class="batch-actions py-2 px-3">
       <div class="selection-info">
         {{ selectedSliceIds.size }} selected
       </div>
@@ -447,6 +527,19 @@ defineExpose({
                   <span v-else>—</span>
                 </div>
               </div>
+              <div class="grid-col type-col">
+                <div class="col-label">Type</div>
+                <div class="col-value">
+                  <a
+                    v-if="slice.type"
+                    @click="filterByType(slice.type, $event)"
+                    class="type-link"
+                  >
+                    {{ slice.type }}
+                  </a>
+                  <span v-else>—</span>
+                </div>
+              </div>
               <div class="grid-col duration-col">
                 <div class="col-label">Duration</div>
                 <div class="col-value duration-value">{{ formatTime(slice.endTime - slice.startTime) }}</div>
@@ -458,17 +551,40 @@ defineExpose({
               </span>
             </div>
           </div>
-          <button 
-            class="export-btn"
-            @click="handleExportSlice(slice, $event)"
-            title="Export slice as WAV"
-          >
-            💾
-          </button>
+          <div class="dropdown">
+            <button 
+              class="btn btn-sm btn-success dropdown-toggle"
+              type="button"
+              @click="toggleExportDropdown(slice.id, $event)"
+            >
+              💾
+            </button>
+            <ul v-if="exportDropdownOpen === slice.id" class="dropdown-menu show" style="right: 0; left: auto;">
+              <li>
+                <button class="dropdown-item" @click="handleExportSlice(slice, 'wav', $event)">
+                  <i class="fas fa-wave-square me-2"></i> WAV (Instant, Lossless)
+                </button>
+              </li>
+              <li>
+                <button class="dropdown-item" @click="handleExportSlice(slice, 'mp3', $event)">
+                  <i class="fas fa-music me-2"></i> MP3 (Compressed)
+                </button>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
   </div>
+  
+  <!-- Toast Notification -->
+  <ToastNotification
+    :visible="toastVisible"
+    :message="toastMessage"
+    :type="toastType"
+    :progress="toastProgress"
+    @close="hideToast"
+  />
 </template>
 
 <style scoped>
@@ -778,33 +894,7 @@ defineExpose({
   transform: scale(1.1);
 }
 
-.export-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 4px;
-  background: rgba(46, 204, 113, 0.15);
-  border: 1px solid rgba(46, 204, 113, 0.3);
-  color: #2ecc71;
-  font-size: 1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.export-btn:hover {
-  background: rgba(46, 204, 113, 0.25);
-  border-color: rgba(46, 204, 113, 0.5);
-  transform: scale(1.05);
-}
-
-.export-btn:active {
-  transform: scale(0.95);
-}
-
-.slice-item-browser:hover {
+.export-dropdown-container {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(74, 158, 255, 0.3);
 }
@@ -821,7 +911,7 @@ defineExpose({
 
 .slice-grid {
   display: grid;
-  grid-template-columns: 2fr 1.5fr 1.5fr 100px;
+  grid-template-columns: 2fr 1.5fr 1.5fr 1fr 100px;
   gap: 1rem;
   margin-bottom: 0.5rem;
   align-items: start;
@@ -876,6 +966,18 @@ defineExpose({
 
 .artist-link:hover {
   color: #6bb3ff;
+  text-decoration: underline;
+}
+
+.type-link {
+  color: #9d4aff;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.type-link:hover {
+  color: #b36bff;
   text-decoration: underline;
 }
 
