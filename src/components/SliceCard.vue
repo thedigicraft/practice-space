@@ -1,74 +1,76 @@
 <template>
   <div
-    class="slice-card p-3 d-flex gap-3 align-items-stretch"
+    class="card h-100"
     :class="{ 
-      'is-playing': isThisSlicePlaying,
-      'is-selected': isSelected 
+      'border-primary': isThisSlicePlaying,
+      'border-info': isSelected 
     }"
     @click="emit('selectSlice', slice)"
   >
-    <button 
-      class="btn btn-primary rounded-circle p-0"
-      style="width: 40px; height: 40px;"
-      @click.stop="handlePlayPauseClick"
-    >
-      <i :class="isThisSlicePlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
-    </button>
-    <div class="slice-content flex-fill d-flex flex-column gap-2">
-      <div class="slice-info" @click="emit('selectSlice', slice)">
-        <div class="slice-title-row">
-          <input
-            v-if="editingTitleId === slice.id"
-            v-model="editingTitleValue"
-            @blur="saveTitle"
-            @keyup.enter="saveTitle"
-            @keyup.esc="cancelTitleEdit"
-            @click.stop
-            class="form-control form-control-sm"
-            ref="titleInput"
-          />
-          <h3 
-            v-else
-            class="slice-title m-0"
-            @dblclick.stop="startTitleEdit"
-            :title="'Double-click to edit'"
-          >
-            {{ slice.title }}
-          </h3>
+    <div class="card-body d-flex gap-3 align-items-stretch">
+      <button 
+        class="btn btn-primary rounded-circle p-0"
+        style="width: 40px; height: 40px;"
+        @click.stop="handlePlayPauseClick"
+      >
+        <i :class="isThisSlicePlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
+      </button>
+      <div class="slice-content flex-fill d-flex flex-column gap-2">
+        <div class="slice-info" @click="emit('selectSlice', slice)">
+          <div class="slice-title-row">
+            <input
+              v-if="editingTitleId === slice.id"
+              v-model="editingTitleValue"
+              @blur="saveTitle"
+              @keyup.enter="saveTitle"
+              @keyup.esc="cancelTitleEdit"
+              @click.stop
+              class="form-control form-control-sm"
+              ref="titleInput"
+            />
+            <h3 
+              v-else
+              class="card-title h6 m-0"
+              @dblclick.stop="startTitleEdit"
+              :title="'Double-click to edit'"
+            >
+              {{ slice.title }}
+            </h3>
+          </div>
+          <p class="card-text text-muted small mb-2">
+            {{ formatTime(slice.startTime) }} - {{ formatTime(slice.endTime) }}
+            <span class="slice-duration">({{ formatDuration(slice.endTime - slice.startTime) }})</span>
+          </p>
+          <p v-if="slice.notes" class="card-text my-2">{{ slice.notes }}</p>
+          <div v-if="slice.tags && slice.tags.length > 0" class="slice-tags my-2 d-flex flex-wrap gap-2">
+            <span v-for="tag in slice.tags" :key="tag" class="badge bg-primary">{{ tag }}</span>
+          </div>
         </div>
-        <p class="slice-time mb-2">
-          {{ formatTime(slice.startTime) }} - {{ formatTime(slice.endTime) }}
-          <span class="slice-duration">({{ formatDuration(slice.endTime - slice.startTime) }})</span>
-        </p>
-        <p v-if="slice.notes" class="slice-notes my-2">{{ slice.notes }}</p>
-        <div v-if="slice.tags && slice.tags.length > 0" class="slice-tags my-2 d-flex flex-wrap gap-2">
-          <span v-for="tag in slice.tags" :key="tag" class="tag px-2 py-1">{{ tag }}</span>
+        <div class="slice-waveform d-flex justify-content-center align-items-center" v-if="source?.waveformData">
+          <canvas 
+            :ref="el => setSliceCanvas(el as HTMLCanvasElement)"
+            :width="300"
+            :height="60"
+            class="mini-waveform"
+          ></canvas>
         </div>
       </div>
-      <div class="slice-waveform d-flex justify-content-center align-items-center" v-if="source?.waveformData">
-        <canvas 
-          :ref="el => setSliceCanvas(el as HTMLCanvasElement)"
-          :width="300"
-          :height="60"
-          class="mini-waveform"
-        ></canvas>
+      <div class="slice-actions d-flex flex-column gap-2">
+        <button 
+          class="btn btn-sm btn-outline-primary"
+          @click.stop="emit('editSlice', slice)"
+          title="Edit slice"
+        >
+          ✎
+        </button>
+        <button 
+          class="btn btn-sm btn-outline-danger"
+          @click.stop="emit('deleteSlice', slice.id)"
+          title="Delete slice"
+        >
+          🗑
+        </button>
       </div>
-    </div>
-    <div class="slice-actions d-flex flex-column gap-2">
-      <button 
-        class="btn btn-sm btn-outline-primary"
-        @click.stop="emit('editSlice', slice)"
-        title="Edit slice"
-      >
-        ✎
-      </button>
-      <button 
-        class="btn btn-sm btn-outline-danger"
-        @click.stop="emit('deleteSlice', slice.id)"
-        title="Delete slice"
-      >
-        🗑
-      </button>
     </div>
   </div>
 </template>
@@ -221,29 +223,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.slice-card {
-  background: #2a2a2a;
-  border-radius: 6px;
-  padding: 1rem;
-  transition: all 0.2s;
-}
-
-.slice-card:hover {
-  background: #333;
-}
-
-.slice-card.is-selected {
-  background: #3a4a5a;
-  border-color: #4a9eff;
-}
-
-.slice-card.is-playing {
-  background: #2d3e50;
-  border-left: 3px solid #4a9eff;
-}
-
-
-
 .slice-content {
   min-width: 0;
 }
@@ -254,28 +233,6 @@ onMounted(() => {
 
 .slice-title-row {
   margin-bottom: 0.5rem;
-}
-
-.slice-title {
-  margin: 0;
-  font-size: 1rem;
-  color: #fff;
-  cursor: text;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.slice-title:hover {
-  background: rgba(74, 158, 255, 0.1);
-}
-
-
-
-.slice-time {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.85rem;
-  color: #888;
 }
 
 .slice-duration {

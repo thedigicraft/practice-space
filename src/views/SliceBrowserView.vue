@@ -92,7 +92,7 @@ const handleDeleteSlice = (sliceId: string) => {
 }
 
 .view-header {
-  background: #1e1e1e;
+  
   border-bottom: 1px solid #333;
   padding: 1rem 2rem;
 }

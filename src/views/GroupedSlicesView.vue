@@ -1,19 +1,14 @@
 <template>
   <div class="grouped-slices-view d-flex flex-column">
-    <header class="view-header p-4 border-bottom">
-      <button class="btn btn-outline-secondary mb-3" @click="$router.back()">
-        <i class="fas fa-arrow-left me-2"></i>Back
-      </button>
-      <h1 class="mb-2">
-        {{ title }}
+    <header class="view-header p-4 border-bottom d-flex justify-content-between align-items-center">
+      <h1 class="xmb-2 d-flex align-items-center">
+        <div>{{ title }}</div>
         <span class="count-badge ms-2">{{ slices.length }}</span>
       </h1>
-      <p class="subtitle m-0">
-        Type: {{ type }}
-      </p>
+      <p class="subtitle m-0">{{ type }}</p>
     </header>
 
-    <div class="slices-content p-4">
+    <div class="slices-content p-4 container-fluid flex-fill overflow-auto">
       <div v-if="slices.length === 0" class="empty-state text-center py-5">
         <p>No slices found.</p>
       </div>
@@ -174,24 +169,10 @@ onMounted(() => {
   font-size: 0.9rem;
 }
 
-.count-badge {
-  background: rgba(74, 158, 255, 0.15);
-  color: #4a9eff;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  display: inline-block;
-}
-
 .slices-content {
   overflow-y: auto;
 }
 
-.slices-list {
-  max-width: 1200px;
-  margin: 0 auto;
-}
 
 .slice-item {
   background: #252525;

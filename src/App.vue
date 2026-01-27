@@ -394,7 +394,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(var(--bs-dark-rgb), 0.95);
+  /* background: rgba(var(--bs-dark-rgb), 0.95); */
   z-index: 1000;
   pointer-events: auto;
 }

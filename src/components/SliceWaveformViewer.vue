@@ -137,7 +137,7 @@ onMounted(drawWaveform)
 <style scoped>
 .slice-waveform-viewer {
   padding: 1rem;
-  background: #1e1e1e;
+  
   border-top: 1px solid #333;
 }
 .waveform-header {

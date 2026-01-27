@@ -45,21 +45,22 @@ const formatDate = (timestamp: number): string => {
       <div
         v-for="project in projectsWithCounts"
         :key="project.id"
-        class="project-card"
+        class="card h-100"
+        style="cursor: pointer;"
         @click="emit('selectProject', project)"
       >
-        <div class="project-color-bar" :style="{ background: project.color }"></div>
-        <div class="project-content">
-          <div class="project-header">
-            <h4 class="project-name">{{ project.name }}</h4>
-            <span class="project-count">{{ project.sliceCount }}</span>
+        <div class="project-color-bar" :style="{ background: project.color, height: '4px' }"></div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h4 class="card-title h6 m-0">{{ project.name }}</h4>
+            <span class="badge bg-primary">{{ project.sliceCount }}</span>
           </div>
-          <p v-if="project.description" class="project-description">
+          <p v-if="project.description" class="card-text">
             {{ project.description }}
           </p>
-          <div class="project-meta">
-            <span>Updated {{ formatDate(project.updatedAt) }}</span>
-          </div>
+          <p class="card-text text-muted small">
+            Updated {{ formatDate(project.updatedAt) }}
+          </p>
         </div>
       </div>
     </div>
@@ -103,70 +104,7 @@ const formatDate = (timestamp: number): string => {
   gap: 1rem;
 }
 
-.project-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.project-card:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
 .project-color-bar {
-  height: 4px;
   width: 100%;
-}
-
-.project-content {
-  padding: 1rem;
-}
-
-.project-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.5rem;
-}
-
-.project-name {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 500;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.project-count {
-  margin-left: 0.5rem;
-  padding: 0.25rem 0.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.project-description {
-  margin: 0 0 0.75rem 0;
-  font-size: 0.9rem;
-  opacity: 0.8;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.project-meta {
-  font-size: 0.8rem;
-  opacity: 0.6;
 }
 </style>

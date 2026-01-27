@@ -62,7 +62,7 @@ const formatDuration = (seconds: number) => {
 <style scoped>
 .region-toolbar {
   position: absolute;
-  background: #1e1e1e;
+  
   border: 1px solid #4a9eff;
   border-radius: 8px;
   padding: 0.75rem;

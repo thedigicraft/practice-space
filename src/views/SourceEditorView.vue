@@ -168,7 +168,7 @@
 
     <!-- Loading Overlay -->
     <div v-if="isLoading" class="loading-overlay">
-      <div class="loading-content">
+      <div class="loading-content d-flex flex-column align-items-center justify-content-center h-100">
         <div class="spinner-border text-primary" role="status" style="width: 4rem; height: 4rem;">
           <span class="visually-hidden">Loading...</span>
         </div>
@@ -187,7 +187,7 @@
         :title="sidebarCollapsed ? 'Show slices' : 'Hide slices'"
       >
         <i :class="sidebarCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right'"></i> Slices 
-        <span class="count-badge ms-2">{{ sourceSlices.length }}</span>
+        <span class="badge bg-primary rounded-pill ms-2">{{ sourceSlices.length }}</span>
       </button>
     </div>
   </div>
@@ -639,7 +639,7 @@ const seek = (time: number) => {
 
 .waveform-section,
 .slices-section {
-  background: #1e1e1e;
+  
   border-radius: 8px;
   margin-bottom: 2rem;
 }
@@ -712,7 +712,7 @@ const seek = (time: number) => {
 
 .details-sidebar {
   width: 500px;
-  background: #1e1e1e;
+  
   border-left: 1px solid #333;
   transition: width 0.3s ease, margin-left 0.3s ease;
   position: relative;

@@ -25,19 +25,20 @@
         <div
           v-for="project in sortedProjects"
           :key="project.id"
-          class="project-card"
+          class="card h-100"
+          style="cursor: pointer;"
           @click="openProject(project.id)"
         >
-          <div class="project-color" :style="{ backgroundColor: project.color || '#4a9eff' }"></div>
-          <div class="project-info">
-            <h3 class="project-name">{{ project.name }}</h3>
-            <p class="project-description" v-if="project.description">
+          <div class="project-color" :style="{ backgroundColor: project.color || '#4a9eff', height: '6px' }"></div>
+          <div class="card-body">
+            <h3 class="card-title h5">{{ project.name }}</h3>
+            <p class="card-text" v-if="project.description">
               {{ project.description }}
             </p>
-            <p class="project-meta">
+            <p class="card-text text-muted small">
               {{ project.sliceIds.length }} slice{{ project.sliceIds.length !== 1 ? 's' : '' }}
             </p>
-            <p class="project-date">
+            <p class="card-text text-muted small">
               Updated {{ formatDate(project.updatedAt) }}
             </p>
           </div>
@@ -134,21 +135,6 @@ const handleCreateProject = (_project: Project) => {
   gap: 1.5rem;
   max-width: 1400px;
   margin: 0 auto;
-}
-
-.project-card {
-  background: #252525;
-  border: 1px solid #353535;
-  border-radius: 8px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.project-card:hover {
-  border-color: #4a9eff;
-  box-shadow: 0 4px 12px rgba(74, 158, 255, 0.2);
-  transform: translateY(-2px);
 }
 
 .project-color {

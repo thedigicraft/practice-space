@@ -87,7 +87,7 @@ const emit = defineEmits<{
 
 <style scoped>
 .contextual-toolbar {
-  background: #1e1e1e;
+  
   border-top: 1px solid #333;
   padding: 1rem;
   min-height: 80px;

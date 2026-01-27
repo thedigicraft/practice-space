@@ -278,7 +278,7 @@ defineExpose({
 
 <style scoped>
 .slice-editor-form {
-  background: #1e1e1e;
+  
   border: 1px solid #333;
   border-radius: 8px;
   padding: 1.5rem;

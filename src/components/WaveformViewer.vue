@@ -734,7 +734,6 @@ defineExpose({ clearRegion, setRegion, zoomToRange })
           <i class="fas fa-chevron-right"></i>
         </button>
       </div>
-      <span class="zoom-hint">Scroll to zoom</span>
     </div>
 
     <div class="canvas-wrapper">

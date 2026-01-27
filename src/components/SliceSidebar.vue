@@ -93,7 +93,7 @@ const emit = defineEmits<{
 <style scoped>
 .slice-sidebar {
   width: 600px;
-  background: #1e1e1e;
+  
   border-left: 1px solid #333;
   display: flex;
   flex-direction: column;

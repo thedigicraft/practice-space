@@ -32,35 +32,37 @@
           <div
             v-for="slice in projectSlices"
             :key="slice.id"
-            class="slice-card p-3"
-            :class="{ 'is-playing': currentlyPlayingSliceId === slice.id && isPlaying }"
+            class="card mb-3"
+            :class="{ 'border-primary': currentlyPlayingSliceId === slice.id && isPlaying }"
           >
-            <button 
-              class="btn btn-primary btn-sm play-btn"
-              @click="handlePlaySlice(slice)"
-            >
-              <i :class="currentlyPlayingSliceId === slice.id && isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
-            </button>
-            <div class="slice-info">
-              <h3 class="slice-title mb-2">{{ slice.title }}</h3>
-              <p class="slice-source mb-1" v-if="getSourceName(slice.audioFileId)">
-                Source: {{ getSourceName(slice.audioFileId) }}
-              </p>
-              <p class="slice-time">
-                {{ formatTime(slice.startTime) }} - {{ formatTime(slice.endTime) }}
-                <span class="slice-duration">({{ formatDuration(slice.endTime - slice.startTime) }})</span>
-              </p>
-              <div v-if="slice.tags && slice.tags.length > 0" class="slice-tags">
-                <span v-for="tag in slice.tags" :key="tag" class="tag">{{ tag }}</span>
+            <div class="card-body d-flex gap-3 align-items-start">
+              <button 
+                class="btn btn-primary btn-sm play-btn"
+                @click="handlePlaySlice(slice)"
+              >
+                <i :class="currentlyPlayingSliceId === slice.id && isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
+              </button>
+              <div class="slice-info flex-fill">
+                <h3 class="card-title h6 mb-2">{{ slice.title }}</h3>
+                <p class="card-text text-muted small mb-1" v-if="getSourceName(slice.audioFileId)">
+                  Source: {{ getSourceName(slice.audioFileId) }}
+                </p>
+                <p class="card-text text-muted small">
+                  {{ formatTime(slice.startTime) }} - {{ formatTime(slice.endTime) }}
+                  <span class="slice-duration">({{ formatDuration(slice.endTime - slice.startTime) }})</span>
+                </p>
+                <div v-if="slice.tags && slice.tags.length > 0" class="slice-tags mt-2">
+                  <span v-for="tag in slice.tags" :key="tag" class="badge bg-primary me-1">{{ tag }}</span>
+                </div>
               </div>
+              <button 
+                class="btn btn-sm btn-outline-secondary"
+                @click="handleViewSource(slice.audioFileId)"
+                title="View in Source Editor"
+              >
+                View Source <i class="fas fa-arrow-right"></i>
+              </button>
             </div>
-            <button 
-              class="btn btn-sm btn-outline-secondary"
-              @click="handleViewSource(slice.audioFileId)"
-              title="View in Source Editor"
-            >
-              View Source <i class="fas fa-arrow-right"></i>
-            </button>
           </div>
         </div>
       </section>
@@ -132,7 +134,7 @@ const handleViewSource = (sourceId: string) => {
 }
 
 .view-header {
-  background: #1e1e1e;
+  
   border-bottom: 1px solid #333;
   padding: 1rem 2rem;
 }
@@ -185,7 +187,7 @@ const handleViewSource = (sourceId: string) => {
 }
 
 .slices-section {
-  background: #1e1e1e;
+  
   border-radius: 8px;
   padding: 1.5rem;
 }
@@ -220,25 +222,6 @@ const handleViewSource = (sourceId: string) => {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-}
-
-.slice-card {
-  background: #2a2a2a;
-  border-radius: 6px;
-  padding: 1rem;
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  transition: all 0.2s;
-}
-
-.slice-card:hover {
-  background: #333;
-}
-
-.slice-card.is-playing {
-  background: #2d3e50;
-  border-left: 3px solid #4a9eff;
 }
 
 .play-btn {

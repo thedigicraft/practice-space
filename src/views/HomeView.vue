@@ -21,28 +21,30 @@
           <div
             v-for="source in recentSources"
             :key="source.id"
-            class="source-card p-3 d-flex gap-3 align-items-start"
+            class="card h-100"
           >
-            <div class="source-icon">
-              <i class="fas fa-file-audio"></i>
+            <div class="card-body d-flex gap-3 align-items-start">
+              <div class="source-icon">
+                <i class="fas fa-file-audio"></i>
+              </div>
+              <div class="source-info flex-fill" @click="$emit('openSource', source.id)">
+                <h3 class="card-title h5 mb-2">{{ source.title || source.name }}</h3>
+                <p class="card-text text-muted my-1">
+                  {{ formatDuration(source.duration) }} • {{ formatFileSize(source.size) }}
+                </p>
+                <p v-if="source.location" class="source-location my-1">
+                  <a class="link-secondary text-decoration-none" @click.stop="filterByLocation(source.location)" role="button">
+                    <i class="fas fa-map-marker-alt me-1"></i>{{ source.location }}
+                  </a>
+                </p>
+                <p class="card-text text-muted small">
+                  Imported {{ formatDate(source.importedAt) }}
+                </p>
+              </div>
+              <button class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" @click.stop="editSource(source)" title="Edit Metadata">
+                <i class="fas fa-edit"></i>
+              </button>
             </div>
-            <div class="source-info flex-fill" @click="$emit('openSource', source.id)">
-              <h3 class="source-name mb-2">{{ source.title || source.name }}</h3>
-              <p class="source-meta my-1">
-                {{ formatDuration(source.duration) }} • {{ formatFileSize(source.size) }}
-              </p>
-              <p v-if="source.location" class="source-location my-1">
-                <a class="link-secondary text-decoration-none" @click.stop="filterByLocation(source.location)" role="button">
-                  <i class="fas fa-map-marker-alt me-1"></i>{{ source.location }}
-                </a>
-              </p>
-              <p class="source-date">
-                Imported {{ formatDate(source.importedAt) }}
-              </p>
-            </div>
-            <button class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" @click.stop="editSource(source)" title="Edit Metadata">
-              <i class="fas fa-edit"></i>
-            </button>
           </div>
         </div>
       </section>
@@ -58,26 +60,30 @@
 
         <div class="library-grid d-flex flex-row gap-4">
           <div v-for="(groups, sliceType) in recentGroupedSlices" :key="sliceType" class="library-type-section">
-            <h3 class="type-header d-flex align-items-center gap-2">{{ formatTypeName(sliceType) }}</h3>
+            <h3 class="type-header d-flex align-items-center gap-2">
+                               <div class="item-icon d-flex align-items-center justify-content-center">
+                    <i :class="getTypeIcon(sliceType)"></i>
+                  </div>
+                  {{ formatTypeName(sliceType) }}</h3>
             <div class="grouped-items d-flex flex-column gap-3">
               <div
                 v-for="(sliceGroup, title) in groups"
                 :key="`${sliceType}-${title}`"
-                class="grouped-item d-flex gap-3 align-items-center"
+                class="card grouped-item"
                 @click="openGroupedSlices(sliceType, title)"
               >
-                <div class="item-icon d-flex align-items-center justify-content-center">
-                  <i :class="getTypeIcon(sliceType)"></i>
-                </div>
-                <div class="item-info flex-fill">
-                  <h4 class="item-title d-flex align-items-center gap-2">
-                    {{ title }}
-                    <span class="count-badge">{{ sliceGroup.count }}</span>
-                  </h4>
-                  <p v-if="sliceGroup.locations.size > 0" class="item-locations">
-                    <i class="fas fa-map-marker-alt me-1"></i>
-                    {{ Array.from(sliceGroup.locations).join(', ') }}
-                  </p>
+                <div class="card-body d-flex gap-3 align-items-start">
+ 
+                  <div class="item-info flex-fill">
+                    <h4 class="item-title d-flex justify-content-between align-items-center gap-2">
+                      <div>{{ title }}</div>
+                    <span class="badge bg-primary rounded-pill">{{ sliceGroup.count }}</span>
+                    </h4>
+                    <p v-if="sliceGroup.locations.size > 0" class="item-locations m-0">
+                      <i class="fas fa-map-marker-alt me-1"></i>
+                      {{ Array.from(sliceGroup.locations).join(', ') }}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -288,7 +294,7 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
 }
 
 .home-section {
-  background: #1e1e1e;
+  
   border-radius: 8px;
   padding: 1.5rem;
 }
@@ -339,7 +345,7 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
 }
 
 .library-type-section {
-  background: #252525;
+  /* background: #252525; */
   border-radius: 8px;
   padding: 1.5rem;
   min-width: 280px;
@@ -355,14 +361,14 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
 .grouped-items {
 }
 
-.grouped-item {
+/* .grouped-item {
   background: #2a2a2a;
   border: 1px solid #353535;
   border-radius: 6px;
   padding: 1rem;
   cursor: pointer;
   transition: all 0.2s;
-}
+} */
 
 .grouped-item:hover {
   background: #303030;
@@ -371,7 +377,7 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
   box-shadow: 0 2px 8px rgba(74, 158, 255, 0.2);
 }
 
-.item-icon {
+/* .item-icon {
   width: 40px;
   height: 40px;
   background: #1a1a1a;
@@ -379,29 +385,17 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
   color: #4a9eff;
   font-size: 1.2rem;
   flex-shrink: 0;
-}
+} */
 
 .item-info {
   min-width: 0;
 }
 
 .item-title {
-  margin: 0 0 0.25rem 0;
-  font-size: 0.95rem;
-  color: #fff;
+  font-size: 0.95rem;  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.count-badge {
-  background: rgba(74, 158, 255, 0.15);
-  color: #4a9eff;
-  padding: 0.125rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  flex-shrink: 0;
 }
 
 .item-meta {
@@ -411,7 +405,6 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
 }
 
 .item-locations {
-  margin: 0.25rem 0 0 0;
   font-size: 0.75rem;
   color: #9d4aff;
 }
@@ -421,20 +414,6 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1rem;
-}
-
-.source-card {
-  background: #2a2a2a;
-  border-radius: 8px;
-  padding: 1.5rem;
-  transition: all 0.2s;
-  position: relative;
-}
-
-.source-card:hover {
-  background: #333;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .source-icon {
@@ -447,52 +426,11 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
   cursor: pointer;
 }
 
-.source-name {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.1rem;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.source-meta,
-.source-location,
-.source-date {
-  margin: 0.25rem 0;
-  font-size: 0.85rem;
-  color: #888;
-}
-
-.source-location {
-  color: #9d4aff;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.source-location:hover {
-  color: #b36bff;
-  text-decoration: underline;
-}
-
 /* Project Grid */
 .project-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1rem;
-}
-
-.project-card {
-  background: #2a2a2a;
-  border-radius: 8px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.project-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .project-color {
