@@ -6,6 +6,9 @@
 import type { Slice } from '../types/models'
 import { Mp3Encoder } from '@breezystack/lamejs'
 import * as ID3Writer from 'browser-id3-writer'
+import { Capacitor } from '@capacitor/core'
+import { Filesystem, Directory } from '@capacitor/filesystem'
+import { Share } from '@capacitor/share'
 
 export type ExportFormat = 'wav' | 'mp3' | 'flac' | 'ogg'
 
@@ -154,7 +157,7 @@ async function exportAsWav(
   const blob = new Blob([wavData], { type: 'audio/wav' })
   
   const finalFileName = fileName.endsWith('.wav') ? fileName : `${fileName}.wav`
-  downloadBlob(blob, finalFileName)
+  await downloadBlob(blob, finalFileName)
 }
 
 /**
@@ -279,7 +282,7 @@ async function exportAsMp3(
           }
           
           const finalFileName = fileName.replace(/\.(wav|mp3|webm|ogg|mp4)$/i, '') + '.mp3'
-          downloadBlob(blob, finalFileName)
+          await downloadBlob(blob, finalFileName)
           resolve()
         }
       }
@@ -296,7 +299,43 @@ async function exportAsMp3(
 /**
  * Download a blob as a file
  */
-function downloadBlob(blob: Blob, fileName: string): void {
+async function downloadBlob(blob: Blob, fileName: string): Promise<void> {
+  // On native (Android/iOS via Capacitor), write to filesystem and offer share
+  if (Capacitor.isNativePlatform()) {
+    const base64 = await blobToBase64(blob)
+
+    // Prefer External directory on Android so files are visible to user
+    const preferredDir: Directory = Directory.External
+    const fallbackDir: Directory = Directory.Documents
+    const subfolder = 'Music'
+    const path = `${subfolder}/${fileName}`
+
+    try {
+      await Filesystem.writeFile({ path, data: base64, directory: preferredDir })
+      try {
+        const uriResult = await Filesystem.getUri({ path, directory: preferredDir })
+        await Share.share({ title: fileName, files: [uriResult.uri] })
+      } catch {
+        // Fallback: share via data URL
+        const mime = fileName.toLowerCase().endsWith('.mp3') ? 'audio/mp3' : 'audio/wav'
+        await Share.share({ title: fileName, url: `data:${mime};base64,${base64}` })
+      }
+      return
+    } catch {
+      // Fallback to Documents if External fails
+      await Filesystem.writeFile({ path: fileName, data: base64, directory: fallbackDir })
+      try {
+        const uriResult = await Filesystem.getUri({ path: fileName, directory: fallbackDir })
+        await Share.share({ title: fileName, files: [uriResult.uri] })
+      } catch {
+        const mime = fileName.toLowerCase().endsWith('.mp3') ? 'audio/mp3' : 'audio/wav'
+        await Share.share({ title: fileName, url: `data:${mime};base64,${base64}` })
+      }
+      return
+    }
+  }
+
+  // Web: trigger a standard download
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
@@ -305,6 +344,19 @@ function downloadBlob(blob: Blob, fileName: string): void {
   link.click()
   document.body.removeChild(link)
   setTimeout(() => URL.revokeObjectURL(url), 100)
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const result = reader.result as string
+      const base64 = result.split(',')[1]
+      resolve(base64)
+    }
+    reader.onerror = (e) => reject(e)
+    reader.readAsDataURL(blob)
+  })
 }
 
 /**

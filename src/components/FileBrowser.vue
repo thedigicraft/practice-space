@@ -256,9 +256,8 @@ const exportSelected = async () => {
         failed++
         continue
       }
-      
-      const file = await getFileFromHandle(audioFile.fileHandle)
-      const arrayBuffer = await file.arrayBuffer()
+      // Load source across web/Android platforms
+      const arrayBuffer = await getSourceArrayBuffer(audioFile)
       const audioContext = new AudioContext()
       const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
       
