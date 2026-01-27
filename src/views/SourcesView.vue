@@ -2,29 +2,16 @@
   <div class="sources-view d-flex flex-column">
     <div class="sources-content p-4">
       <!-- Filters and Search -->
-      <div class="filters-bar mb-4 d-flex gap-3 align-items-center">
-        <div class="search-box flex-fill">
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search sources by name, title, or location..."
-            class="form-control"
-          />
-        </div>
-        <select v-model="locationFilter" class="form-select" style="width: 200px;">
-          <option value="">All Locations</option>
-          <option v-for="location in uniqueLocations" :key="location" :value="location">
-            {{ location }}
-          </option>
-        </select>
-        <select v-model="sortBy" class="form-select" style="width: 200px;">
-          <option value="importedAt">Sort by Import Date</option>
-          <option value="title">Sort by Title</option>
-          <option value="name">Sort by Filename</option>
-          <option value="duration">Sort by Duration</option>
-          <option value="size">Sort by Size</option>
-        </select>
-      </div>
+      <FilterBar
+        :locations="uniqueLocations"
+        search-placeholder="Search sources by name, title, or location..."
+        :initial-search="searchQuery"
+        :initial-location="locationFilter"
+        :initial-sort="sortBy"
+        @update:search="searchQuery = $event"
+        @update:location="locationFilter = $event"
+        @update:sort="sortBy = $event"
+      />
 
       <div v-if="filteredSources.length === 0" class="empty-state text-center py-5">
         <p v-if="sources.length === 0">No audio sources imported yet.</p>
@@ -44,45 +31,14 @@
           </tr>
         </thead>
         <tbody>
-          <tr
+          <SourceTableRow
             v-for="source in filteredSources"
             :key="source.id"
+            :source="source"
             @click="openSource(source.id)"
-            class="source-row"
-          >
-            <td>
-              <div class="d-flex align-items-center gap-2">
-                <i class="fas fa-file-audio text-primary"></i>
-                <div>
-                  <div class="source-title">{{ source.title || source.name }}</div>
-                  <div v-if="source.title" class="source-filename text-muted">{{ source.name }}</div>
-                </div>
-              </div>
-            </td>
-            <td>
-              <a
-                v-if="source.location"
-                class="link-secondary text-decoration-none"
-                @click.stop="filterByLocation(source.location)"
-                role="button"
-              >
-                <i class="fas fa-map-marker-alt me-1"></i>{{ source.location }}
-              </a>
-              <span v-else class="text-muted">—</span>
-            </td>
-            <td class="text-monospace">{{ formatDuration(source.duration) }}</td>
-            <td>{{ formatFileSize(source.size) }}</td>
-            <td class="text-muted">{{ formatDate(source.importedAt) }}</td>
-            <td class="text-center">
-              <button
-                class="btn btn-sm btn-outline-secondary"
-                @click.stop="editSource(source)"
-                title="Edit Metadata"
-              >
-                <i class="fas fa-edit"></i>
-              </button>
-            </td>
-          </tr>
+            @edit="editSource(source)"
+            @filter-location="filterByLocation"
+          />
         </tbody>
       </table>
 
@@ -106,11 +62,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, toRef } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Source } from '@/types/models'
 import ImportControls from '@/components/ImportControls.vue'
 import SourceMetadataEditor from '@/components/SourceMetadataEditor.vue'
+import SourceTableRow from '@/components/SourceTableRow.vue'
+import FilterBar from '@/components/FilterBar.vue'
+import { useSourceFiltering } from '@/composables/useSourceFiltering'
 import { formatTime, formatFileSize } from '@/utils/helpers'
 
 interface Props {
@@ -129,63 +88,13 @@ const emit = defineEmits<{
   updateSource: [sourceId: string, metadata: Partial<Source>]
 }>()
 
-const uniqueLocations = computed(() => {
-  const locations = props.sources
-    .map(s => s.location)
-    .filter((loc): loc is string => !!loc)
-  return Array.from(new Set(locations)).sort()
+// Use source filtering composable
+const { uniqueLocations, filteredSources } = useSourceFiltering({
+  sources: toRef(() => props.sources),
+  searchQuery,
+  locationFilter,
+  sortBy
 })
-
-const filteredSources = computed(() => {
-  let filtered = [...props.sources]
-
-  // Apply search filter
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(source =>
-      (source.title?.toLowerCase().includes(query)) ||
-      source.name.toLowerCase().includes(query) ||
-      (source.location?.toLowerCase().includes(query))
-    )
-  }
-
-  // Apply location filter
-  if (locationFilter.value) {
-    filtered = filtered.filter(source => source.location === locationFilter.value)
-  }
-
-  // Apply sorting
-  filtered.sort((a, b) => {
-    switch (sortBy.value) {
-      case 'title':
-        return (a.title || a.name).localeCompare(b.title || b.name)
-      case 'name':
-        return a.name.localeCompare(b.name)
-      case 'duration':
-        return b.duration - a.duration
-      case 'size':
-        return b.size - a.size
-      case 'importedAt':
-      default:
-        return b.importedAt - a.importedAt
-    }
-  })
-
-  return filtered
-})
-
-const formatDuration = (seconds: number) => formatTime(seconds)
-
-const formatDate = (timestamp: number) => {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-  
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  return date.toLocaleDateString()
-}
 
 const openSource = (sourceId: string) => {
   router.push(`/source/${sourceId}`)
@@ -214,7 +123,7 @@ const handleFilesImported = (files: Source[]) => {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .sources-view {
   height: 100vh;
   color: #e0e0e0;
@@ -225,46 +134,22 @@ const handleFilesImported = (files: Source[]) => {
   padding-bottom: 80px;
 }
 
-.filters-bar {
-  background: var(--bs-body-bg);
-  border-radius: 8px;
-  padding: 1rem;
-}
-
 .sources-table {
   width: 100%;
   border-collapse: collapse;
-}
 
-.sources-table thead th {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  font-weight: 600;
-  padding: 0.75rem;
-  border-bottom: 2px solid var(--bs-border-color);
-}
+  thead th {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 0.75rem;
+    border-bottom: 2px solid var(--bs-border-color);
+  }
 
-.sources-table tbody td {
-  padding: 1rem 0.75rem;
-  vertical-align: middle;
-}
-
-.source-row {
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.source-row:hover {
-  background: rgba(var(--bs-primary-rgb), 0.1);
-}
-
-.source-title {
-  font-weight: 500;
-  color: var(--bs-body-color);
-}
-
-.source-filename {
-  font-size: 0.85rem;
+  tbody td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+  }
 }
 
 .text-monospace {

@@ -1,52 +1,18 @@
 <template>
   <div class="source-editor-view">
-    <div class="source-metadata px-4 py-3">
-      <div class="source-title d-flex justify-content-between align-items-center">
-        <input
-            v-if="editingSourceName"
-            v-model="sourceNameValue"
-            @blur="saveSourceName"
-            @keyup.enter="saveSourceName"
-            @keyup.esc="cancelSourceNameEdit"
-            class="form-control"
-            ref="sourceNameInput"
-          />
-          <h1 
-            v-else
-            @dblclick="startSourceNameEdit"
-            :title="'Double-click to edit'"
-            class="editable-title"
-          >
-            {{ source?.title || source?.name || 'Source Editor' }}
-          </h1>
-          <div class="source-metadata d-flex justify-content-center flex-wrap gap-4" v-if="source">
-            <span class="metadata-item">
-              <i class="fas fa-file-audio me-1"></i>{{ source.name }}
-            </span>
-            <span class="metadata-item">
-              <i class="fas fa-clock me-1"></i>{{ formatDuration(source.duration) }}
-            </span>
-            <span class="metadata-item">
-              <i class="fas fa-hdd me-1"></i>{{ formatFileSize(source.size) }}
-            </span>
-            <span class="metadata-item">
-              <i class="fas fa-wave-square me-1"></i>{{ source.sampleRate }}Hz
-            </span>
-            <span class="metadata-item">
-              <i class="fas fa-volume-up me-1"></i>{{ source.numberOfChannels }} channel{{ source.numberOfChannels > 1 ? 's' : '' }}
-            </span>
-            <span v-if="source.location" class="metadata-item">
-              <i class="fas fa-map-marker-alt me-1"></i>{{ source.location }}
-            </span>
-            <span class="metadata-item">
-              <i class="fas fa-calendar-plus me-1"></i>Imported {{ formatDate(source.importedAt) }}
-            </span>
-            <span v-if="source.createdAt" class="metadata-item">
-              <i class="fas fa-calendar me-1"></i>Created {{ formatDate(source.createdAt) }}
-            </span>
-          </div>
-        </div>
-    </div>
+    <SourceMetadataBar
+      v-if="source"
+      :title="source.title || source.name"
+      :filename="source.name"
+      :duration="source.duration"
+      :size="source.size"
+      :sample-rate="source.sampleRate"
+      :number-of-channels="source.numberOfChannels"
+      :location="source.location"
+      :imported-at="source.importedAt"
+      :created-at="source.createdAt"
+      @update-title="handleUpdateTitle"
+    />
 
     <div class="editor-layout">
       <div class="main-content">
@@ -205,6 +171,7 @@ import ContextualToolbar from '../components/ContextualToolbar.vue'
 import SliceSidebar from '../components/SliceSidebar.vue'
 import SliceWaveformViewer from '../components/SliceWaveformViewer.vue'
 import SliceEditorForm from '../components/SliceEditorForm.vue'
+import SourceMetadataBar from '../components/SourceMetadataBar.vue'
 import { formatTime, formatFileSize } from '../utils/helpers'
 
 const router = useRouter()
@@ -268,6 +235,12 @@ const sidebarCollapsed = ref(true)
 const detailsSidebarCollapsed = ref(false)
 const waveformMode = ref<'line' | 'bars'>('bars')
 const newSliceTitle = ref('')
+
+const handleUpdateTitle = (newTitle: string) => {
+  if (source.value) {
+    emit('updateSource', { ...source.value, title: newTitle })
+  }
+}
 
 const toggleSidebar = () => {
   sidebarCollapsed.value = !sidebarCollapsed.value

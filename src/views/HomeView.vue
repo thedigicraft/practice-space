@@ -18,34 +18,14 @@
         </div>
 
         <div v-else class="source-grid">
-          <div
+          <SourceCard
             v-for="source in recentSources"
             :key="source.id"
-            class="card h-100"
-          >
-            <div class="card-body d-flex gap-3 align-items-start">
-              <div class="source-icon">
-                <i class="fas fa-file-audio"></i>
-              </div>
-              <div class="source-info flex-fill" @click="$emit('openSource', source.id)">
-                <h3 class="card-title h5 mb-2">{{ source.title || source.name }}</h3>
-                <p class="card-text text-muted my-1">
-                  {{ formatDuration(source.duration) }} • {{ formatFileSize(source.size) }}
-                </p>
-                <p v-if="source.location" class="source-location my-1">
-                  <a class="link-secondary text-decoration-none" @click.stop="filterByLocation(source.location)" role="button">
-                    <i class="fas fa-map-marker-alt me-1"></i>{{ source.location }}
-                  </a>
-                </p>
-                <p class="card-text text-muted small">
-                  Imported {{ formatDate(source.importedAt) }}
-                </p>
-              </div>
-              <button class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" @click.stop="editSource(source)" title="Edit Metadata">
-                <i class="fas fa-edit"></i>
-              </button>
-            </div>
-          </div>
+            :source="source"
+            @click="$emit('openSource', source.id)"
+            @edit="editSource(source)"
+            @filter-location="filterByLocation"
+          />
         </div>
       </section>
 
@@ -59,35 +39,13 @@
         </div>
 
         <div class="library-grid d-flex flex-row gap-4">
-          <div v-for="(groups, sliceType) in recentGroupedSlices" :key="sliceType" class="library-type-section">
-            <h3 class="type-header d-flex align-items-center gap-2">
-                               <div class="item-icon d-flex align-items-center justify-content-center">
-                    <i :class="getTypeIcon(sliceType)"></i>
-                  </div>
-                  {{ formatTypeName(sliceType) }}</h3>
-            <div class="grouped-items d-flex flex-column gap-3">
-              <div
-                v-for="(sliceGroup, title) in groups"
-                :key="`${sliceType}-${title}`"
-                class="card grouped-item"
-                @click="openGroupedSlices(sliceType, title)"
-              >
-                <div class="card-body d-flex gap-3 align-items-start">
- 
-                  <div class="item-info flex-fill">
-                    <h4 class="item-title d-flex justify-content-between align-items-center gap-2">
-                      <div>{{ title }}</div>
-                    <span class="badge bg-primary rounded-pill">{{ sliceGroup.count }}</span>
-                    </h4>
-                    <p v-if="sliceGroup.locations.size > 0" class="item-locations m-0">
-                      <i class="fas fa-map-marker-alt me-1"></i>
-                      {{ Array.from(sliceGroup.locations).join(', ') }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <LibraryTypeSection
+            v-for="(groups, sliceType) in recentGroupedSlices"
+            :key="sliceType"
+            :slice-type="sliceType"
+            :groups="groups"
+            @open-group="openGroupedSlices"
+          />
         </div>
       </section>
 
@@ -117,12 +75,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, toRef } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Source, Project, Slice } from '../types/models'
 import ImportControls from '../components/ImportControls.vue'
 import CreateProjectDialog from '../components/CreateProjectDialog.vue'
 import SourceMetadataEditor from '../components/SourceMetadataEditor.vue'
+import SourceCard from '../components/SourceCard.vue'
+import LibraryTypeSection from '../components/LibraryTypeSection.vue'
+import { useSliceGrouping } from '../composables/useSliceGrouping'
 import { formatTime, formatFileSize } from '../utils/helpers'
 
 interface Props {
@@ -145,51 +106,14 @@ const router = useRouter()
 const showCreateProject = ref(false)
 const editingSource = ref<Source | null>(null)
 
-// Group slices by type and title
-const groupedSlices = computed(() => {
-  const groups: Record<string, Record<string, { count: number; slices: Slice[]; locations: Set<string> }>> = {}
-  
-  props.slices.forEach(slice => {
-    // Only group slices that have a type and title
-    if (!slice.type || !slice.title) return
-    
-    if (!groups[slice.type]) {
-      groups[slice.type] = {}
-    }
-    
-    if (!groups[slice.type][slice.title]) {
-      groups[slice.type][slice.title] = { count: 0, slices: [], locations: new Set() }
-    }
-    
-    groups[slice.type][slice.title].count++
-    groups[slice.type][slice.title].slices.push(slice)
-    
-    // Add location from source file
-    const source = props.sources.find(s => s.id === slice.audioFileId)
-    if (source?.location) {
-      groups[slice.type][slice.title].locations.add(source.location)
-    }
-  })
-  
-  return groups
+// Use slice grouping composable
+const { groupedSlices, getRecentGroupedSlices } = useSliceGrouping({
+  slices: toRef(() => props.slices),
+  sources: toRef(() => props.sources)
 })
 
-// Show only 3 most recent items in each type
-const recentGroupedSlices = computed(() => {
-  const limitedGroups: typeof groupedSlices.value = {}
-  
-  Object.keys(groupedSlices.value).forEach(type => {
-    const titles = Object.keys(groupedSlices.value[type])
-    limitedGroups[type] = {}
-    
-    // Get first 5 titles (most common ones by count)
-    titles.slice(0, 5).forEach(title => {
-      limitedGroups[type][title] = groupedSlices.value[type][title]
-    })
-  })
-  
-  return limitedGroups
-})
+// Show only 5 most recent items in each type
+const recentGroupedSlices = computed(() => getRecentGroupedSlices(5))
 
 // Show only 3 most recent sources
 const recentSources = computed(() => {
@@ -205,22 +129,6 @@ const recentProjects = computed(() => {
     .slice(0, 3)
 })
 
-const formatTypeName = (type: string) => {
-  return type.charAt(0).toUpperCase() + type.slice(1) + 's'
-}
-
-const getTypeIcon = (type: string) => {
-  const icons: Record<string, string> = {
-    'song': 'fas fa-music',
-    'etude': 'fas fa-graduation-cap',
-    'scale': 'fas fa-sliders-h',
-    'exercise': 'fas fa-dumbbell',
-    'warm-up': 'fas fa-fire',
-    'technique': 'fas fa-tools',
-  }
-  return icons[type.toLowerCase()] || 'fas fa-wave-square'
-}
-
 const openGroupedSlices = (type: string, title: string) => {
   router.push({
     path: '/grouped-slices',
@@ -234,8 +142,6 @@ const filterByLocation = (location: string) => {
     query: { location }
   })
 }
-
-const formatDuration = (seconds: number) => formatTime(seconds)
 
 const formatDate = (timestamp: number) => {
   const date = new Date(timestamp)
@@ -344,86 +250,11 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
   overflow-x: auto;
 }
 
-.library-type-section {
-  /* background: #252525; */
-  border-radius: 8px;
-  padding: 1.5rem;
-  min-width: 280px;
-  flex-grow: 1;
-}
-
-.type-header {
-  margin: 0 0 1rem 0;
-  font-size: 1.2rem;
-  color: #4a9eff;
-}
-
-.grouped-items {
-}
-
-/* .grouped-item {
-  background: #2a2a2a;
-  border: 1px solid #353535;
-  border-radius: 6px;
-  padding: 1rem;
-  cursor: pointer;
-  transition: all 0.2s;
-} */
-
-.grouped-item:hover {
-  background: #303030;
-  border-color: #4a9eff;
-  transform: translateY(-2px);
-  box-shadow: 0 2px 8px rgba(74, 158, 255, 0.2);
-}
-
-/* .item-icon {
-  width: 40px;
-  height: 40px;
-  background: #1a1a1a;
-  border-radius: 6px;
-  color: #4a9eff;
-  font-size: 1.2rem;
-  flex-shrink: 0;
-} */
-
-.item-info {
-  min-width: 0;
-}
-
-.item-title {
-  font-size: 0.95rem;  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.item-meta {
-  margin: 0;
-  font-size: 0.8rem;
-  color: #888;
-}
-
-.item-locations {
-  font-size: 0.75rem;
-  color: #9d4aff;
-}
-
 /* Source Grid */
 .source-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1rem;
-}
-
-.source-icon {
-  font-size: 2rem;
-  flex-shrink: 0;
-}
-
-.source-info {
-  min-width: 0;
-  cursor: pointer;
 }
 
 /* Project Grid */

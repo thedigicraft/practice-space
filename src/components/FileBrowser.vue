@@ -6,6 +6,9 @@ import { exportSlice, type ExportFormat } from '@/utils/audioExport'
 import { getFileFromHandle } from '@/services/fileSystem'
 import type { Slice, SliceFolder, AudioFile } from '@/types/models'
 import ToastNotification from './ToastNotification.vue'
+import ExportMenu from './ExportMenu.vue'
+import FolderNavigationBreadcrumbs from './FolderNavigationBreadcrumbs.vue'
+import SliceSelectionToolbar from './SliceSelectionToolbar.vue'
 
 interface Props {
   slices: Slice[]
@@ -377,22 +380,10 @@ defineExpose({
 <template>
   <div class="file-browser d-flex flex-column">
     <!-- Breadcrumb navigation -->
-    <div class="breadcrumb py-3 px-3 d-flex align-items-center">
-      <span
-        v-for="(crumb, index) in breadcrumbs"
-        :key="crumb.id || 'root'"
-        class="breadcrumb-item d-flex align-items-center"
-      >
-        <button
-          @click="navigateToFolder(crumb.id)"
-          class="btn btn-link breadcrumb-link"
-          :class="{ active: index === breadcrumbs.length - 1 }"
-        >
-          {{ crumb.name }}
-        </button>
-        <span v-if="index < breadcrumbs.length - 1" class="breadcrumb-sep">/</span>
-      </span>
-    </div>
+    <FolderNavigationBreadcrumbs
+      :breadcrumbs="breadcrumbs"
+      @navigate="navigateToFolder"
+    />
 
     <!-- Toolbar -->
     <div class="toolbar py-3 px-3 d-flex gap-3 align-items-center">
@@ -581,27 +572,11 @@ defineExpose({
               </span>
             </div>
           </div>
-          <div class="dropdown">
-            <button 
-              class="btn btn-sm btn-success dropdown-toggle"
-              type="button"
-              @click="toggleExportDropdown(slice.id, $event)"
-            >
-              💾
-            </button>
-            <ul v-if="exportDropdownOpen === slice.id" class="dropdown-menu show" style="right: 0; left: auto;">
-              <li>
-                <button class="dropdown-item" @click="handleExportSlice(slice, 'wav', $event)">
-                  <i class="fas fa-wave-square me-2"></i> WAV (Instant, Lossless)
-                </button>
-              </li>
-              <li>
-                <button class="dropdown-item" @click="handleExportSlice(slice, 'mp3', $event)">
-                  <i class="fas fa-music me-2"></i> MP3 (Compressed)
-                </button>
-              </li>
-            </ul>
-          </div>
+          <ExportMenu
+            :is-open="exportDropdownOpen === slice.id"
+            @toggle="toggleExportDropdown(slice.id, $event)"
+            @export="(format) => handleExportSlice(slice, format, $event)"
+          />
         </div>
       </div>
     </div>
@@ -617,51 +592,13 @@ defineExpose({
   />
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .file-browser {
   height: 100%;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   overflow: hidden;
-}
-
-.breadcrumb {
-  padding: 0.75rem 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 0.9rem;
-}
-
-.breadcrumb-item {
-}
-
-.breadcrumb-link {
-  background: none;
-  border: none;
-  color: #4a9eff;
-  cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.breadcrumb-link:hover {
-  background: rgba(74, 158, 255, 0.1);
-}
-
-.breadcrumb-link.active {
-  color: inherit;
-  cursor: default;
-}
-
-.breadcrumb-link.active:hover {
-  background: none;
-}
-
-.breadcrumb-sep {
-  margin: 0 0.25rem;
-  opacity: 0.5;
 }
 
 .toolbar {
@@ -679,17 +616,6 @@ defineExpose({
   border-bottom: 1px solid rgba(74, 158, 255, 0.2);
   color: #4a9eff;
   font-size: 0.85rem;
-}
-
-.batch-actions {
-  padding: 0.75rem 1rem;
-  background: rgba(74, 158, 255, 0.1);
-  border-bottom: 1px solid rgba(74, 158, 255, 0.3);
-}
-
-.selection-info {
-  font-weight: 600;
-  color: #4a9eff;
 }
 
 .browser-content {

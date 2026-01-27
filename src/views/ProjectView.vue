@@ -29,41 +29,15 @@
         </div>
 
         <div v-else class="slices-list">
-          <div
+          <SliceListItem
             v-for="slice in projectSlices"
             :key="slice.id"
-            class="card mb-3"
-            :class="{ 'border-primary': currentlyPlayingSliceId === slice.id && isPlaying }"
-          >
-            <div class="card-body d-flex gap-3 align-items-start">
-              <button 
-                class="btn btn-primary btn-sm play-btn"
-                @click="handlePlaySlice(slice)"
-              >
-                <i :class="currentlyPlayingSliceId === slice.id && isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
-              </button>
-              <div class="slice-info flex-fill">
-                <h3 class="card-title h6 mb-2">{{ slice.title }}</h3>
-                <p class="card-text text-muted small mb-1" v-if="getSourceName(slice.audioFileId)">
-                  Source: {{ getSourceName(slice.audioFileId) }}
-                </p>
-                <p class="card-text text-muted small">
-                  {{ formatTime(slice.startTime) }} - {{ formatTime(slice.endTime) }}
-                  <span class="slice-duration">({{ formatDuration(slice.endTime - slice.startTime) }})</span>
-                </p>
-                <div v-if="slice.tags && slice.tags.length > 0" class="slice-tags mt-2">
-                  <span v-for="tag in slice.tags" :key="tag" class="badge bg-primary me-1">{{ tag }}</span>
-                </div>
-              </div>
-              <button 
-                class="btn btn-sm btn-outline-secondary"
-                @click="handleViewSource(slice.audioFileId)"
-                title="View in Source Editor"
-              >
-                View Source <i class="fas fa-arrow-right"></i>
-              </button>
-            </div>
-          </div>
+            :slice="slice"
+            :source-name="getSourceName(slice.audioFileId)"
+            :is-playing="currentlyPlayingSliceId === slice.id && isPlaying"
+            @play="handlePlaySlice(slice)"
+            @view-source="handleViewSource(slice.audioFileId)"
+          />
         </div>
       </section>
     </div>
@@ -78,6 +52,7 @@
 import { computed, inject } from 'vue'
 import type { Ref } from 'vue'
 import type { Project, Slice, Source } from '../types/models'
+import SliceListItem from '../components/SliceListItem.vue'
 import { formatTime } from '../utils/helpers'
 
 interface Props {
@@ -108,8 +83,6 @@ const projectSlices = computed(() => {
   if (!props.project) return []
   return props.slices.filter(s => props.project!.sliceIds.includes(s.id))
 })
-
-const formatDuration = (seconds: number) => formatTime(seconds)
 
 const getSourceName = (sourceId: string): string | null => {
   const source = props.sources.find(s => s.id === sourceId)
