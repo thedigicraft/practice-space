@@ -7,8 +7,10 @@ import { getSourceArrayBuffer } from '@/services/platformAudio'
 import type { Slice, SliceFolder, AudioFile } from '@/types/models'
 import ToastNotification from './ToastNotification.vue'
 import ExportMenu from './ExportMenu.vue'
+import ExportSettings from './ExportSettings.vue'
 import FolderNavigationBreadcrumbs from './FolderNavigationBreadcrumbs.vue'
 import SliceSelectionToolbar from './SliceSelectionToolbar.vue'
+import { useAppSettings } from '@/composables/useAppSettings'
 
 interface Props {
   slices: Slice[]
@@ -35,6 +37,9 @@ const isSelectionMode = ref(false)
 
 // Export dropdown state
 const exportDropdownOpen = ref<string | null>(null)
+
+// App settings
+const { exportMode } = useAppSettings()
 
 const toggleExportDropdown = (sliceId: string, event?: MouseEvent) => {
   if (event) event.stopPropagation()
@@ -267,7 +272,7 @@ const exportSelected = async () => {
         slice.endTime,
         slice.title || `slice-${slice.id.slice(0, 8)}`,
         slice,
-        { format: 'wav', quality: 90, includeMetadata: true }
+        { format: 'wav', quality: 90, includeMetadata: true, mode: exportMode }
       )
       
       await audioContext.close()
@@ -329,6 +334,7 @@ const handleExportSlice = async (slice: Slice, format: ExportFormat) => {
         format, 
         quality: 90, 
         includeMetadata: true,
+        mode: exportMode,
         onProgress: format === 'mp3' ? (progress) => {
           showToast(`Exporting "${slice.title}" as ${formatLabel}... ${progress}%`, 'loading', progress)
         } : undefined
@@ -410,6 +416,7 @@ defineExpose({
       <button @click="emit('createFolder')" class="btn btn-outline-secondary">
         <i class="fas fa-folder-plus me-2"></i>New Folder
       </button>
+      <ExportSettings />
     </div>
 
     <!-- Batch actions bar -->

@@ -69,6 +69,7 @@
 
     <!-- Bottom Action Bar -->
     <div class="action-bar d-flex justify-content-center gap-3">
+      <DeviceDiagnostics />
       <ImportControls @filesImported="handleFilesImported" />
     </div>
   </div>
@@ -79,6 +80,7 @@ import { ref, computed, toRef } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Source, Project, Slice } from '../types/models'
 import ImportControls from '../components/ImportControls.vue'
+import DeviceDiagnostics from '../components/DeviceDiagnostics.vue'
 import CreateProjectDialog from '../components/CreateProjectDialog.vue'
 import SourceMetadataEditor from '../components/SourceMetadataEditor.vue'
 import SourceCard from '../components/SourceCard.vue'

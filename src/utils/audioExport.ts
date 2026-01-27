@@ -17,6 +17,7 @@ export interface ExportOptions {
   quality?: number // For lossy formats (mp3, ogg): 0-100
   includeMetadata?: boolean
   onProgress?: (progress: number) => void // Progress callback for slow formats
+  mode?: 'auto' | 'save' | 'share' // Android: choose save vs share behavior
 }
 
 /**
@@ -131,16 +132,16 @@ export async function exportSlice(
   
   // For now, we'll use WAV as the base format and convert via MediaRecorder for MP3
   // Since we're in a browser, we can use MediaRecorder API for MP3 encoding
-  const { format, quality = 90, includeMetadata = true, onProgress } = options
+  const { format, quality = 90, includeMetadata = true, onProgress, mode = 'auto' } = options
   
   if (format === 'wav') {
-    await exportAsWav(sliceBuffer, fileName, slice, includeMetadata)
+    await exportAsWav(sliceBuffer, fileName, slice, includeMetadata, mode)
   } else if (format === 'mp3') {
-    await exportAsMp3(sliceBuffer, fileName, slice, quality, includeMetadata, onProgress)
+    await exportAsMp3(sliceBuffer, fileName, slice, quality, includeMetadata, onProgress, mode)
   } else {
     // Fallback to WAV for unsupported formats
     console.warn(`Format ${format} not fully supported yet, using WAV`)
-    await exportAsWav(sliceBuffer, fileName, slice, includeMetadata)
+    await exportAsWav(sliceBuffer, fileName, slice, includeMetadata, mode)
   }
 }
 
@@ -151,13 +152,14 @@ async function exportAsWav(
   buffer: AudioBuffer,
   fileName: string,
   slice?: Slice,
-  includeMetadata: boolean = true
+  includeMetadata: boolean = true,
+  mode: 'auto' | 'save' | 'share' = 'auto'
 ): Promise<void> {
   const wavData = audioBufferToWav(buffer)
   const blob = new Blob([wavData], { type: 'audio/wav' })
   
   const finalFileName = fileName.endsWith('.wav') ? fileName : `${fileName}.wav`
-  await downloadBlob(blob, finalFileName)
+  await downloadBlob(blob, finalFileName, mode)
 }
 
 /**
@@ -169,7 +171,8 @@ async function exportAsMp3(
   slice?: Slice,
   quality: number = 192,
   includeMetadata: boolean = true,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  mode: 'auto' | 'save' | 'share' = 'auto'
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     try {
@@ -282,7 +285,7 @@ async function exportAsMp3(
           }
           
           const finalFileName = fileName.replace(/\.(wav|mp3|webm|ogg|mp4)$/i, '') + '.mp3'
-          await downloadBlob(blob, finalFileName)
+          await downloadBlob(blob, finalFileName, mode)
           resolve()
         }
       }
@@ -299,12 +302,18 @@ async function exportAsMp3(
 /**
  * Download a blob as a file
  */
-async function downloadBlob(blob: Blob, fileName: string): Promise<void> {
+async function downloadBlob(blob: Blob, fileName: string, mode: 'auto' | 'save' | 'share' = 'auto'): Promise<void> {
   // On native (Android/iOS via Capacitor), write to filesystem and offer share
   if (Capacitor.isNativePlatform()) {
     const base64 = await blobToBase64(blob)
+    const mime = fileName.toLowerCase().endsWith('.mp3') ? 'audio/mp3' : 'audio/wav'
 
-    // Prefer External directory on Android so files are visible to user
+    if (mode === 'share') {
+      await Share.share({ title: fileName, url: `data:${mime};base64,${base64}` })
+      return
+    }
+
+    // save (or auto): write file; in auto also attempt to share file URI
     const preferredDir: Directory = Directory.External
     const fallbackDir: Directory = Directory.Documents
     const subfolder = 'Music'
@@ -312,24 +321,25 @@ async function downloadBlob(blob: Blob, fileName: string): Promise<void> {
 
     try {
       await Filesystem.writeFile({ path, data: base64, directory: preferredDir })
-      try {
-        const uriResult = await Filesystem.getUri({ path, directory: preferredDir })
-        await Share.share({ title: fileName, files: [uriResult.uri] })
-      } catch {
-        // Fallback: share via data URL
-        const mime = fileName.toLowerCase().endsWith('.mp3') ? 'audio/mp3' : 'audio/wav'
-        await Share.share({ title: fileName, url: `data:${mime};base64,${base64}` })
+      if (mode === 'auto') {
+        try {
+          const uriResult = await Filesystem.getUri({ path, directory: preferredDir })
+          await Share.share({ title: fileName, files: [uriResult.uri] })
+        } catch {
+          await Share.share({ title: fileName, url: `data:${mime};base64,${base64}` })
+        }
       }
       return
     } catch {
       // Fallback to Documents if External fails
       await Filesystem.writeFile({ path: fileName, data: base64, directory: fallbackDir })
-      try {
-        const uriResult = await Filesystem.getUri({ path: fileName, directory: fallbackDir })
-        await Share.share({ title: fileName, files: [uriResult.uri] })
-      } catch {
-        const mime = fileName.toLowerCase().endsWith('.mp3') ? 'audio/mp3' : 'audio/wav'
-        await Share.share({ title: fileName, url: `data:${mime};base64,${base64}` })
+      if (mode === 'auto') {
+        try {
+          const uriResult = await Filesystem.getUri({ path: fileName, directory: fallbackDir })
+          await Share.share({ title: fileName, files: [uriResult.uri] })
+        } catch {
+          await Share.share({ title: fileName, url: `data:${mime};base64,${base64}` })
+        }
       }
       return
     }
