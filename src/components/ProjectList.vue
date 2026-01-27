@@ -31,8 +31,8 @@ const formatDate = (timestamp: number): string => {
   <div class="project-list">
     <div class="list-header">
       <h3>Projects</h3>
-      <button @click="emit('createProject')" class="btn-create">
-        + New Project
+      <button @click="emit('createProject')" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i>New Project
       </button>
     </div>
 

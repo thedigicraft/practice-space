@@ -1,12 +1,8 @@
 <template>
   <div class="source-editor-view">
-    <header class="view-header">
-      <div class="header-content px-4 py-3">
-        <button class="btn btn-outline-secondary" @click="handleBack">
-          <i class="fas fa-arrow-left"></i> Back
-        </button>
-        <div class="source-title">
-          <input
+    <div class="source-metadata px-4 py-3">
+      <div class="source-title d-flex justify-content-between align-items-center">
+        <input
             v-if="editingSourceName"
             v-model="sourceNameValue"
             @blur="saveSourceName"
@@ -23,7 +19,7 @@
           >
             {{ source?.title || source?.name || 'Source Editor' }}
           </h1>
-          <div class="source-metadata d-flex justify-content-center flex-wrap" v-if="source">
+          <div class="source-metadata d-flex justify-content-center flex-wrap gap-4" v-if="source">
             <span class="metadata-item">
               <i class="fas fa-file-audio me-1"></i>{{ source.name }}
             </span>
@@ -50,19 +46,11 @@
             </span>
           </div>
         </div>
-        <button 
-          @click="toggleSidebar" 
-          class="btn btn-outline-secondary"
-          :title="sidebarCollapsed ? 'Show slices' : 'Hide slices'"
-        >
-          <i :class="sidebarCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right'"></i> Slices ({{ sourceSlices.length }})
-        </button>
-      </div>
-    </header>
+    </div>
 
     <div class="editor-layout">
       <div class="main-content">
-        <div class="editor-content xp-4" v-if="source">
+        <div class="editor-content flex-fill xp-4" v-if="source">
           <!-- Waveform Section -->
           <section class="waveform-section p-4">
             
@@ -186,6 +174,21 @@
         </div>
         <p class="loading-text">Loading audio file...</p>
       </div>
+    </div>
+
+    <!-- Action Bar -->
+    <div class="action-bar">
+      <button class="btn btn-outline-secondary" @click="handleBack">
+        <i class="fas fa-arrow-left"></i> Back
+      </button>
+      <button 
+        @click="toggleSidebar" 
+        class="btn btn-outline-secondary"
+        :title="sidebarCollapsed ? 'Show slices' : 'Hide slices'"
+      >
+        <i :class="sidebarCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right'"></i> Slices 
+        <span class="count-badge ms-2">{{ sourceSlices.length }}</span>
+      </button>
     </div>
   </div>
 </template>
@@ -574,37 +577,21 @@ const seek = (time: number) => {
 <style scoped>
 .source-editor-view {
   height: 100vh;
-  display: flex;
-  flex-direction: column;
   background: #1a1a1a;
 }
 
 .editor-layout {
-  display: flex;
-  flex: 1;
   overflow: hidden;
+  padding-bottom: 80px;
 }
 
 .main-content {
-  flex: 1;
   overflow-y: auto;
-}
-
-.view-header {
-  background: #1e1e1e;
-  border-bottom: 1px solid #333;
-}
-
-.header-content {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
 }
 
 
 
 .source-title {
-  flex: 1;
   min-width: 0;
 }
 
@@ -628,18 +615,11 @@ const seek = (time: number) => {
   background: rgba(74, 158, 255, 0.1);
 }
 
-.source-metadata {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-}
+
 
 .metadata-item {
   font-size: 0.75rem;
   color: #888;
-  display: inline-flex;
-  align-items: center;
 }
 
 .metadata-item i {
@@ -653,7 +633,6 @@ const seek = (time: number) => {
 }
 
 .editor-content {
-  flex: 1;
   overflow: auto;
   width: 100%;
 }
@@ -666,9 +645,6 @@ const seek = (time: number) => {
 }
 
 .section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 1.5rem;
 }
 
@@ -685,8 +661,6 @@ const seek = (time: number) => {
 }
 
 .waveform-container {
-  display: flex;
-  justify-content: center;
   margin-bottom: 1.5rem;
   background: #1a1a1a;
   border-radius: 4px;
@@ -714,18 +688,11 @@ const seek = (time: number) => {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 9999;
   backdrop-filter: blur(4px);
 }
 
 .loading-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
 }
 
 .loading-text {
@@ -736,13 +703,10 @@ const seek = (time: number) => {
 }
 
 .slice-preview-area {
-  display: flex;
-  gap: 0;
   position: relative;
 }
 
 .slice-preview-content {
-  flex: 1;
   min-width: 0;
 }
 
@@ -782,5 +746,16 @@ const seek = (time: number) => {
 .details-content {
   overflow-y: auto;
   height: 100%;
+}
+
+.action-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #252525;
+  border-top: 1px solid #353535;
+  padding: 1rem;
+  z-index: 100;
 }
 </style>

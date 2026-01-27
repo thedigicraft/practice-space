@@ -232,49 +232,57 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
 </script>
 
 <template>
-  <div class="app" :class="{ 'is-dragging': isDragging }">
+  <div class="app d-flex flex-column xbg-dark text-white" :class="{ 'is-dragging': isDragging }">
     <!-- Navigation Bar -->
-    <nav class="nav-bar">
-      <div class="nav-content px-4">
-        <div class="nav-brand" @click="navigateToHome">
+    <nav class="navbar navbar-expand xbg-body border-bottom">
+      <div class="container-fluid px-4">
+        <a class="navbar-brand text-white" @click="navigateToHome" role="button">
           Practice Space
-          <span v-if="$route.name !== 'home'" class="view-name">/ {{ getViewName($route.name) }}</span>
-        </div>
-        <div class="nav-links">
-          <button 
-            class="nav-link" 
-            :class="{ active: $route.name === 'home' }"
-            @click="navigateToHome"
-          >
-            Home
-          </button>
-          <button 
-            class="nav-link"
-            :class="{ active: $route.name === 'library' }"
-            @click="() => router.push('/library')"
-          >
-            Library
-          </button>
-          <button 
-            class="nav-link"
-            :class="{ active: $route.name === 'sources' }"
-            @click="() => router.push('/sources')"
-          >
-            Sources
-          </button>
-          <button 
-            class="nav-link"
-            :class="{ active: $route.name === 'slice-browser' }"
-            @click="navigateToSliceBrowser"
-          >
-            Slice Browser
-          </button>
-        </div>
+          <span v-if="$route.name !== 'home'" class="view-name text-muted">/ {{ getViewName($route.name) }}</span>
+        </a>
+        <ul class="navbar-nav ms-auto gap-2">
+          <li class="nav-item">
+            <button 
+              class="nav-link btn btn-sm" 
+              :class="{ 'btn-primary': $route.name === 'home', 'btn-outline-secondary': $route.name !== 'home' }"
+              @click="navigateToHome"
+            >
+              Home
+            </button>
+          </li>
+          <li class="nav-item">
+            <button 
+              class="nav-link btn btn-sm"
+              :class="{ 'btn-primary': $route.name === 'library', 'btn-outline-secondary': $route.name !== 'library' }"
+              @click="() => router.push('/library')"
+            >
+              Library
+            </button>
+          </li>
+          <li class="nav-item">
+            <button 
+              class="nav-link btn btn-sm"
+              :class="{ 'btn-primary': $route.name === 'sources', 'btn-outline-secondary': $route.name !== 'sources' }"
+              @click="() => router.push('/sources')"
+            >
+              Sources
+            </button>
+          </li>
+          <li class="nav-item">
+            <button 
+              class="nav-link btn btn-sm"
+              :class="{ 'btn-primary': $route.name === 'slice-browser', 'btn-outline-secondary': $route.name !== 'slice-browser' }"
+              @click="navigateToSliceBrowser"
+            >
+              Slice Browser
+            </button>
+          </li>
+        </ul>
       </div>
     </nav>
 
     <!-- Views -->
-    <main class="main-content">
+    <main class="main-content flex-fill">
       <router-view
         :sources="sources"
         :slices="slices"
@@ -307,7 +315,7 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
     </main>
 
     <!-- Drag and Drop Overlay -->
-    <div v-if="isDragging" class="drop-overlay">
+    <div v-if="isDragging" class="drop-overlay d-flex align-items-center justify-content-center">
       <div class="drop-message">
         <div class="drop-icon"><i class="fas fa-folder-open fa-3x"></i></div>
         <p>Drop audio files here to import</p>
@@ -325,7 +333,7 @@ body {
   margin: 0;
   padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background: #1a1a1a;
+  /* background: #1a1a1a; */
   color: #e0e0e0;
   overflow: hidden;
 }
@@ -339,9 +347,6 @@ body {
 <style scoped>
 .app {
   height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: #1a1a1a;
   position: relative;
 }
 
@@ -350,69 +355,34 @@ body {
 }
 
 /* Navigation Bar */
-.nav-bar {
-  background: #1e1e1e;
-  border-bottom: 1px solid #333;
+.navbar {
   height: 60px;
   flex-shrink: 0;
 }
 
-.nav-content {
-  height: 100%;
-  padding: 0 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.nav-brand {
+.navbar-brand {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #fff;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: opacity 0.2s;
 }
 
-.nav-brand:hover {
-  color: #4a9eff;
+.navbar-brand:hover {
+  opacity: 0.8;
 }
 
 .view-name {
   font-weight: 400;
-  color: #888;
   font-size: 1rem;
 }
 
-.nav-links {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.nav-link {
-  background: transparent;
-  color: #aaa;
-  border: none;
-  padding: 0.6rem 1.2rem;
-  border-radius: 4px;
-  cursor: pointer;
+.nav-item .nav-link {
   font-size: 0.95rem;
   font-weight: 500;
-  transition: all 0.2s;
-}
-
-.nav-link:hover {
-  color: #fff;
-  background: #2a2a2a;
-}
-
-.nav-link.active {
-  color: #fff;
-  background: #4a9eff;
 }
 
 /* Main Content */
 .main-content {
-  flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -424,17 +394,13 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(26, 26, 26, 0.95);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: rgba(var(--bs-dark-rgb), 0.95);
   z-index: 1000;
   pointer-events: auto;
 }
 
 .drop-message {
   text-align: center;
-  color: #fff;
 }
 
 .drop-icon {

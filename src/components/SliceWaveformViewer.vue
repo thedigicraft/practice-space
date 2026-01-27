@@ -3,7 +3,7 @@
     <div v-if="slice && source" class="waveform-wrapper">
       <div class="waveform-header">
         <h4 class="m-0">{{ slice.title }} Waveform</h4>
-        <button @click="emit('toggle-waveform-mode')" class="btn-mode" :title="props.waveformMode === 'line' ? 'Switch to bars view' : 'Switch to line view'">
+        <button @click="emit('toggle-waveform-mode')" class="btn btn-sm btn-outline-secondary" :title="props.waveformMode === 'line' ? 'Switch to bars view' : 'Switch to line view'">
           {{ props.waveformMode === 'line' ? '▬' : '〜' }}
         </button>
       </div>

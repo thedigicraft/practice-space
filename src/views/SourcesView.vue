@@ -1,42 +1,93 @@
 <template>
-  <div class="sources-view">
+  <div class="sources-view d-flex flex-column">
     <div class="sources-content p-4">
-      <div class="sources-header mb-4">
-        <div class="sources-info">
-          <p class="subtitle">{{ sources.length }} source{{ sources.length !== 1 ? 's' : '' }}</p>
+      <!-- Filters and Search -->
+      <div class="filters-bar mb-4 d-flex gap-3 align-items-center">
+        <div class="search-box flex-fill">
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search sources by name, title, or location..."
+            class="form-control"
+          />
         </div>
-      </div>
-      
-      <div v-if="sources.length === 0" class="empty-state text-center py-5">
-        <p>No audio sources imported yet.</p>
-        <p class="hint">Import audio files to get started!</p>
+        <select v-model="locationFilter" class="form-select" style="width: 200px;">
+          <option value="">All Locations</option>
+          <option v-for="location in uniqueLocations" :key="location" :value="location">
+            {{ location }}
+          </option>
+        </select>
+        <select v-model="sortBy" class="form-select" style="width: 200px;">
+          <option value="importedAt">Sort by Import Date</option>
+          <option value="title">Sort by Title</option>
+          <option value="name">Sort by Filename</option>
+          <option value="duration">Sort by Duration</option>
+          <option value="size">Sort by Size</option>
+        </select>
       </div>
 
-      <div v-else class="source-grid">
-        <div
-          v-for="source in sortedSources"
-          :key="source.id"
-          class="source-card"
-        >
-          <div class="source-icon">
-            <i class="fas fa-file-audio"></i>
-          </div>
-          <div class="source-info" @click="openSource(source.id)">
-            <h3 class="source-name">{{ source.title || source.name }}</h3>
-            <p class="source-meta">
-              {{ formatDuration(source.duration) }} • {{ formatFileSize(source.size) }}
-            </p>
-            <p v-if="source.location" class="source-location" @click.stop="filterByLocation(source.location)">
-              <i class="fas fa-map-marker-alt me-1"></i>{{ source.location }}
-            </p>
-            <p class="source-date">
-              Imported {{ formatDate(source.importedAt) }}
-            </p>
-          </div>
-          <button class="btn-edit" @click.stop="editSource(source)" title="Edit Metadata">
-            <i class="fas fa-edit"></i>
-          </button>
-        </div>
+      <div v-if="filteredSources.length === 0" class="empty-state text-center py-5">
+        <p v-if="sources.length === 0">No audio sources imported yet.</p>
+        <p v-else>No sources match your filters.</p>
+        <p class="hint">{{ sources.length === 0 ? 'Import audio files to get started!' : 'Try adjusting your search or filters.' }}</p>
+      </div>
+
+      <table v-else class="sources-table table table-hover">
+        <thead>
+          <tr>
+            <th>Title / Filename</th>
+            <th>Location</th>
+            <th>Duration</th>
+            <th>Size</th>
+            <th>Imported</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="source in filteredSources"
+            :key="source.id"
+            @click="openSource(source.id)"
+            class="source-row"
+          >
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-file-audio text-primary"></i>
+                <div>
+                  <div class="source-title">{{ source.title || source.name }}</div>
+                  <div v-if="source.title" class="source-filename text-muted">{{ source.name }}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <a
+                v-if="source.location"
+                class="link-secondary text-decoration-none"
+                @click.stop="filterByLocation(source.location)"
+                role="button"
+              >
+                <i class="fas fa-map-marker-alt me-1"></i>{{ source.location }}
+              </a>
+              <span v-else class="text-muted">—</span>
+            </td>
+            <td class="text-monospace">{{ formatDuration(source.duration) }}</td>
+            <td>{{ formatFileSize(source.size) }}</td>
+            <td class="text-muted">{{ formatDate(source.importedAt) }}</td>
+            <td class="text-center">
+              <button
+                class="btn btn-sm btn-outline-secondary"
+                @click.stop="editSource(source)"
+                title="Edit Metadata"
+              >
+                <i class="fas fa-edit"></i>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div v-if="filteredSources.length > 0" class="results-info mt-3 text-muted">
+        Showing {{ filteredSources.length }} of {{ sources.length }} sources
       </div>
     </div>
 
@@ -48,7 +99,7 @@
     />
 
     <!-- Bottom Action Bar -->
-    <div class="action-bar">
+    <div class="action-bar d-flex justify-content-center gap-3">
       <ImportControls @filesImported="handleFilesImported" />
     </div>
   </div>
@@ -69,14 +120,58 @@ interface Props {
 const props = defineProps<Props>()
 const router = useRouter()
 const editingSource = ref<Source | null>(null)
+const searchQuery = ref('')
+const locationFilter = ref('')
+const sortBy = ref<'importedAt' | 'title' | 'name' | 'duration' | 'size'>('importedAt')
 
 const emit = defineEmits<{
   filesImported: [files: Source[]]
   updateSource: [sourceId: string, metadata: Partial<Source>]
 }>()
 
-const sortedSources = computed(() => {
-  return [...props.sources].sort((a, b) => b.importedAt - a.importedAt)
+const uniqueLocations = computed(() => {
+  const locations = props.sources
+    .map(s => s.location)
+    .filter((loc): loc is string => !!loc)
+  return Array.from(new Set(locations)).sort()
+})
+
+const filteredSources = computed(() => {
+  let filtered = [...props.sources]
+
+  // Apply search filter
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    filtered = filtered.filter(source =>
+      (source.title?.toLowerCase().includes(query)) ||
+      source.name.toLowerCase().includes(query) ||
+      (source.location?.toLowerCase().includes(query))
+    )
+  }
+
+  // Apply location filter
+  if (locationFilter.value) {
+    filtered = filtered.filter(source => source.location === locationFilter.value)
+  }
+
+  // Apply sorting
+  filtered.sort((a, b) => {
+    switch (sortBy.value) {
+      case 'title':
+        return (a.title || a.name).localeCompare(b.title || b.name)
+      case 'name':
+        return a.name.localeCompare(b.name)
+      case 'duration':
+        return b.duration - a.duration
+      case 'size':
+        return b.size - a.size
+      case 'importedAt':
+      default:
+        return b.importedAt - a.importedAt
+    }
+  })
+
+  return filtered
 })
 
 const formatDuration = (seconds: number) => formatTime(seconds)
@@ -122,146 +217,72 @@ const handleFilesImported = (files: Source[]) => {
 <style scoped>
 .sources-view {
   height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: #1a1a1a;
   color: #e0e0e0;
 }
 
 .sources-content {
-  flex: 1;
   overflow-y: auto;
+  padding-bottom: 80px;
 }
 
-.sources-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.filters-bar {
+  background: var(--bs-body-bg);
+  border-radius: 8px;
+  padding: 1rem;
 }
 
-.sources-info {
-  flex: 1;
+.sources-table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-.subtitle {
-  color: #999;
+.sources-table thead th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: 0.75rem;
+  border-bottom: 2px solid var(--bs-border-color);
+}
+
+.sources-table tbody td {
+  padding: 1rem 0.75rem;
+  vertical-align: middle;
+}
+
+.source-row {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.source-row:hover {
+  background: rgba(var(--bs-primary-rgb), 0.1);
+}
+
+.source-title {
+  font-weight: 500;
+  color: var(--bs-body-color);
+}
+
+.source-filename {
+  font-size: 0.85rem;
+}
+
+.text-monospace {
+  font-family: 'Courier New', monospace;
   font-size: 0.9rem;
 }
 
-.sources-content {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.source-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.5rem;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.source-card {
-  background: #252525;
-  border: 1px solid #353535;
-  border-radius: 8px;
-  padding: 1.5rem;
-  display: flex;
-  gap: 1rem;
-  transition: all 0.2s;
-  position: relative;
-}
-
-.source-card:hover {
-  border-color: #4a9eff;
-  box-shadow: 0 4px 12px rgba(74, 158, 255, 0.2);
-}
-
-.source-card:hover .btn-edit {
-  opacity: 1;
-}
-
-.source-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
-  background: rgba(74, 158, 255, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #4a9eff;
-  font-size: 1.75rem;
-  flex-shrink: 0;
-}
-
-.source-info {
-  flex: 1;
-  min-width: 0;
-  cursor: pointer;
-}
-
-.source-name {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.1rem;
-  color: #fff;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.source-meta {
-  margin: 0.25rem 0;
-  font-size: 0.85rem;
-  color: #888;
-}
-
-.source-location {
-  margin: 0.25rem 0;
-  font-size: 0.85rem;
-  color: #9d4aff;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.source-location:hover {
-  color: #b36bff;
-}
-
-.source-date {
-  margin: 0.25rem 0 0 0;
-  font-size: 0.8rem;
-  color: #666;
-}
-
-.btn-edit {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: rgba(74, 158, 255, 0.15);
-  border: 1px solid rgba(74, 158, 255, 0.3);
-  color: #4a9eff;
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  opacity: 0;
-}
-
-.btn-edit:hover {
-  background: rgba(74, 158, 255, 0.25);
-  border-color: #4a9eff;
+.results-info {
+  font-size: 0.9rem;
+  text-align: center;
 }
 
 .empty-state {
-  color: #888;
+  color: var(--bs-secondary-color);
 }
 
 .hint {
-  color: #666;
+  color: var(--bs-secondary-color);
   font-size: 0.9rem;
 }
 
@@ -270,12 +291,9 @@ const handleFilesImported = (files: Source[]) => {
   bottom: 0;
   left: 0;
   right: 0;
-  background: #252525;
-  border-top: 1px solid #353535;
+  background: var(--bs-body-bg);
+  border-top: 1px solid var(--bs-border-color);
   padding: 1rem;
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
   z-index: 100;
 }
 </style>

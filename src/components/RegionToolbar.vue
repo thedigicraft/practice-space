@@ -1,7 +1,7 @@
 <template>
   <div class="region-toolbar" :style="style">
     <div class="toolbar-content">
-      <button @click.stop="emit('play')" class="btn-play">
+      <button @click.stop="emit('play')" class="btn btn-primary">
         {{ isPlaying ? '⏸' : '▶' }}
       </button>
       <div class="region-info">
@@ -11,15 +11,15 @@
         <p>{{ formatTime(startTime) }} - {{ formatTime(endTime) }}</p>
         <p class="duration">({{ formatDuration(duration) }})</p>
       </div>
-      <div class="actions">
-        <button @click.stop="emit('createSlice')" class="btn-create">
+      <div class="actions d-flex gap-2">
+        <button @click.stop="emit('createSlice')" class="btn btn-success">
           Create Slice
         </button>
-        <button @click.stop="emit('export')" class="btn-export" disabled>
+        <button @click.stop="emit('export')" class="btn btn-outline-secondary" disabled>
           Export
         </button>
       </div>
-      <button @click.stop="emit('clear')" class="btn-clear">✕</button>
+      <button @click.stop="emit('clear')" class="btn btn-sm btn-outline-danger">✕</button>
     </div>
   </div>
 </template>

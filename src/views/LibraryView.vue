@@ -1,29 +1,29 @@
 <template>
-  <div class="library-view">
+  <div class="library-view d-flex flex-column">
     <div class="library-content p-4">
       <div v-if="Object.keys(groupedSlices).length === 0" class="empty-state text-center py-5">
         <p>No slices in your library yet.</p>
         <p class="hint">Create slices from your audio sources to build your library!</p>
       </div>
 
-      <div v-else class="library-grid">
+      <div v-else class="library-grid container-fluid">
         <div v-for="(groups, sliceType) in groupedSlices" :key="sliceType" class="library-type-section">
           <h2 class="type-header">{{ formatTypeName(sliceType) }}</h2>
           <div class="grouped-items">
             <div
               v-for="(sliceGroup, title) in groups"
               :key="`${sliceType}-${title}`"
-              class="grouped-item"
+              class="grouped-item d-flex gap-3"
               @click="openGroupedSlices(sliceType, title)"
             >
-              <div class="item-icon">
+              <div class="item-icon d-flex align-items-center justify-content-center">
                 <i :class="getTypeIcon(sliceType)"></i>
               </div>
-              <div class="item-info">
-                <h3 class="item-title">{{ title }}</h3>
-                <p class="item-meta">
-                  {{ sliceGroup.count }} {{ sliceGroup.count === 1 ? 'slice' : 'slices' }}
-                </p>
+              <div class="item-info flex-fill">
+                <h3 class="item-title d-flex align-items-center gap-2">
+                  {{ title }}
+                  <span class="count-badge">{{ sliceGroup.count }}</span>
+                </h3>
                 <p v-if="sliceGroup.locations.size > 0" class="item-locations">
                   <i class="fas fa-map-marker-alt me-1"></i>
                   {{ Array.from(sliceGroup.locations).join(', ') }}
@@ -99,21 +99,15 @@ const openGroupedSlices = (type: string, title: string) => {
 <style scoped>
 .library-view {
   height: 100vh;
-  display: flex;
-  flex-direction: column;
   background: #1a1a1a;
   color: #e0e0e0;
 }
 
 .library-content {
-  flex: 1;
   overflow-y: auto;
 }
 
-.library-grid {
-  max-width: 1400px;
-  margin: 0 auto;
-}
+
 
 .library-type-section {
   margin-bottom: 3rem;
@@ -140,8 +134,6 @@ const openGroupedSlices = (type: string, title: string) => {
   padding: 1.25rem;
   cursor: pointer;
   transition: all 0.2s;
-  display: flex;
-  gap: 1rem;
 }
 
 .grouped-item:hover {
@@ -155,16 +147,12 @@ const openGroupedSlices = (type: string, title: string) => {
   height: 48px;
   border-radius: 8px;
   background: rgba(74, 158, 255, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   color: #4a9eff;
   font-size: 1.5rem;
   flex-shrink: 0;
 }
 
 .item-info {
-  flex: 1;
   min-width: 0;
 }
 
@@ -175,6 +163,16 @@ const openGroupedSlices = (type: string, title: string) => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.count-badge {
+  background: rgba(74, 158, 255, 0.15);
+  color: #4a9eff;
+  padding: 0.125rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
 .item-meta {

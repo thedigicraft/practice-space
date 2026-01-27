@@ -55,7 +55,7 @@ const handlePlayPause = () => {
     <button
       @click="handlePlayPause"
       :disabled="disabled || isLoading"
-      class="btn-play-pause"
+      class="btn btn-primary btn-play-pause"
       :class="{ playing: isPlaying }"
     >
       <span v-if="isLoading" class="spinner"></span>

@@ -1,51 +1,14 @@
 <template>
   <div class="home-view xp-4">
 
-    <div class="home-content">
-      <!-- Grouped Slices Section -->
-      <section class="home-section" v-if="Object.keys(groupedSlices).length > 0">
-        <div class="section-header">
-          <h2 class="m-0">My Library</h2>
-          <a class="view-all-link" @click="$router.push('/library')">
-            View All <i class="fas fa-arrow-right ms-1"></i>
-          </a>
-        </div>
-
-        <div class="library-grid">
-          <div v-for="(groups, sliceType) in recentGroupedSlices" :key="sliceType" class="library-type-section">
-            <h3 class="type-header">{{ formatTypeName(sliceType) }}</h3>
-            <div class="grouped-items">
-              <div
-                v-for="(sliceGroup, title) in groups"
-                :key="`${sliceType}-${title}`"
-                class="grouped-item"
-                @click="openGroupedSlices(sliceType, title)"
-              >
-                <div class="item-icon">
-                  <i :class="getTypeIcon(sliceType)"></i>
-                </div>
-                <div class="item-info">
-                  <h4 class="item-title">{{ title }}</h4>
-                  <p class="item-meta">
-                    {{ sliceGroup.count }} {{ sliceGroup.count === 1 ? 'slice' : 'slices' }}
-                  </p>
-                  <p v-if="sliceGroup.locations.size > 0" class="item-locations">
-                    <i class="fas fa-map-marker-alt me-1"></i>
-                    {{ Array.from(sliceGroup.locations).join(', ') }}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+    <div class="home-content d-flex flex-column gap-5">
 
       <!-- Sources Section -->
       <section class="home-section">
-        <div class="section-header">
+        <div class="section-header d-flex justify-content-between align-items-center">
           <h2 class="m-0">Sources</h2>
-          <a v-if="sources.length > 0" class="view-all-link" @click="$router.push('/sources')">
-            View All <i class="fas fa-arrow-right ms-1"></i>
+          <a v-if="sources.length > 0" class="link-primary d-flex align-items-center" @click="$router.push('/sources')" role="button">
+            View All
           </a>
         </div>
         
@@ -58,29 +21,70 @@
           <div
             v-for="source in recentSources"
             :key="source.id"
-            class="source-card p-3"
+            class="source-card p-3 d-flex gap-3 align-items-start"
           >
             <div class="source-icon">
               <i class="fas fa-file-audio"></i>
             </div>
-            <div class="source-info" @click="$emit('openSource', source.id)">
+            <div class="source-info flex-fill" @click="$emit('openSource', source.id)">
               <h3 class="source-name mb-2">{{ source.title || source.name }}</h3>
               <p class="source-meta my-1">
                 {{ formatDuration(source.duration) }} • {{ formatFileSize(source.size) }}
               </p>
-              <p v-if="source.location" class="source-location my-1" @click.stop="filterByLocation(source.location)">
-                <i class="fas fa-map-marker-alt me-1"></i>{{ source.location }}
+              <p v-if="source.location" class="source-location my-1">
+                <a class="link-secondary text-decoration-none" @click.stop="filterByLocation(source.location)" role="button">
+                  <i class="fas fa-map-marker-alt me-1"></i>{{ source.location }}
+                </a>
               </p>
               <p class="source-date">
                 Imported {{ formatDate(source.importedAt) }}
               </p>
             </div>
-            <button class="btn-edit" @click.stop="editSource(source)" title="Edit Metadata">
+            <button class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" @click.stop="editSource(source)" title="Edit Metadata">
               <i class="fas fa-edit"></i>
             </button>
           </div>
         </div>
       </section>
+
+            <!-- Grouped Slices Section -->
+      <section class="home-section" v-if="Object.keys(groupedSlices).length > 0">
+        <div class="section-header d-flex justify-content-between align-items-center">
+          <h2 class="m-0">My Library</h2>
+          <a class="link-primary d-flex align-items-center" @click="$router.push('/library')" role="button">
+            View All
+          </a>
+        </div>
+
+        <div class="library-grid d-flex flex-row gap-4">
+          <div v-for="(groups, sliceType) in recentGroupedSlices" :key="sliceType" class="library-type-section">
+            <h3 class="type-header d-flex align-items-center gap-2">{{ formatTypeName(sliceType) }}</h3>
+            <div class="grouped-items d-flex flex-column gap-3">
+              <div
+                v-for="(sliceGroup, title) in groups"
+                :key="`${sliceType}-${title}`"
+                class="grouped-item d-flex gap-3 align-items-center"
+                @click="openGroupedSlices(sliceType, title)"
+              >
+                <div class="item-icon d-flex align-items-center justify-content-center">
+                  <i :class="getTypeIcon(sliceType)"></i>
+                </div>
+                <div class="item-info flex-fill">
+                  <h4 class="item-title d-flex align-items-center gap-2">
+                    {{ title }}
+                    <span class="count-badge">{{ sliceGroup.count }}</span>
+                  </h4>
+                  <p v-if="sliceGroup.locations.size > 0" class="item-locations">
+                    <i class="fas fa-map-marker-alt me-1"></i>
+                    {{ Array.from(sliceGroup.locations).join(', ') }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </div>
 
     <!-- Create Project Dialog -->
@@ -100,7 +104,7 @@
     />
 
     <!-- Bottom Action Bar -->
-    <div class="action-bar">
+    <div class="action-bar d-flex justify-content-center gap-3">
       <ImportControls @filesImported="handleFilesImported" />
     </div>
   </div>
@@ -172,8 +176,8 @@ const recentGroupedSlices = computed(() => {
     const titles = Object.keys(groupedSlices.value[type])
     limitedGroups[type] = {}
     
-    // Get first 3 titles (most common ones by count)
-    titles.slice(0, 3).forEach(title => {
+    // Get first 5 titles (most common ones by count)
+    titles.slice(0, 5).forEach(title => {
       limitedGroups[type][title] = groupedSlices.value[type][title]
     })
   })
@@ -185,7 +189,7 @@ const recentGroupedSlices = computed(() => {
 const recentSources = computed(() => {
   return [...props.sources]
     .sort((a, b) => b.importedAt - a.importedAt)
-    .slice(0, 3)
+    .slice(0, 5)
 })
 
 // Show only 3 most recent projects
@@ -280,9 +284,6 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
 }
 
 .home-content {
-  display: flex;
-  flex-direction: column;
-  gap: 3rem;
   padding-bottom: 80px;
 }
 
@@ -293,9 +294,6 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
 }
 
 .section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 1.5rem;
 }
 
@@ -306,9 +304,6 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
 }
 
 .section-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
 }
 
 .view-all-link {
@@ -317,8 +312,6 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
   cursor: pointer;
   transition: color 0.2s;
   text-decoration: none;
-  display: flex;
-  align-items: center;
 }
 
 .view-all-link:hover {
@@ -342,30 +335,24 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
 
 /* Library Grid */
 .library-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
+  overflow-x: auto;
 }
 
 .library-type-section {
   background: #252525;
   border-radius: 8px;
   padding: 1.5rem;
+  min-width: 280px;
+  flex-grow: 1;
 }
 
 .type-header {
   margin: 0 0 1rem 0;
   font-size: 1.2rem;
   color: #4a9eff;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 
 .grouped-items {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 0.75rem;
 }
 
 .grouped-item {
@@ -375,9 +362,6 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
   padding: 1rem;
   cursor: pointer;
   transition: all 0.2s;
-  display: flex;
-  gap: 1rem;
-  align-items: center;
 }
 
 .grouped-item:hover {
@@ -392,16 +376,12 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
   height: 40px;
   background: #1a1a1a;
   border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   color: #4a9eff;
   font-size: 1.2rem;
   flex-shrink: 0;
 }
 
 .item-info {
-  flex: 1;
   min-width: 0;
 }
 
@@ -412,6 +392,16 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.count-badge {
+  background: rgba(74, 158, 255, 0.15);
+  color: #4a9eff;
+  padding: 0.125rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
 .item-meta {
@@ -438,9 +428,6 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
   border-radius: 8px;
   padding: 1.5rem;
   transition: all 0.2s;
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
   position: relative;
 }
 
@@ -460,7 +447,6 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
 }
 
 .source-info {
-  flex: 1;
   min-width: 0;
   cursor: pointer;
 }
@@ -476,9 +462,6 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
   height: 32px;
   border-radius: 4px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   opacity: 0;
   transition: all 0.2s;
 }
@@ -592,9 +575,6 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
   background: #252525;
   border-top: 1px solid #353535;
   padding: 1rem;
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
   z-index: 100;
 }
 </style>

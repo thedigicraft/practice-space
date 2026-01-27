@@ -1,7 +1,7 @@
 <template>
   <div class="projects-view">
     <header class="view-header p-4 border-bottom">
-      <button class="btn-back mb-3" @click="$router.back()">
+      <button class="btn btn-outline-secondary mb-3" @click="$router.back()">
         <i class="fas fa-arrow-left me-2"></i>Back
       </button>
       <div class="header-flex">
@@ -9,7 +9,7 @@
           <h1 class="mb-2">Projects</h1>
           <p class="subtitle m-0">{{ projects.length }} project{{ projects.length !== 1 ? 's' : '' }}</p>
         </div>
-        <button class="btn-primary" @click="showCreateProject = true">
+        <button class="btn btn-primary" @click="showCreateProject = true">
           <i class="fas fa-plus me-2"></i>New Project
         </button>
       </div>

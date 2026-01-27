@@ -1,9 +1,9 @@
 <template>
-  <div class="slice-browser-view">
+  <div class="slice-browser-view d-flex flex-column">
     <header class="view-header">
-      <div class="header-content px-4 py-3">
-        <button class="btn-back py-2 px-3" @click="$emit('back')">
-          <i class="fas fa-arrow-left"></i> Back
+      <div class="header-content px-4 py-3 d-flex align-items-center gap-3">
+        <button class="btn btn-outline-secondary" @click="$emit('back')">
+          <i class="fas fa-arrow-left me-2"></i>Back
         </button>
         <h1 class="m-0">Slice Browser</h1>
       </div>
@@ -88,8 +88,6 @@ const handleDeleteSlice = (sliceId: string) => {
 <style scoped>
 .slice-browser-view {
   height: 100vh;
-  display: flex;
-  flex-direction: column;
   background: #1a1a1a;
 }
 
@@ -100,9 +98,6 @@ const handleDeleteSlice = (sliceId: string) => {
 }
 
 .header-content {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
 }
 
 .btn-back {
@@ -128,7 +123,6 @@ const handleDeleteSlice = (sliceId: string) => {
 }
 
 .browser-content {
-  flex: 1;
   overflow: auto;
   padding: 2rem;
   max-width: 1400px;

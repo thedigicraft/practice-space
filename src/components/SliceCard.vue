@@ -1,6 +1,6 @@
 <template>
   <div
-    class="slice-card p-3"
+    class="slice-card p-3 d-flex gap-3 align-items-stretch"
     :class="{ 
       'is-playing': isThisSlicePlaying,
       'is-selected': isSelected 
@@ -14,7 +14,7 @@
     >
       <i :class="isThisSlicePlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
     </button>
-    <div class="slice-content">
+    <div class="slice-content flex-fill d-flex flex-column gap-2">
       <div class="slice-info" @click="emit('selectSlice', slice)">
         <div class="slice-title-row">
           <input
@@ -41,11 +41,11 @@
           <span class="slice-duration">({{ formatDuration(slice.endTime - slice.startTime) }})</span>
         </p>
         <p v-if="slice.notes" class="slice-notes my-2">{{ slice.notes }}</p>
-        <div v-if="slice.tags && slice.tags.length > 0" class="slice-tags my-2">
+        <div v-if="slice.tags && slice.tags.length > 0" class="slice-tags my-2 d-flex flex-wrap gap-2">
           <span v-for="tag in slice.tags" :key="tag" class="tag px-2 py-1">{{ tag }}</span>
         </div>
       </div>
-      <div class="slice-waveform" v-if="source?.waveformData">
+      <div class="slice-waveform d-flex justify-content-center align-items-center" v-if="source?.waveformData">
         <canvas 
           :ref="el => setSliceCanvas(el as HTMLCanvasElement)"
           :width="300"
@@ -54,7 +54,7 @@
         ></canvas>
       </div>
     </div>
-    <div class="slice-actions">
+    <div class="slice-actions d-flex flex-column gap-2">
       <button 
         class="btn btn-sm btn-outline-primary"
         @click.stop="emit('editSlice', slice)"
@@ -225,9 +225,6 @@ onMounted(() => {
   background: #2a2a2a;
   border-radius: 6px;
   padding: 1rem;
-  display: flex;
-  gap: 1rem;
-  align-items: stretch;
   transition: all 0.2s;
 }
 
@@ -248,11 +245,7 @@ onMounted(() => {
 
 
 .slice-content {
-  flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
 }
 
 .slice-info {
@@ -302,9 +295,6 @@ onMounted(() => {
 }
 
 .slice-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
 }
 
 .tag {
@@ -319,9 +309,6 @@ onMounted(() => {
   background: #1a1a1a;
   border-radius: 4px;
   padding: 0.5rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
 .mini-waveform {
@@ -330,9 +317,6 @@ onMounted(() => {
 }
 
 .slice-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
   flex-shrink: 0;
 }
 

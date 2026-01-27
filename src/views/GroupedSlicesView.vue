@@ -1,12 +1,15 @@
 <template>
-  <div class="grouped-slices-view">
+  <div class="grouped-slices-view d-flex flex-column">
     <header class="view-header p-4 border-bottom">
-      <button class="btn-back mb-3" @click="$router.back()">
+      <button class="btn btn-outline-secondary mb-3" @click="$router.back()">
         <i class="fas fa-arrow-left me-2"></i>Back
       </button>
-      <h1 class="mb-2">{{ title }}</h1>
+      <h1 class="mb-2">
+        {{ title }}
+        <span class="count-badge ms-2">{{ slices.length }}</span>
+      </h1>
       <p class="subtitle m-0">
-        {{ slices.length }} {{ slices.length === 1 ? 'slice' : 'slices' }} • Type: {{ type }}
+        Type: {{ type }}
       </p>
     </header>
 
@@ -43,11 +46,11 @@
                 {{ audioFiles[slice.audioFileId].location }}
               </div>
             </div>
-            <div class="slice-actions">
-              <button class="btn-icon" @click="playSlice(slice)" :title="playingSliceId === slice.id ? 'Pause' : 'Play'">
+            <div class="slice-actions d-flex gap-2">
+              <button class="btn btn-primary btn-sm d-flex align-items-center justify-content-center" @click="playSlice(slice)" :title="playingSliceId === slice.id ? 'Pause' : 'Play'">
                 <i :class="playingSliceId === slice.id ? 'fas fa-pause' : 'fas fa-play'"></i>
               </button>
-              <button class="btn-icon ms-2" @click="openInEditor(slice)" title="Open in Editor">
+              <button class="btn btn-outline-secondary btn-sm" @click="openInEditor(slice)" title="Open in Editor">
                 <i class="fas fa-edit"></i>
               </button>
             </div>
@@ -158,8 +161,6 @@ onMounted(() => {
 <style scoped>
 .grouped-slices-view {
   height: 100%;
-  display: flex;
-  flex-direction: column;
   background: #1a1a1a;
   color: #e0e0e0;
 }
@@ -188,8 +189,17 @@ onMounted(() => {
   font-size: 0.9rem;
 }
 
+.count-badge {
+  background: rgba(74, 158, 255, 0.15);
+  color: #4a9eff;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
 .slices-content {
-  flex: 1;
   overflow-y: auto;
 }
 
@@ -233,8 +243,6 @@ onMounted(() => {
 }
 
 .slice-actions {
-  display: flex;
-  gap: 0.5rem;
 }
 
 .btn-icon {
@@ -246,9 +254,6 @@ onMounted(() => {
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .btn-icon:hover {
@@ -266,9 +271,6 @@ onMounted(() => {
 
 .loading-waveform {
   height: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   color: #666;
 }
 

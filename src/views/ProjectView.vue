@@ -2,8 +2,8 @@
   <div class="project-view">
     <header class="view-header">
       <div class="header-content px-4 py-3">
-        <button class="btn-back py-2 px-3" @click="$emit('back')">
-          <i class="fas fa-arrow-left"></i> Back
+        <button class="btn btn-outline-secondary" @click="$emit('back')">
+          <i class="fas fa-arrow-left me-2"></i>Back
         </button>
         <div class="project-header-info" v-if="project">
           <div class="project-color-bar" :style="{ backgroundColor: project.color || '#4a9eff' }"></div>
@@ -36,7 +36,7 @@
             :class="{ 'is-playing': currentlyPlayingSliceId === slice.id && isPlaying }"
           >
             <button 
-              class="play-btn"
+              class="btn btn-primary btn-sm play-btn"
               @click="handlePlaySlice(slice)"
             >
               <i :class="currentlyPlayingSliceId === slice.id && isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
@@ -55,7 +55,7 @@
               </div>
             </div>
             <button 
-              class="btn-view-source"
+              class="btn btn-sm btn-outline-secondary"
               @click="handleViewSource(slice.audioFileId)"
               title="View in Source Editor"
             >

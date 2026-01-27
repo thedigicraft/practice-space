@@ -375,17 +375,17 @@ defineExpose({
 </script>
 
 <template>
-  <div class="file-browser">
+  <div class="file-browser d-flex flex-column">
     <!-- Breadcrumb navigation -->
-    <div class="breadcrumb py-3 px-3">
+    <div class="breadcrumb py-3 px-3 d-flex align-items-center">
       <span
         v-for="(crumb, index) in breadcrumbs"
         :key="crumb.id || 'root'"
-        class="breadcrumb-item"
+        class="breadcrumb-item d-flex align-items-center"
       >
         <button
           @click="navigateToFolder(crumb.id)"
-          class="breadcrumb-link"
+          class="btn btn-link breadcrumb-link"
           :class="{ active: index === breadcrumbs.length - 1 }"
         >
           {{ crumb.name }}
@@ -395,8 +395,8 @@ defineExpose({
     </div>
 
     <!-- Toolbar -->
-    <div class="toolbar py-3 px-3">
-      <div class="search-box">
+    <div class="toolbar py-3 px-3 d-flex gap-3 align-items-center">
+      <div class="search-box flex-fill d-flex align-items-center">
         <input
           v-model="searchQuery"
           type="text"
@@ -406,7 +406,7 @@ defineExpose({
         <button
           v-if="searchQuery"
           @click="searchQuery = ''"
-          class="btn-clear-search"
+          class="btn btn-sm btn-outline-secondary"
           title="Clear search"
         >
           <i class="fas fa-times"></i>
@@ -414,37 +414,37 @@ defineExpose({
       </div>
       <button 
         @click="toggleSelectionMode" 
-        class="btn-toolbar"
+        class="btn btn-outline-secondary"
         :class="{ 'active': isSelectionMode }"
       >
         {{ isSelectionMode ? '✓ Selection Mode' : '☑ Select' }}
       </button>
-      <button @click="emit('createFolder')" class="btn-toolbar">
-        <i class="fas fa-folder-plus"></i> New Folder
+      <button @click="emit('createFolder')" class="btn btn-outline-secondary">
+        <i class="fas fa-folder-plus me-2"></i>New Folder
       </button>
     </div>
 
     <!-- Batch actions bar -->
-    <div v-if="isSelectionMode" class="batch-actions py-2 px-3">
+    <div v-if="isSelectionMode" class="batch-actions py-2 px-3 d-flex align-items-center justify-content-between gap-3">
       <div class="selection-info">
         {{ selectedSliceIds.size }} selected
       </div>
-      <div class="action-buttons">
-        <button @click="selectAll" class="btn-action">Select All</button>
-        <button @click="deselectAll" class="btn-action">Clear</button>
+      <div class="action-buttons d-flex gap-2">
+        <button @click="selectAll" class="btn btn-sm btn-outline-secondary">Select All</button>
+        <button @click="deselectAll" class="btn btn-sm btn-outline-secondary">Clear</button>
         <button 
           @click="exportSelected" 
-          class="btn-action btn-export"
+          class="btn btn-sm btn-success"
           :disabled="selectedSliceIds.size === 0"
         >
-          💾 Export ({{ selectedSliceIds.size }})
+          <i class="fas fa-download me-1"></i>Export ({{ selectedSliceIds.size }})
         </button>
         <button 
           @click="deleteSelected" 
-          class="btn-action btn-delete"
+          class="btn btn-sm btn-danger"
           :disabled="selectedSliceIds.size === 0"
         >
-          🗑 Delete ({{ selectedSliceIds.size }})
+          <i class="fas fa-trash me-1"></i>Delete ({{ selectedSliceIds.size }})
         </button>
       </div>
     </div>
@@ -468,11 +468,11 @@ defineExpose({
         <div
           v-for="folder in childFolders"
           :key="folder.id"
-          class="folder-item"
+          class="folder-item d-flex align-items-center gap-2"
           @click="navigateToFolder(folder.id)"
         >
           <span class="folder-icon"><i class="fas fa-folder"></i></span>
-          <span class="folder-name">{{ folder.name }}</span>
+          <span class="folder-name flex-fill">{{ folder.name }}</span>
           <span class="folder-count">({{ folder.sliceIds.length }})</span>
         </div>
       </div>
@@ -482,7 +482,7 @@ defineExpose({
         <div
           v-for="slice in displaySlices"
           :key="slice.id"
-          class="slice-item-browser"
+          class="slice-item-browser d-flex align-items-start gap-2"
           :class="{ 
             'is-playing': slice.id === currentlyPlayingSliceId,
             'is-selected': selectedSliceIds.has(slice.id)
@@ -497,7 +497,7 @@ defineExpose({
             @click="toggleSelection(slice.id, $event)"
           />
           <button 
-            class="play-btn-slice"
+            class="btn btn-primary btn-sm play-btn-slice"
             @click="handlePlaySlice(slice, $event)"
             title="Play slice"
           >
@@ -505,9 +505,9 @@ defineExpose({
             <span v-else><i class="fas fa-play"></i></span>
           </button>
           <div class="slice-icon">🎵</div>
-          <div class="slice-details">
+          <div class="slice-details flex-fill">
             <div class="slice-grid">
-              <div class="grid-col title-col">
+              <div class="grid-col title-col d-flex flex-column gap-1">
                 <div class="slice-title">{{ slice.title }}</div>
                 <div class="slice-source">{{ getAudioFileName(slice.audioFileId) }}</div>
               </div>
@@ -575,7 +575,7 @@ defineExpose({
                 <div class="col-value duration-value">{{ formatTime(slice.endTime - slice.startTime) }}</div>
               </div>
             </div>
-            <div v-if="slice.tags?.length" class="slice-tags-compact">
+            <div v-if="slice.tags?.length" class="slice-tags-compact d-flex gap-1 flex-wrap">
               <span v-for="tag in slice.tags" :key="tag" class="tag-compact">
                 {{ tag }}
               </span>
@@ -619,8 +619,6 @@ defineExpose({
 
 <style scoped>
 .file-browser {
-  display: flex;
-  flex-direction: column;
   height: 100%;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -629,8 +627,6 @@ defineExpose({
 }
 
 .breadcrumb {
-  display: flex;
-  align-items: center;
   padding: 0.75rem 1rem;
   background: rgba(255, 255, 255, 0.05);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -638,8 +634,6 @@ defineExpose({
 }
 
 .breadcrumb-item {
-  display: flex;
-  align-items: center;
 }
 
 .breadcrumb-link {
@@ -673,16 +667,10 @@ defineExpose({
 .toolbar {
   padding: 0.75rem 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  gap: 1rem;
-  align-items: center;
 }
 
 .search-box {
-  flex: 1;
   position: relative;
-  display: flex;
-  align-items: center;
 }
 
 
@@ -736,13 +724,9 @@ defineExpose({
   border-color: rgba(255, 255, 255, 0.3);
 }
 .batch-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   padding: 0.75rem 1rem;
   background: rgba(74, 158, 255, 0.1);
   border-bottom: 1px solid rgba(74, 158, 255, 0.3);
-  gap: 1rem;
 }
 
 .selection-info {
@@ -751,8 +735,6 @@ defineExpose({
 }
 
 .action-buttons {
-  display: flex;
-  gap: 0.5rem;
 }
 
 .btn-action {
@@ -798,7 +780,6 @@ defineExpose({
   border-color: rgba(231, 76, 60, 0.5);
 }
 .browser-content {
-  flex: 1;
   overflow-y: auto;
   padding: 1rem;
 }
@@ -823,9 +804,6 @@ defineExpose({
 }
 
 .folder-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
   padding: 0.75rem;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -845,7 +823,6 @@ defineExpose({
 }
 
 .folder-name {
-  flex: 1;
   font-weight: 500;
 }
 
@@ -855,9 +832,6 @@ defineExpose({
 }
 
 .slice-item-browser {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
   padding: 0.75rem;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -913,9 +887,6 @@ defineExpose({
   font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
 }
 
@@ -935,7 +906,6 @@ defineExpose({
 }
 
 .slice-details {
-  flex: 1;
   min-width: 0;
 }
 
@@ -952,9 +922,6 @@ defineExpose({
 }
 
 .title-col {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
 }
 
 .slice-title {
@@ -1029,9 +996,6 @@ defineExpose({
 }
 
 .slice-tags-compact {
-  display: flex;
-  gap: 0.25rem;
-  flex-wrap: wrap;
 }
 
 .tag-compact {
@@ -1051,9 +1015,6 @@ defineExpose({
   color: #4a9eff;
   font-size: 0.75rem;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   transition: all 0.2s ease;
   padding-left: 2px;
   flex-shrink: 0;
