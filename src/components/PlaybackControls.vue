@@ -95,40 +95,6 @@ const handlePlayPause = () => {
   border-radius: 8px;
 }
 
-.btn-play-pause {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: 2px solid #4a9eff;
-  background: rgba(74, 158, 255, 0.1);
-  color: #4a9eff;
-  font-size: 1.25rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.btn-play-pause:hover:not(:disabled) {
-  background: rgba(74, 158, 255, 0.2);
-  transform: scale(1.05);
-}
-
-.btn-play-pause:active:not(:disabled) {
-  transform: scale(0.95);
-}
-
-.btn-play-pause:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-play-pause.playing {
-  background: rgba(74, 158, 255, 0.2);
-}
-
 .spinner {
   width: 20px;
   height: 20px;

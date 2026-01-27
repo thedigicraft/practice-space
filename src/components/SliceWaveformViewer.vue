@@ -151,20 +151,6 @@ onMounted(drawWaveform)
   font-size: 1rem;
   color: #ccc;
 }
-.btn-mode {
-  padding: 0.25rem 0.75rem;
-  background: rgba(74, 158, 255, 0.15);
-  border: 1px solid rgba(74, 158, 255, 0.3);
-  color: #4a9eff;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.2s;
-}
-.btn-mode:hover {
-  background: rgba(74, 158, 255, 0.25);
-  border-color: rgba(74, 158, 255, 0.5);
-}
 canvas {
   display: block;
   width: 100%;

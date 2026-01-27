@@ -673,26 +673,6 @@ defineExpose({
   position: relative;
 }
 
-
-
-.btn-clear-search {
-  position: absolute;
-  right: 0.5rem;
-  padding: 0.25rem 0.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  border-radius: 4px;
-  color: inherit;
-  cursor: pointer;
-  opacity: 0.6;
-  transition: all 0.2s;
-}
-
-.btn-clear-search:hover {
-  opacity: 1;
-  background: rgba(255, 255, 255, 0.2);
-}
-
 .search-info {
   padding: 0.5rem 1rem;
   background: rgba(74, 158, 255, 0.1);
@@ -701,28 +681,6 @@ defineExpose({
   font-size: 0.85rem;
 }
 
-.btn-toolbar {
-  padding: 0.5rem 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: inherit;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.9rem;
-  flex-shrink: 0;
-}
-
-.btn-toolbar.active {
-  background: rgba(74, 158, 255, 0.2);
-  border-color: rgba(74, 158, 255, 0.5);
-  color: #4a9eff;
-}
-
-.btn-toolbar:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.3);
-}
 .batch-actions {
   padding: 0.75rem 1rem;
   background: rgba(74, 158, 255, 0.1);
@@ -734,51 +692,6 @@ defineExpose({
   color: #4a9eff;
 }
 
-.action-buttons {
-}
-
-.btn-action {
-  padding: 0.4rem 0.75rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  color: inherit;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.85rem;
-}
-
-.btn-action:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
-.btn-action:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.btn-export {
-  background: rgba(46, 204, 113, 0.15);
-  border-color: rgba(46, 204, 113, 0.3);
-  color: #2ecc71;
-}
-
-.btn-export:hover:not(:disabled) {
-  background: rgba(46, 204, 113, 0.25);
-  border-color: rgba(46, 204, 113, 0.5);
-}
-
-.btn-delete {
-  background: rgba(231, 76, 60, 0.15);
-  border-color: rgba(231, 76, 60, 0.3);
-  color: #e74c3c;
-}
-
-.btn-delete:hover:not(:disabled) {
-  background: rgba(231, 76, 60, 0.25);
-  border-color: rgba(231, 76, 60, 0.5);
-}
 .browser-content {
   overflow-y: auto;
   padding: 1rem;

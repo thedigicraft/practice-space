@@ -118,36 +118,6 @@ const handleCreateProject = (_project: Project) => {
   gap: 2rem;
 }
 
-.btn-back {
-  background: transparent;
-  border: 1px solid #404040;
-  color: #e0e0e0;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-back:hover {
-  background: #303030;
-  border-color: #4a9eff;
-}
-
-.btn-primary {
-  background: #4a9eff;
-  border: none;
-  color: #fff;
-  padding: 0.75rem 1.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-weight: 500;
-}
-
-.btn-primary:hover {
-  background: #3d8ae6;
-}
-
 .subtitle {
   color: #999;
   font-size: 0.9rem;

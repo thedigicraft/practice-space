@@ -83,22 +83,6 @@ const formatDate = (timestamp: number): string => {
   font-size: 1.25rem;
 }
 
-.btn-create {
-  padding: 0.5rem 1rem;
-  background: rgba(74, 158, 255, 0.1);
-  border: 1px solid rgba(74, 158, 255, 0.5);
-  border-radius: 6px;
-  color: #4a9eff;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.9rem;
-}
-
-.btn-create:hover {
-  background: rgba(74, 158, 255, 0.2);
-  border-color: #4a9eff;
-}
-
 .empty-state {
   text-align: center;
   padding: 3rem 1rem;

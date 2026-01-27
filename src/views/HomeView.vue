@@ -437,10 +437,6 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.source-card:hover .btn-edit {
-  opacity: 1;
-}
-
 .source-icon {
   font-size: 2rem;
   flex-shrink: 0;
@@ -449,27 +445,6 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
 .source-info {
   min-width: 0;
   cursor: pointer;
-}
-
-.btn-edit {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: #1a1a1a;
-  border: 1px solid #404040;
-  color: #888;
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
-  cursor: pointer;
-  opacity: 0;
-  transition: all 0.2s;
-}
-
-.btn-edit:hover {
-  background: #4a9eff;
-  border-color: #4a9eff;
-  color: white;
 }
 
 .source-name {
@@ -549,22 +524,6 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
   margin: 0;
   font-size: 0.85rem;
   color: #888;
-}
-
-.btn-primary {
-  background: #4a9eff;
-  color: white;
-  border: none;
-  padding: 0.6rem 1.2rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.95rem;
-  font-weight: 500;
-  transition: background 0.2s;
-}
-
-.btn-primary:hover {
-  background: #357abd;
 }
 
 .action-bar {

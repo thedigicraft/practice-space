@@ -143,23 +143,6 @@ const handleViewSource = (sourceId: string) => {
   gap: 1rem;
 }
 
-.btn-back {
-  background: #2a2a2a;
-  color: #fff;
-  border: 1px solid #444;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.95rem;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.btn-back:hover {
-  background: #333;
-  border-color: #555;
-}
-
 .project-header-info {
   flex: 1;
   min-width: 0;

@@ -169,21 +169,6 @@ onMounted(() => {
   background: #252525;
 }
 
-.btn-back {
-  background: transparent;
-  border: 1px solid #404040;
-  color: #e0e0e0;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-back:hover {
-  background: #303030;
-  border-color: #4a9eff;
-}
-
 .subtitle {
   color: #999;
   font-size: 0.9rem;

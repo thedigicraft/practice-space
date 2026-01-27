@@ -79,26 +79,6 @@ const formatDuration = (seconds: number) => {
   gap: 1rem;
 }
 
-.btn-play {
-  background: #4a9eff;
-  color: white;
-  border: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.2s;
-}
-
-.btn-play:hover {
-  background: #357abd;
-}
-
 .region-info {
   flex: 1;
   font-size: 0.85rem;
@@ -113,50 +93,5 @@ const formatDuration = (seconds: number) => {
 .region-info .duration {
   font-size: 0.8rem;
   color: #888;
-}
-
-.actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn-create,
-.btn-export {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.9rem;
-  border: 1px solid;
-}
-
-.btn-create {
-  background: #4a9eff;
-  color: white;
-  border-color: #4a9eff;
-}
-
-.btn-create:hover {
-  background: #357abd;
-}
-
-.btn-export:disabled {
-  background: #333;
-  color: #777;
-  border-color: #444;
-  cursor: not-allowed;
-}
-
-.btn-clear {
-  background: none;
-  border: none;
-  color: #888;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 0 0.5rem;
-}
-
-.btn-clear:hover {
-  color: #fff;
 }
 </style>
