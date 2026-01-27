@@ -36,7 +36,7 @@ const showPerformerSuggestions = ref(false)
 const showTypeSuggestions = ref(false)
 
 const modalElement = ref<HTMLElement | null>(null)
-let modalInstance: Modal | null = null
+let modalInstance: any | null = null
 
 // Track pending action to emit after modal hides
 let pendingAction: { type: 'cancel' | 'create' | 'update', data?: any } | null = null

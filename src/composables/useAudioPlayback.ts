@@ -4,7 +4,7 @@
 
 import { ref, onUnmounted } from 'vue'
 import { AudioService } from '@/services/audio'
-import { getFileFromHandle } from '@/services/fileSystem'
+import { getSourceArrayBuffer } from '@/services/platformAudio'
 import type { Source, Slice } from '@/types/models'
 
 export function useAudioPlayback() {
@@ -39,8 +39,8 @@ export function useAudioPlayback() {
       isLoading.value = true
       currentAudioFile = audioFile
 
-      const file = await getFileFromHandle(audioFile.fileHandle)
-      const buffer = await audioService.loadAudioFile(file)
+      const arrayBuffer = await getSourceArrayBuffer(audioFile)
+      const buffer = await audioService.loadArrayBuffer(arrayBuffer)
       
       duration.value = buffer.duration
       currentTime.value = 0

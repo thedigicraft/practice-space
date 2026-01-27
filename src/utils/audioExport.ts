@@ -208,7 +208,8 @@ async function exportAsMp3(
         
         const mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk)
         if (mp3buf.length > 0) {
-          mp3Data.push(mp3buf)
+          // Cast to any to accommodate encoder return type differences
+          mp3Data.push(mp3buf as any)
         }
         
         offset = end
@@ -227,7 +228,7 @@ async function exportAsMp3(
           // Finalize encoding
           const mp3buf = mp3encoder.flush()
           if (mp3buf.length > 0) {
-            mp3Data.push(mp3buf)
+            mp3Data.push(mp3buf as any)
           }
           
           if (onProgress) onProgress(100)

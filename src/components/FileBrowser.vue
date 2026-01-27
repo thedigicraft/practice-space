@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { formatTime } from '@/utils/helpers'
 import { exportSlice, type ExportFormat } from '@/utils/audioExport'
-import { getFileFromHandle } from '@/services/fileSystem'
+import { getSourceArrayBuffer } from '@/services/platformAudio'
 import type { Slice, SliceFolder, AudioFile } from '@/types/models'
 import ToastNotification from './ToastNotification.vue'
 import ExportMenu from './ExportMenu.vue'
@@ -36,8 +36,8 @@ const isSelectionMode = ref(false)
 // Export dropdown state
 const exportDropdownOpen = ref<string | null>(null)
 
-const toggleExportDropdown = (sliceId: string, event: MouseEvent) => {
-  event.stopPropagation()
+const toggleExportDropdown = (sliceId: string, event?: MouseEvent) => {
+  if (event) event.stopPropagation()
   exportDropdownOpen.value = exportDropdownOpen.value === sliceId ? null : sliceId
 }
 
@@ -301,8 +301,7 @@ const handlePlaySlice = (slice: Slice, event: MouseEvent) => {
   emit('playSlice', slice)
 }
 
-const handleExportSlice = async (slice: Slice, format: ExportFormat, event: MouseEvent) => {
-  event.stopPropagation()
+const handleExportSlice = async (slice: Slice, format: ExportFormat) => {
   closeExportDropdown()
   
   const formatLabel = format.toUpperCase()
@@ -315,9 +314,8 @@ const handleExportSlice = async (slice: Slice, format: ExportFormat, event: Mous
       showToast('Audio file not found for slice', 'error')
       return
     }
-  // Load and decode the audio file
-    const file = await getFileFromHandle(audioFile.fileHandle)
-    const arrayBuffer = await file.arrayBuffer()
+  // Load and decode the source (web or Android)
+    const arrayBuffer = await getSourceArrayBuffer(audioFile)
     const audioContext = new AudioContext()
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
 
@@ -574,8 +572,8 @@ defineExpose({
           </div>
           <ExportMenu
             :is-open="exportDropdownOpen === slice.id"
-            @toggle="toggleExportDropdown(slice.id, $event)"
-            @export="(format) => handleExportSlice(slice, format, $event)"
+            @toggle="() => toggleExportDropdown(slice.id)"
+            @export="(format) => handleExportSlice(slice, format)"
           />
         </div>
       </div>

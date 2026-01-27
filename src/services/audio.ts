@@ -38,6 +38,17 @@ export class AudioService {
   }
 
   /**
+   * Load from an ArrayBuffer (platform-agnostic)
+   */
+  async loadArrayBuffer(arrayBuffer: ArrayBuffer): Promise<AudioBuffer> {
+    this.stop()
+    const audioContext = this.getAudioContext()
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+    this.currentBuffer = audioBuffer
+    return audioBuffer
+  }
+
+  /**
    * Play audio from a specific time
    */
   play(startOffset = 0, duration?: number): void {

@@ -10,7 +10,7 @@
         :initial-sort="sortBy"
         @update:search="searchQuery = $event"
         @update:location="locationFilter = $event"
-        @update:sort="sortBy = $event"
+        @update:sort="sortBy = $event as 'importedAt' | 'title' | 'name' | 'duration' | 'size'"
       />
 
       <div v-if="filteredSources.length === 0" class="empty-state text-center py-5">
