@@ -224,7 +224,8 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
     'slice-browser': 'Slice Browser',
     'grouped-slices': 'Grouped Slices',
     'project': 'Project',
-    'projects': 'Projects'
+    'projects': 'Projects',
+    'settings': 'Settings'
   }
   
   return names[routeName] || ''
@@ -275,6 +276,15 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
               @click="navigateToSliceBrowser"
             >
               Slice Browser
+            </button>
+          </li>
+          <li class="nav-item">
+            <button 
+              class="nav-link btn btn-sm"
+              :class="{ 'btn-primary': $route.name === 'settings', 'btn-outline-secondary': $route.name !== 'settings' }"
+              @click="() => router.push('/settings')"
+            >
+              Settings
             </button>
           </li>
         </ul>

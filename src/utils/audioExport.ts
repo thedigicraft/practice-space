@@ -319,6 +319,17 @@ async function downloadBlob(blob: Blob, fileName: string, mode: 'auto' | 'save' 
     const subfolder = 'Music'
     const path = `${subfolder}/${fileName}`
 
+    // Ensure storage permission is granted when targeting External storage
+    try {
+      const perm = await (Filesystem as any).checkPermissions?.()
+      const status = perm?.publicStorage || perm?.state
+      if (status !== 'granted') {
+        await (Filesystem as any).requestPermissions?.()
+      }
+    } catch {
+      // If permission APIs are unavailable, proceed and rely on plugin internals
+    }
+
     try {
       await Filesystem.writeFile({ path, data: base64, directory: preferredDir })
       if (mode === 'auto') {
