@@ -18,9 +18,9 @@
       <div class="main-content">
         <div class="editor-content flex-fill xp-4" v-if="source">
           <!-- Waveform Section -->
-          <section class="waveform-section p-4">
+          <section class="waveform-section xp-4">
             
-            <div class="waveform-container">
+            <div class="waveform-container p-0">
               <WaveformViewer 
                 :waveformData="source.waveformData"
                 :duration="source.duration"

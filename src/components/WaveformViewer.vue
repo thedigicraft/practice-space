@@ -710,7 +710,7 @@ defineExpose({ clearRegion, setRegion, zoomToRange })
 </script>
 
 <template>
-  <div class="waveform-viewer">
+  <div class="waveform-viewer ">
     <!-- Zoom Controls -->
     <div class="zoom-controls">
       <button @click="emit('toggle-waveform-mode')" class="btn btn-sm btn-outline-primary" :title="props.waveformMode === 'line' ? 'Switch to bars view' : 'Switch to line view'">
