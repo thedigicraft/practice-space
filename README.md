@@ -256,11 +256,12 @@ MIT
 
 ## Roadmap
 
-- [ ] Basic audio import and waveform visualization
-- [ ] Manual region selection and slice creation
-- [ ] Filesystem-style slice browser
+- [ ] UI/UX Overhaul
+- [x] Basic audio import and waveform visualization
+- [x] Manual region selection and slice creation
+- [x] Filesystem-style slice browser
 - [ ] Project management
-- [ ] Playback controls with Web Audio API
+- [x] Playback controls with Web Audio API
 - [ ] Keyboard shortcuts for DAW-like workflow
-- [ ] Export/import functionality for projects
-- [ ] Tagging and search
+- [x] Export/import functionality for projects
+- [x] Tagging and search
