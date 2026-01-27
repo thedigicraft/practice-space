@@ -1,5 +1,13 @@
 # Practice Space
 
+I built this project because I compulsively record everything. When I’m playing guitar alone, I’m constantly hitting record on my phone in case I stumble into something worth remembering. When I’m jamming with friends, I let recordings run for hours. The result is always the same: dozens of short clips with no context, or massive recordings full of songs, jams, and half-formed ideas — all technically captured, but practically unusable.
+
+The tools I already had didn’t fit this problem. Voice memo apps are great for capturing sound, but terrible for revisiting it. DAWs are incredibly powerful, but opening one just to cut up a long rehearsal, export a few clips, and organize ideas feels like overkill. The time and friction involved means the recordings usually just sit there, unnamed and untouched, until they’re effectively lost.
+
+This project is my attempt to bridge that gap. It’s a lightweight, local-first tool focused on reviewing, slicing, and organizing recordings without destroying creative momentum. Instead of creating new audio files for every idea, it treats slices as non-destructive references to the original recordings, letting me quickly mark meaningful moments, add context, and reuse them across projects. The goal is simple: make it easy to actually do something meaningful with the recordings, instead of letting them quietly pile up on my phone.
+
+## What is it?
+
 A local-first, offline-capable web application for musicians to organize and practice with audio recordings. Import audio files, visualize waveforms, create non-destructive slices, and organize your practice material—all without a backend.
 
 ## ✨ Features
