@@ -272,7 +272,7 @@ const exportSelected = async () => {
         slice.endTime,
         slice.title || `slice-${slice.id.slice(0, 8)}`,
         slice,
-        { format: 'wav', quality: 90, includeMetadata: true, mode: exportMode }
+        { format: 'wav', quality: 90, includeMetadata: true, mode: exportMode.value }
       )
       
       await audioContext.close()
@@ -324,7 +324,7 @@ const handleExportSlice = async (slice: Slice, format: ExportFormat) => {
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
 
     // Export the slice with metadata and progress tracking
-    await exportSlice(
+    const result = await exportSlice(
       audioBuffer,
       slice.startTime,
       slice.endTime,
@@ -334,7 +334,7 @@ const handleExportSlice = async (slice: Slice, format: ExportFormat) => {
         format, 
         quality: 90, 
         includeMetadata: true,
-        mode: exportMode,
+        mode: exportMode.value,
         onProgress: format === 'mp3' ? (progress) => {
           showToast(`Exporting "${slice.title}" as ${formatLabel}... ${progress}%`, 'loading', progress)
         } : undefined
@@ -343,6 +343,9 @@ const handleExportSlice = async (slice: Slice, format: ExportFormat) => {
 
     await audioContext.close()
     showToast(`Successfully exported "${slice.title}" as ${formatLabel}!`, 'success')
+    if (result?.savedPath) {
+      showToast(`Saved to ${result.savedPath}`, 'info')
+    }
   } catch (error) {
     console.error('Failed to export slice:', error)
     showToast(`Failed to export: ${(error as Error).message}`, 'error')
