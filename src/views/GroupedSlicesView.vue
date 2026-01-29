@@ -1,11 +1,16 @@
 <template>
   <div class="grouped-slices-view d-flex flex-column">
-    <header class="view-header p-4 border-bottom d-flex justify-content-between align-items-center">
-      <h1 class="xmb-2 d-flex align-items-center">
-        <div>{{ title }}</div>
-        <span class="count-badge ms-2">{{ slices.length }}</span>
-      </h1>
-      <p class="subtitle m-0">{{ type }}</p>
+    <header class="view-header px-3 py-2 border-bottom">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+          <span class="fs-6 text-uppercase text-secondary fw-semibold">{{ title }}</span>
+          <span class="badge bg-secondary ms-2">{{ slices.length }}</span>
+          <span class="subtitle small m-0 text-secondary ms-3">{{ type }}</span>
+        </div>
+        <router-link to="/" class="btn btn-outline-secondary btn-sm" title="Close">
+          <i class="fas fa-xmark"></i>
+        </router-link>
+      </div>
     </header>
 
     <div class="slices-content p-4 container-fluid flex-fill overflow-auto">
@@ -161,12 +166,11 @@ onMounted(() => {
 }
 
 .view-header {
-  background: #252525;
+  background: var(--bs-body-bg);
 }
 
 .subtitle {
-  color: #999;
-  font-size: 0.9rem;
+  color: var(--bs-secondary-color);
 }
 
 .slices-content {

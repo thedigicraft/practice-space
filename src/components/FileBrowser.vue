@@ -374,12 +374,13 @@ const filterByLocation = (location: string, event: MouseEvent) => {
   })
 }
 
-// Expose method for parent to set filter
+// Expose methods for parent controls
 defineExpose({
   setSearchFilter: (filter: string) => {
     searchQuery.value = filter
     currentFolderId.value = undefined
-  }
+  },
+  toggleSelectionMode
 })
 </script>
 
@@ -391,36 +392,7 @@ defineExpose({
       @navigate="navigateToFolder"
     />
 
-    <!-- Toolbar -->
-    <div class="toolbar py-3 px-3 d-flex gap-3 align-items-center">
-      <div class="search-box flex-fill d-flex align-items-center">
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search slices by title, tags, or file..."
-          class="form-control"
-        />
-        <button
-          v-if="searchQuery"
-          @click="searchQuery = ''"
-          class="btn btn-sm btn-outline-secondary"
-          title="Clear search"
-        >
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-      <button 
-        @click="toggleSelectionMode" 
-        class="btn btn-outline-secondary"
-        :class="{ 'active': isSelectionMode }"
-      >
-        {{ isSelectionMode ? '✓ Selection Mode' : '☑ Select' }}
-      </button>
-      <button @click="emit('createFolder')" class="btn btn-outline-secondary">
-        <i class="fas fa-folder-plus me-2"></i>New Folder
-      </button>
-      <ExportSettings />
-    </div>
+    <!-- Toolbar moved to parent header -->
 
     <!-- Batch actions bar -->
     <div v-if="isSelectionMode" class="batch-actions py-2 px-3 d-flex align-items-center justify-content-between gap-3">
@@ -603,7 +575,7 @@ defineExpose({
 .file-browser {
   height: 100%;
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  // border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   overflow: hidden;
 }

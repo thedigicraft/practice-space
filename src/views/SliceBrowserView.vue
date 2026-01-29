@@ -1,15 +1,42 @@
 <template>
   <div class="slice-browser-view d-flex flex-column">
-    <header class="view-header">
-      <div class="header-content px-4 py-3 d-flex align-items-center gap-3">
-        <button class="btn btn-outline-secondary" @click="$emit('back')">
-          <i class="fas fa-arrow-left me-2"></i>Back
-        </button>
-        <h1 class="m-0">Slice Browser</h1>
+    <header class="view-header border-bottom">
+      <div class="header-content px-3 py-2 d-flex align-items-center">
+        <div class="header-left flex-grow-1">
+          <span class="fs-6 text-uppercase text-secondary fw-semibold">Slice Browser</span>
+        </div>
+        <div class="header-center flex-grow-1 d-flex justify-content-center align-items-center gap-2">
+          <div class="search-box d-flex align-items-center" style="min-width: 340px;">
+            <input
+              v-model="searchInput"
+              type="text"
+              class="form-control form-control-sm"
+              placeholder="Search slices by title, tags, or file..."
+              @input="applySearchFilter"
+            />
+            <button v-if="searchInput" class="btn btn-outline-secondary btn-sm ms-2" title="Clear" @click="clearSearch">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <button 
+            class="btn btn-outline-secondary btn-sm"
+            :class="{ 'active': selectionActive }"
+            @click="toggleSelectionFromHeader"
+            title="Toggle selection mode"
+          >
+            <i class="fas fa-check-square me-1"></i> Select
+          </button>
+          <ExportSettings />
+        </div>
+        <div class="header-right flex-grow-1 d-flex justify-content-end">
+          <router-link to="/" class="btn btn-outline-secondary btn-sm" title="Close">
+            <i class="fas fa-xmark"></i>
+          </router-link>
+        </div>
       </div>
     </header>
 
-    <div class="browser-content p-4">
+    <div class="browser-content">
       <FileBrowser
         ref="fileBrowserRef"
         :slices="slices"
@@ -31,9 +58,12 @@ import { onMounted, watch, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Source, Slice, SliceFolder } from '../types/models'
 import FileBrowser from '../components/FileBrowser.vue'
+import ExportSettings from '../components/ExportSettings.vue'
 
 const route = useRoute()
 const fileBrowserRef = ref<InstanceType<typeof FileBrowser> | null>(null)
+const searchInput = ref('')
+const selectionActive = ref(false)
 
 interface Props {
   slices: Slice[]
@@ -83,6 +113,24 @@ const handleCreateFolder = (folder: Omit<SliceFolder, 'id' | 'createdAt'>) => {
 const handleDeleteSlice = (sliceId: string) => {
   emit('deleteSlice', sliceId)
 }
+
+const applySearchFilter = () => {
+  if (fileBrowserRef.value) {
+    fileBrowserRef.value.setSearchFilter(searchInput.value)
+  }
+}
+
+const clearSearch = () => {
+  searchInput.value = ''
+  applySearchFilter()
+}
+
+const toggleSelectionFromHeader = () => {
+  if (fileBrowserRef.value) {
+    fileBrowserRef.value.toggleSelectionMode()
+    selectionActive.value = !selectionActive.value
+  }
+}
 </script>
 
 <style scoped>
@@ -92,25 +140,18 @@ const handleDeleteSlice = (sliceId: string) => {
 }
 
 .view-header {
-  
-  border-bottom: 1px solid #333;
-  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--bs-border-color);
 }
 
 .header-content {
 }
 
-.view-header h1 {
-  margin: 0;
-  font-size: 1.5rem;
-  color: #fff;
+.view-header .fs-6 {
+  color: var(--bs-secondary-color);
 }
 
 .browser-content {
   overflow: auto;
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
   width: 100%;
 }
 </style>

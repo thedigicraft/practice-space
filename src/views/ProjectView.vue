@@ -1,43 +1,45 @@
 <template>
   <div class="project-view">
-    <header class="view-header">
-      <div class="header-content px-4 py-3">
-        <button class="btn btn-outline-secondary" @click="$emit('back')">
-          <i class="fas fa-arrow-left me-2"></i>Back
-        </button>
-        <div class="project-header-info" v-if="project">
+    <header class="view-header border-bottom">
+      <div class="header-content px-3 py-2 d-flex align-items-center justify-content-between">
+        <div class="project-header-info d-flex align-items-start gap-2" v-if="project">
           <div class="project-color-bar" :style="{ backgroundColor: project.color || '#4a9eff' }"></div>
           <div class="project-title">
-            <h1 class="m-0">{{ project.name }}</h1>
-            <p class="project-description mt-2" v-if="project.description">
+            <span class="fs-6 text-uppercase text-secondary fw-semibold">{{ project.name }}</span>
+            <p class="project-description mt-1 mb-0" v-if="project.description">
               {{ project.description }}
             </p>
           </div>
         </div>
+        <router-link to="/" class="btn btn-outline-secondary btn-sm" title="Close">
+          <i class="fas fa-xmark"></i>
+        </router-link>
       </div>
     </header>
 
     <div class="project-content p-4" v-if="project">
-      <section class="slices-section p-4">
-        <div class="section-header">
-          <h2 class="m-0">Slices in this project ({{ projectSlices.length }})</h2>
+      <section class="card slices-section">
+        <div class="card-header py-2 d-flex align-items-center">
+          <span class="fs-6 text-uppercase text-secondary fw-semibold">Slices in this project</span>
+          <span class="badge bg-secondary ms-2">{{ projectSlices.length }}</span>
         </div>
+        <div class="card-body p-3">
+          <div v-if="projectSlices.length === 0" class="empty-state text-center py-4">
+            <p class="my-2">This project has no slices yet.</p>
+            <p class="hint my-2">Add slices to this project from the Slice Browser!</p>
+          </div>
 
-        <div v-if="projectSlices.length === 0" class="empty-state text-center py-5 px-3">
-          <p class="my-2">This project has no slices yet.</p>
-          <p class="hint my-2">Add slices to this project from the Slice Browser!</p>
-        </div>
-
-        <div v-else class="slices-list">
-          <SliceListItem
-            v-for="slice in projectSlices"
-            :key="slice.id"
-            :slice="slice"
-            :source-name="getSourceName(slice.audioFileId)"
-            :is-playing="currentlyPlayingSliceId === slice.id && isPlaying"
-            @play="handlePlaySlice(slice)"
-            @view-source="handleViewSource(slice.audioFileId)"
-          />
+          <div v-else class="slices-list">
+            <SliceListItem
+              v-for="slice in projectSlices"
+              :key="slice.id"
+              :slice="slice"
+              :source-name="getSourceName(slice.audioFileId)"
+              :is-playing="currentlyPlayingSliceId === slice.id && isPlaying"
+              @play="handlePlaySlice(slice)"
+              @view-source="handleViewSource(slice.audioFileId)"
+            />
+          </div>
         </div>
       </section>
     </div>
@@ -107,9 +109,7 @@ const handleViewSource = (sourceId: string) => {
 }
 
 .view-header {
-  
-  border-bottom: 1px solid #333;
-  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--bs-border-color);
 }
 
 .header-content {
@@ -138,16 +138,13 @@ const handleViewSource = (sourceId: string) => {
   min-width: 0;
 }
 
-.project-title h1 {
-  margin: 0;
-  font-size: 1.5rem;
-  color: #fff;
+.project-title .fs-6 {
+  color: var(--bs-secondary-color);
 }
 
 .project-description {
-  margin: 0.5rem 0 0 0;
   font-size: 0.9rem;
-  color: #aaa;
+  color: var(--bs-secondary-color);
 }
 
 .project-content {
@@ -160,19 +157,15 @@ const handleViewSource = (sourceId: string) => {
 }
 
 .slices-section {
-  
   border-radius: 8px;
-  padding: 1.5rem;
 }
 
 .section-header {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .section-header h2 {
   margin: 0;
-  font-size: 1.3rem;
-  color: #fff;
 }
 
 .empty-state {

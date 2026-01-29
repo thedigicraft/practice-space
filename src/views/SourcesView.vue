@@ -1,17 +1,31 @@
 <template>
   <div class="sources-view d-flex flex-column">
+    <header class="view-header px-3 py-2 border-bottom">
+      <div class="d-flex align-items-center">
+        <div class="header-left flex-grow-1">
+          <span class="fs-6 text-uppercase text-secondary fw-semibold">Sources</span>
+        </div>
+        <div class="header-center flex-grow-1 d-flex justify-content-center align-items-center">
+          <FilterBar
+            :locations="uniqueLocations"
+            search-placeholder="Search sources by name, title, or location..."
+            :initial-search="searchQuery"
+            :initial-location="locationFilter"
+            :initial-sort="sortBy"
+            compact
+            @update:search="searchQuery = $event"
+            @update:location="locationFilter = $event"
+            @update:sort="sortBy = $event as 'importedAt' | 'title' | 'name' | 'duration' | 'size'"
+          />
+        </div>
+        <div class="header-right flex-grow-1 d-flex justify-content-end">
+          <router-link to="/" class="btn btn-outline-secondary btn-sm" title="Close">
+            <i class="fas fa-xmark"></i>
+          </router-link>
+        </div>
+      </div>
+    </header>
     <div class="sources-content p-4">
-      <!-- Filters and Search -->
-      <FilterBar
-        :locations="uniqueLocations"
-        search-placeholder="Search sources by name, title, or location..."
-        :initial-search="searchQuery"
-        :initial-location="locationFilter"
-        :initial-sort="sortBy"
-        @update:search="searchQuery = $event"
-        @update:location="locationFilter = $event"
-        @update:sort="sortBy = $event as 'importedAt' | 'title' | 'name' | 'duration' | 'size'"
-      />
 
       <div v-if="filteredSources.length === 0" class="empty-state text-center py-5">
         <p v-if="sources.length === 0">No audio sources imported yet.</p>

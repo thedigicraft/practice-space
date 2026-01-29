@@ -1,5 +1,11 @@
 <template>
   <div class="source-editor-view">
+    <header class="view-header px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+      <span class="fs-6 text-uppercase text-secondary fw-semibold">Source Editor</span>
+      <router-link to="/" class="btn btn-outline-secondary btn-sm" title="Close">
+        <i class="fas fa-xmark"></i>
+      </router-link>
+    </header>
     <SourceMetadataBar
       v-if="source"
       :title="source.title || source.name"
@@ -144,9 +150,6 @@
 
     <!-- Action Bar -->
     <div class="action-bar">
-      <button class="btn btn-outline-secondary" @click="handleBack">
-        <i class="fas fa-arrow-left"></i> Back
-      </button>
       <button 
         @click="toggleSidebar" 
         class="btn btn-outline-secondary"
@@ -197,7 +200,6 @@ const source = computed(() => {
 })
 
 const emit = defineEmits<{
-  back: []
   createSlice: [slice: Omit<Slice, 'id' | 'createdAt' | 'updatedAt'>]
   updateSlice: [slice: Slice]
   deleteSlice: [sliceId: string]
