@@ -68,8 +68,8 @@ const drawWaveform = () => {
   }
   
   if (props.waveformMode === 'bars') {
-    // Draw as bars (original style)
-    ctx.fillStyle = '#4a9eff'
+    // Draw as bars (slice-specific color for contrast)
+    ctx.fillStyle = '#9b59b6'
     const barWidth = width / sliceData.length
 
     for (let i = 0; i < sliceData.length; i++) {
@@ -81,8 +81,8 @@ const drawWaveform = () => {
       ctx.fillRect(x, y, Math.max(1, barWidth), barHeight)
     }
   } else {
-    // Draw as line
-    ctx.strokeStyle = '#4a9eff'
+    // Draw as line (slice-specific color for contrast)
+    ctx.strokeStyle = '#9b59b6'
     ctx.lineWidth = 1.5
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'

@@ -26,7 +26,9 @@
       :location="source.location"
       :imported-at="source.importedAt"
       :created-at="source.createdAt"
+      :notes="source.notes"
       @update-title="handleUpdateTitle"
+      @save-metadata="handleSaveSourceMetadata"
     />
 
     <div class="editor-layout">
@@ -285,6 +287,13 @@ watch(routeSelectedSliceId, (newId) => {
 const handleUpdateTitle = (newTitle: string) => {
   if (source.value) {
     emit('updateSource', { ...source.value, title: newTitle })
+  }
+}
+
+const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
+  if (source.value) {
+    const updated: Source = { ...source.value, ...metadata }
+    emit('updateSource', updated)
   }
 }
 
