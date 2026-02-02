@@ -1,5 +1,5 @@
 <template>
-  <header class="view-header px-3 py-2 border-bottom">
+  <header class="view-header px-3 p-2 border-bottom">
     <div class="d-flex align-items-center">
       <div class="header-left flex-grow-1">
         <slot name="left">

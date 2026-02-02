@@ -36,8 +36,36 @@
         <div class="editor-content flex-fill xp-4" v-if="source">
           <!-- Waveform Section -->
           <section class="waveform-section xp-4">
-            
-            <div class="waveform-container p-0">
+            <!-- External Waveform Controls (Bootstrap-styled) -->
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-2 p-2 border-top border-bottom">
+              <div>
+                <div class="btn-group me-2" role="group">
+                  <button @click="toggleWaveformMode" class="btn btn-sm btn-outline-primary" :title="waveformMode === 'line' ? 'Switch to bars view' : 'Switch to line view'">
+                    <i :class="waveformMode === 'line' ? 'fas fa-chart-bar' : 'fas fa-chart-line'"></i>
+                  </button>
+                  <button @click="waveformRef?.resetZoom()" class="btn btn-sm btn-outline-primary" title="Reset zoom (1:1)">
+                    <i class="fas fa-undo"></i>
+                  </button>
+                  <button @click="waveformRef?.zoomOut()" class="btn btn-sm btn-outline-primary" :disabled="waveformZoom <= 1" title="Zoom out">
+                    <i class="fas fa-search-minus"></i>
+                  </button>
+                  <button @click="waveformRef?.zoomIn()" class="btn btn-sm btn-outline-primary" :disabled="waveformZoom >= 20" title="Zoom in">
+                    <i class="fas fa-search-plus"></i>
+                  </button>
+                </div>
+                <span class="text-muted small ms-1">{{ waveformZoom.toFixed(1) }}×</span>
+              </div>
+                            <div class="btn-group" role="group" v-if="waveformZoom > 1">
+                <button @click="waveformRef?.panLeft()" class="btn btn-sm btn-outline-primary" title="Pan left">
+                  <i class="fas fa-chevron-left"></i>
+                </button>
+                <button @click="waveformRef?.panRight()" class="btn btn-sm btn-outline-primary" title="Pan right">
+                  <i class="fas fa-chevron-right"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="waveform-container px-2">
               <WaveformViewer 
                 :waveformData="source.waveformData"
                 :duration="source.duration"
@@ -48,6 +76,7 @@
                 :is-playing-region="isPlayingRegion"
                 :selected-slice-id="selectedSliceId"
                 :waveform-mode="waveformMode"
+                :show-controls="false"
                 @regionSelected="handleRegionSelected"
                 @regionUpdated="handleRegionUpdated"
                 @regionDragging="handleRegionDragging"
@@ -56,7 +85,8 @@
                 @createSlice="handleCreateSlice"
                 @selectSlice="handleSelectSlice"
                 @seek="emit('seek', $event)"
-                @toggle-waveform-mode="waveformMode = waveformMode === 'line' ? 'bars' : 'line'"
+                @toggle-waveform-mode="toggleWaveformMode"
+                @zoom-changed="(z:number) => waveformZoom = z"
                 ref="waveformRef"
               />
             </div>
@@ -89,7 +119,7 @@
               @clear-selection="clearSelection"
             />
 
-            <div v-if="selectedRegion || selectedSlice" class="slice-preview-area mt-3">
+            <div v-if="selectedRegion || selectedSlice" class="slice-preview-area border-bottom">
               <div class="slice-preview-content">
                 <SliceWaveformViewer
                   :slice="selectedSliceForWaveform"
@@ -236,6 +266,10 @@ const sidebarCollapsed = ref(true)
 // Sidebar removed; keep variable for type compatibility if needed
 const detailsSidebarCollapsed = ref(true)
 const waveformMode = ref<'line' | 'bars'>('bars')
+const toggleWaveformMode = () => {
+  waveformMode.value = waveformMode.value === 'line' ? 'bars' : 'line'
+}
+let waveformZoom = ref(1)
 const newSliceTitle = ref('')
 const copied = ref(false)
 const copyShareLink = async () => {

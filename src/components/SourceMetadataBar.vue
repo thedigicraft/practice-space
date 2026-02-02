@@ -1,5 +1,5 @@
 <template>
-  <div class="source-metadata px-4 py-3">
+  <div class="source-metadata px-4 pt-3">
     <div class="source-title d-flex justify-content-between align-items-center">
       <div class="d-flex align-items-center gap-3 flex-wrap">
         <input
