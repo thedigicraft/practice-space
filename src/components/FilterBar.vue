@@ -1,17 +1,20 @@
 <template>
-  <div class="filters-bar mb-4 d-flex gap-3 align-items-center">
+  <div 
+    class="filters-bar d-flex gap-3 align-items-center"
+    :class="{ 'mb-4': !compact }"
+  >
     <div class="search-box flex-fill">
       <input
         v-model="search"
         type="text"
         :placeholder="searchPlaceholder"
-        class="form-control"
+        :class="['form-control', compact ? 'form-control-sm' : '']"
         @input="$emit('update:search', search)"
       />
     </div>
     <select 
       v-model="location" 
-      class="form-select" 
+      :class="['form-select', compact ? 'form-select-sm' : '']" 
       style="width: 200px;"
       @change="$emit('update:location', location)"
     >
@@ -22,7 +25,7 @@
     </select>
     <select 
       v-model="sort" 
-      class="form-select" 
+      :class="['form-select', compact ? 'form-select-sm' : '']" 
       style="width: 200px;"
       @change="$emit('update:sort', sort)"
     >
@@ -44,13 +47,15 @@ interface Props {
   initialSearch?: string
   initialLocation?: string
   initialSort?: string
+  compact?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   searchPlaceholder: 'Search...',
   initialSearch: '',
   initialLocation: '',
-  initialSort: 'importedAt'
+  initialSort: 'importedAt',
+  compact: false
 })
 
 const search = ref(props.initialSearch)

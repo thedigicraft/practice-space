@@ -5,7 +5,10 @@
         <i class="fas fa-file-audio"></i>
       </div>
       <div class="source-info flex-fill" @click="$emit('click')">
-        <h3 class="card-title h5 mb-2">{{ source.title || source.name }}</h3>
+        <h3 class="card-title h5 mb-2">
+          {{ source.title || source.name }}
+          <span v-if="props.sliceCount != null" class="badge bg-primary rounded-pill ms-2">{{ props.sliceCount }}</span>
+        </h3>
         <p class="card-text text-muted my-1">
           {{ formatDuration(source.duration) }} • {{ formatFileSize(source.size) }}
         </p>
@@ -31,9 +34,10 @@ import { formatTime, formatFileSize } from '@/utils/helpers'
 
 interface Props {
   source: Source
+  sliceCount?: number
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 defineEmits<{
   click: []

@@ -188,6 +188,20 @@ The app will run at `http://localhost:5173`.
 - **Batch Operations**: Select multiple slices to export or delete
 - **Quick Filtering**: Click location, artist, or type tags to filter
 
+## 📱 Android Usage
+
+- **Packaging**: The app is wrapped with Capacitor Android. Build web assets with `vite build` and sync to the native project with:
+
+```bash
+npx cap sync android
+```
+
+- **Import**: Uses a native file picker to select audio files. Files are stored with persistent URIs; decoding and waveform generation can be deferred and happen on-demand.
+- **Playback**: Web Audio runs inside the Android WebView. For very long files, test on-device to confirm performance.
+- **Export**: On Android, exported audio is written to External storage under `Music/<filename>` when possible, and the Share sheet opens automatically. If External storage is restricted, it falls back to Documents or shares via a data URL.
+- **Permissions**: Scoped storage is used; additional MediaStore integrations may be added later for broader library visibility.
+- **Testing**: Open the Android project in Android Studio and run on a device/emulator. Validate import, playback, and export flows.
+
 ## 📝 License
 
 This project is licensed under the MIT License.

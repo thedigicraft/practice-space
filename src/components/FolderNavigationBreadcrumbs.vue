@@ -1,5 +1,5 @@
 <template>
-  <div class="breadcrumb py-3 px-3 d-flex align-items-center">
+  <div class="breadcrumb py-3 px-3 d-flex align-items-center d-none">
     <span
       v-for="(crumb, index) in breadcrumbs"
       :key="crumb.id || 'root'"

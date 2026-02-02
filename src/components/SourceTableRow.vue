@@ -1,15 +1,18 @@
 <template>
   <tr @click="$emit('click')" class="source-row">
-    <td>
+    <td class="col-title">
       <div class="d-flex align-items-center gap-2">
         <i class="fas fa-file-audio text-primary"></i>
         <div>
-          <div class="source-title">{{ source.title || source.name }}</div>
+          <div class="source-title">
+            {{ source.title || source.name }}
+            <span v-if="sliceCount != null" class="badge bg-primary rounded-pill ms-2">{{ sliceCount }}</span>
+          </div>
           <div v-if="source.title" class="source-filename text-muted">{{ source.name }}</div>
         </div>
       </div>
     </td>
-    <td>
+    <td class="col-location">
       <a
         v-if="source.location"
         class="link-secondary text-decoration-none"
@@ -20,10 +23,10 @@
       </a>
       <span v-else class="text-muted">—</span>
     </td>
-    <td class="text-monospace">{{ formatDuration(source.duration) }}</td>
-    <td>{{ formatFileSize(source.size) }}</td>
-    <td class="text-muted">{{ formatDate(source.importedAt) }}</td>
-    <td class="text-center">
+    <td class="col-duration text-monospace">{{ formatDuration(source.duration) }}</td>
+    <td class="col-size">{{ formatFileSize(source.size) }}</td>
+    <td class="col-date text-muted">{{ formatDate(source.importedAt) }}</td>
+    <td class="col-actions text-center">
       <button
         class="btn btn-sm btn-outline-secondary"
         @click.stop="$emit('edit')"
@@ -41,9 +44,10 @@ import { formatTime, formatFileSize } from '@/utils/helpers'
 
 interface Props {
   source: Source
+  sliceCount?: number
 }
 
-defineProps<Props>()
+const { sliceCount } = defineProps<Props>()
 
 defineEmits<{
   click: []

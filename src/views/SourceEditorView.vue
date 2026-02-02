@@ -1,5 +1,20 @@
 <template>
   <div class="source-editor-view">
+    <PanelHeader title="Source Editor">
+      <template #right>
+        <div class="d-flex align-items-center gap-2">
+          <button
+            class="btn btn-sm btn-outline-secondary"
+            @click="copyShareLink"
+            :title="copied ? 'Copied!' : 'Copy shareable link'"
+            aria-label="Copy shareable link"
+          >
+            <i class="fas fa-link me-1"></i>
+            <span>Copy Link</span>
+          </button>
+        </div>
+      </template>
+    </PanelHeader>
     <SourceMetadataBar
       v-if="source"
       :title="source.title || source.name"
@@ -11,7 +26,9 @@
       :location="source.location"
       :imported-at="source.importedAt"
       :created-at="source.createdAt"
+      :notes="source.notes"
       @update-title="handleUpdateTitle"
+      @save-metadata="handleSaveSourceMetadata"
     />
 
     <div class="editor-layout">
@@ -19,8 +36,59 @@
         <div class="editor-content flex-fill xp-4" v-if="source">
           <!-- Waveform Section -->
           <section class="waveform-section xp-4">
-            
-            <div class="waveform-container p-0">
+            <!-- External Waveform Controls (Bootstrap-styled) -->
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-2 p-2 border-top border-bottom">
+              <div>
+                <div class="btn-group me-2" role="group">
+                  <button @click="toggleWaveformMode" class="btn btn-sm btn-outline-primary" :title="waveformMode === 'line' ? 'Switch to bars view' : 'Switch to line view'">
+                    <i :class="waveformMode === 'line' ? 'fas fa-chart-bar' : 'fas fa-chart-line'"></i>
+                  </button>
+                  <button @click="waveformRef?.resetZoom()" class="btn btn-sm btn-outline-primary" title="Reset zoom (1:1)">
+                    <i class="fas fa-undo"></i>
+                  </button>
+                  <button @click="waveformRef?.zoomOut()" class="btn btn-sm btn-outline-primary" :disabled="waveformZoom <= 1" title="Zoom out">
+                    <i class="fas fa-search-minus"></i>
+                  </button>
+                  <button @click="waveformRef?.zoomIn()" class="btn btn-sm btn-outline-primary" :disabled="waveformZoom >= 20" title="Zoom in">
+                    <i class="fas fa-search-plus"></i>
+                  </button>
+                </div>
+                <span class="text-muted small ms-1">{{ waveformZoom.toFixed(1) }}×</span>
+              </div>
+                            <div class="btn-group" role="group" v-if="waveformZoom > 1">
+                <button @click="waveformRef?.panLeft()" class="btn btn-sm btn-outline-primary" title="Pan left">
+                  <i class="fas fa-chevron-left"></i>
+                </button>
+                <button @click="waveformRef?.panRight()" class="btn btn-sm btn-outline-primary" title="Pan right">
+                  <i class="fas fa-chevron-right"></i>
+                </button>
+              </div>
+
+                <!-- Slices dropdown moved from footer action bar -->
+                <div class="dropdown position-relative" style="overflow: visible;">
+                  <button 
+                    class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center"
+                    type="button"
+                    @click="showSlicesDropdown = !showSlicesDropdown"
+                    :aria-expanded="showSlicesDropdown ? 'true' : 'false'"
+                    title="View and select slices"
+                  >
+                    <i class="fa-solid fa-scissors me-1"></i>
+                    <span>Slices</span>
+                    <span class="badge bg-primary rounded-pill ms-2">{{ sourceSlices.length }}</span>
+                  </button>
+                  <ul class="dropdown-menu show" v-show="showSlicesDropdown" style="max-height: 260px; overflow-y: auto; min-width: 480px; max-width: 60vw; z-index: 2000; right: 0; left: auto;">
+                    <li v-if="sourceSlices.length === 0" class="px-3 py-2 text-muted">No slices</li>
+                    <li v-for="s in sourceSlices" :key="s.id">
+                      <button class="dropdown-item d-flex align-items-center justify-content-between" @click="selectSliceFromDropdown(s)">
+                        <span class="me-2 flex-grow-1 text-truncate">{{ s.title || (formatTime(s.startTime) + ' - ' + formatTime(s.endTime)) }}</span>
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+            </div>
+
+            <div class="waveform-container px-2">
               <WaveformViewer 
                 :waveformData="source.waveformData"
                 :duration="source.duration"
@@ -31,6 +99,7 @@
                 :is-playing-region="isPlayingRegion"
                 :selected-slice-id="selectedSliceId"
                 :waveform-mode="waveformMode"
+                :show-controls="false"
                 @regionSelected="handleRegionSelected"
                 @regionUpdated="handleRegionUpdated"
                 @regionDragging="handleRegionDragging"
@@ -39,7 +108,8 @@
                 @createSlice="handleCreateSlice"
                 @selectSlice="handleSelectSlice"
                 @seek="emit('seek', $event)"
-                @toggle-waveform-mode="waveformMode = waveformMode === 'line' ? 'bars' : 'line'"
+                @toggle-waveform-mode="toggleWaveformMode"
+                @zoom-changed="(z:number) => waveformZoom = z"
                 ref="waveformRef"
               />
             </div>
@@ -52,7 +122,7 @@
                 :duration="duration"
                 :isLoading="isLoading"
                 @play="togglePlayPause"
-                @pause="$emit('stop')"
+                @pause="togglePlayPause"
                 @seek="seek"
               />
             </div>
@@ -72,7 +142,7 @@
               @clear-selection="clearSelection"
             />
 
-            <div v-if="selectedRegion || selectedSlice" class="slice-preview-area mt-">
+            <div v-if="selectedRegion || selectedSlice" class="slice-preview-area border-bottom">
               <div class="slice-preview-content">
                 <SliceWaveformViewer
                   :slice="selectedSliceForWaveform"
@@ -80,24 +150,7 @@
                   :current-time="currentTime"
                   :is-playing="isPlaying"
                   :waveform-mode="waveformMode"
-                  @toggle-waveform-mode="waveformMode = waveformMode === 'line' ? 'bars' : 'line'"
                 />
-              </div>
-
-              <div v-if="selectedSlice" :class="['details-sidebar', { collapsed: detailsSidebarCollapsed }]">
-                <button @click="toggleDetailsSidebar" class="sidebar-toggle-btn py-4 px-2">
-                  <i :class="detailsSidebarCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right'"></i>
-                </button>
-                <div v-if="!detailsSidebarCollapsed" class="details-content px-4">
-                  <SliceEditorForm
-                    :slice="selectedSlice"
-                    :selection="selectedRegion"
-                    :hide-save-button="true"
-                    @update="handleUpdateSlice"
-                    @cancel="clearSelection"
-                    ref="sliceEditorFormRef"
-                  />
-                </div>
               </div>
             </div>
           </section>
@@ -143,25 +196,13 @@
     </div>
 
     <!-- Action Bar -->
-    <div class="action-bar">
-      <button class="btn btn-outline-secondary" @click="handleBack">
-        <i class="fas fa-arrow-left"></i> Back
-      </button>
-      <button 
-        @click="toggleSidebar" 
-        class="btn btn-outline-secondary"
-        :title="sidebarCollapsed ? 'Show slices' : 'Hide slices'"
-      >
-        <i :class="sidebarCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right'"></i> Slices 
-        <span class="badge bg-primary rounded-pill ms-2">{{ sourceSlices.length }}</span>
-      </button>
-    </div>
+    
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, inject, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, watch, inject, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import type { Ref } from 'vue'
 import type { Source, Slice } from '../types/models'
 import WaveformViewer from '../components/WaveformViewer.vue'
@@ -173,8 +214,11 @@ import SliceWaveformViewer from '../components/SliceWaveformViewer.vue'
 import SliceEditorForm from '../components/SliceEditorForm.vue'
 import SourceMetadataBar from '../components/SourceMetadataBar.vue'
 import { formatTime, formatFileSize } from '../utils/helpers'
+import PanelHeader from '@/components/PanelHeader.vue'
+import { useAppSettings } from '@/composables/useAppSettings'
 
 const router = useRouter()
+const route = useRoute()
 
 interface Props {
   id: string
@@ -197,7 +241,6 @@ const source = computed(() => {
 })
 
 const emit = defineEmits<{
-  back: []
   createSlice: [slice: Omit<Slice, 'id' | 'createdAt' | 'updatedAt'>]
   updateSlice: [slice: Slice]
   deleteSlice: [sliceId: string]
@@ -224,7 +267,8 @@ watch(source, (newSource) => {
 })
 
 const waveformRef = ref<InstanceType<typeof WaveformViewer> | null>(null)
-const sliceEditorFormRef = ref<InstanceType<typeof SliceEditorForm> | null>(null)
+// Inline metadata editing moved to ContextualToolbar; sidebar removed
+// const sliceEditorFormRef = ref<InstanceType<typeof SliceEditorForm> | null>(null)
 const showSliceDialog = ref(false)
 const selectedRegion = ref<{ startTime: number; endTime: number } | null>(null)
 const editingSlice = ref<Slice | null>(null)
@@ -232,13 +276,78 @@ const isPlayingRegion = ref(false)
 const selectedSliceId = ref<string | null>(null)
 const toolbarMode = ref<'region' | 'slice' | null>(null)
 const sidebarCollapsed = ref(true)
-const detailsSidebarCollapsed = ref(false)
+// Sidebar removed; keep variable for type compatibility if needed
+const detailsSidebarCollapsed = ref(true)
 const waveformMode = ref<'line' | 'bars'>('bars')
+const toggleWaveformMode = () => {
+  waveformMode.value = waveformMode.value === 'line' ? 'bars' : 'line'
+}
+let waveformZoom = ref(1)
+
+// Dropdown state and handler for slices list in top bar
+const showSlicesDropdown = ref(false)
+const selectSliceFromDropdown = (slice: Slice) => {
+  handleSelectSlice(slice)
+  showSlicesDropdown.value = false
+}
 const newSliceTitle = ref('')
+const copied = ref(false)
+const copyShareLink = async () => {
+  try {
+    const url = window.location.href
+    await navigator.clipboard.writeText(url)
+    copied.value = true
+    setTimeout(() => copied.value = false, 1500)
+  } catch (e) {
+    // Fallback: prompt on failure
+    window.prompt('Copy link:', window.location.href)
+  }
+}
+// Source title inline edit refs (prevent compile errors)
+const editingSourceName = ref(false)
+const sourceNameValue = ref('')
+const sourceNameInput = ref<HTMLInputElement | null>(null)
+
+// Sidebar width settings and resizing
+// Sidebar resize logic removed
+
+// Sync selected slice with query param for shareable URLs
+const routeSelectedSliceId = computed(() => {
+  const q = route.query as Record<string, unknown>
+  const id = typeof q.sliceId === 'string' ? q.sliceId : null
+  return id
+})
+
+// When route query has sliceId, select that slice if it belongs to this source
+const selectSliceByIdFromRoute = (sliceId: string | null) => {
+  if (!sliceId) return
+  const slice = sourceSlices.value.find(s => s.id === sliceId)
+  if (slice) {
+    handleSelectSlice(slice)
+  }
+}
+
+onMounted(() => {
+  selectSliceByIdFromRoute(routeSelectedSliceId.value)
+})
+
+watch(routeSelectedSliceId, (newId) => {
+  // Avoid loop: only update if different from current
+  if (newId && newId !== selectedSliceId.value) {
+    selectSliceByIdFromRoute(newId)
+  }
+})
 
 const handleUpdateTitle = (newTitle: string) => {
   if (source.value) {
     emit('updateSource', { ...source.value, title: newTitle })
+  }
+}
+
+const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
+  if (source.value) {
+    const updated: Source = { ...source.value, ...metadata }
+    emit('updateSource', updated)
   }
 }
 
@@ -269,9 +378,9 @@ const formatDate = (timestamp: number) => {
 }
 
 const startSourceNameEdit = () => {
-  if (!props.source) return
+  if (!source.value) return
   editingSourceName.value = true
-  sourceNameValue.value = props.source.name
+  sourceNameValue.value = source.value.name
   setTimeout(() => {
     if (sourceNameInput.value) {
       sourceNameInput.value.focus()
@@ -286,14 +395,14 @@ const cancelSourceNameEdit = () => {
 }
 
 const saveSourceName = () => {
-  if (!props.source || !sourceNameValue.value.trim()) {
+  if (!source.value || !sourceNameValue.value.trim()) {
     cancelSourceNameEdit()
     return
   }
 
-  if (sourceNameValue.value.trim() !== props.source.name) {
+  if (sourceNameValue.value.trim() !== source.value.name) {
     const updatedSource: Source = {
-      ...props.source,
+      ...source.value,
       name: sourceNameValue.value.trim(),
     }
     emit('updateSource', updatedSource)
@@ -331,7 +440,7 @@ const handleRegionUpdated = (region: { startTime: number; endTime: number }) => 
 }
 
 const handlePlayRegion = () => {
-  if (!selectedRegion.value || !props.source) return
+  if (!selectedRegion.value || !source.value) return
   
   // This is a simplified play/pause toggle for the region
   if (isPlayingRegion.value) {
@@ -340,12 +449,10 @@ const handlePlayRegion = () => {
   } else {
     emit('playSlice', {
       id: 'region-playback', // temporary ID
-      audioFileId: props.source.id,
+      audioFileId: source.value.id,
       startTime: selectedRegion.value.startTime,
       endTime: selectedRegion.value.endTime,
       title: 'Selected Region',
-      inPoint: selectedRegion.value.startTime,
-      outPoint: selectedRegion.value.endTime,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     })
@@ -369,6 +476,10 @@ const handleSelectSlice = (slice: Slice) => {
     selectedRegion.value = { startTime: slice.startTime, endTime: slice.endTime }
     waveformRef.value.setRegion(slice.startTime, slice.endTime)
   }
+
+  // Update query param to reflect selected slice for shareable URL
+  const nextQuery = { ...route.query, sliceId: slice.id }
+  router.replace({ name: 'source-editor', params: { id: props.id }, query: nextQuery })
 }
 
 const selectedSlice = computed(() => {
@@ -424,6 +535,11 @@ const clearSelection = () => {
   if (waveformRef.value) {
     waveformRef.value.clearRegion()
   }
+
+  // Remove sliceId from query params when clearing selection
+  const nextQuery = { ...(route.query as Record<string, any>) }
+  delete nextQuery.sliceId
+  router.replace({ name: 'source-editor', params: { id: props.id }, query: nextQuery })
 }
 
 const handleCreateSlice = async () => {
@@ -434,9 +550,7 @@ const handleCreateSlice = async () => {
       title: newSliceTitle.value.trim() || 'Untitled Slice',
       startTime: selectedRegion.value.startTime,
       endTime: selectedRegion.value.endTime,
-      folderId: null,
-      projectIds: [],
-      composer: '',
+      composers: [],
       performers: [],
       type: '',
     }
@@ -484,10 +598,22 @@ const handleEditSlice = (slice: Slice) => {
   showSliceDialog.value = true
 }
 
-const handleSaveSliceFromToolbar = () => {
-  if (sliceEditorFormRef.value) {
-    sliceEditorFormRef.value.triggerSave()
+const handleSaveSliceFromToolbar = (metadata?: { title?: string; type?: string; composers?: string[]; performers?: string[]; tags?: string[]; notes?: string }) => {
+  if (!selectedSlice.value) return
+  const base = selectedSlice.value
+  const updated: Slice = {
+    ...base,
+    startTime: selectedRegion.value?.startTime ?? base.startTime,
+    endTime: selectedRegion.value?.endTime ?? base.endTime,
+    title: metadata?.title?.trim() ? metadata.title.trim() : base.title,
+    type: metadata?.type || base.type,
+    composers: metadata?.composers && metadata.composers.length > 0 ? metadata.composers : base.composers,
+    performers: metadata?.performers && metadata.performers.length > 0 ? metadata.performers : base.performers,
+    tags: metadata?.tags && metadata.tags.length > 0 ? metadata.tags : base.tags,
+    notes: metadata?.notes ?? base.notes,
+    updatedAt: Date.now(),
   }
+  emit('updateSlice', updated)
 }
 
 const handleDeleteSlice = (sliceId: string) => {
@@ -509,7 +635,7 @@ const handleCancelSlice = () => {
 }
 
 const handleBack = () => {
-  emit('back')
+  router.back()
 }
 
 const handleFilterByArtist = (artistName: string) => {
@@ -554,7 +680,7 @@ const seek = (time: number) => {
 }
 
 .editor-layout {
-  overflow: hidden;
+  overflow: visible;
   padding-bottom: 80px;
 }
 
@@ -677,13 +803,17 @@ const seek = (time: number) => {
 
 .slice-preview-area {
   position: relative;
+  display: flex;
+  align-items: stretch;
 }
 
 .slice-preview-content {
+  flex: 1 1 auto;
   min-width: 0;
 }
 
 .details-sidebar {
+  flex: 0 0 500px;
   width: 500px;
   
   border-left: 1px solid #333;
@@ -693,7 +823,20 @@ const seek = (time: number) => {
 }
 
 .details-sidebar.collapsed {
+  flex-basis: 40px;
   width: 40px;
+}
+
+.sidebar-resizer {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  background: rgba(255, 255, 255, 0.06);
+  border-left: 1px solid #333;
+  border-right: 1px solid #333;
+}
+
+.sidebar-resizer:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-toggle-btn {

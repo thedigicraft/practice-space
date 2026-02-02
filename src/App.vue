@@ -224,7 +224,8 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
     'slice-browser': 'Slice Browser',
     'grouped-slices': 'Grouped Slices',
     'project': 'Project',
-    'projects': 'Projects'
+    'projects': 'Projects',
+    'settings': 'Settings'
   }
   
   return names[routeName] || ''
@@ -232,54 +233,42 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
 </script>
 
 <template>
-  <div class="app d-flex flex-column xbg-dark text-white" :class="{ 'is-dragging': isDragging }">
-    <!-- Navigation Bar -->
-    <nav class="navbar navbar-expand xbg-body border-bottom">
-      <div class="container-fluid px-4">
-        <a class="navbar-brand text-white" @click="navigateToHome" role="button">
-          Practice Space
-          <span v-if="$route.name !== 'home'" class="view-name text-muted">/ {{ getViewName($route.name) }}</span>
-        </a>
-        <ul class="navbar-nav ms-auto gap-2">
-          <li class="nav-item">
-            <button 
-              class="nav-link btn btn-sm" 
-              :class="{ 'btn-primary': $route.name === 'home', 'btn-outline-secondary': $route.name !== 'home' }"
-              @click="navigateToHome"
-            >
-              Home
-            </button>
-          </li>
-          <li class="nav-item">
-            <button 
-              class="nav-link btn btn-sm"
-              :class="{ 'btn-primary': $route.name === 'library', 'btn-outline-secondary': $route.name !== 'library' }"
-              @click="() => router.push('/library')"
-            >
-              Library
-            </button>
-          </li>
-          <li class="nav-item">
-            <button 
-              class="nav-link btn btn-sm"
-              :class="{ 'btn-primary': $route.name === 'sources', 'btn-outline-secondary': $route.name !== 'sources' }"
-              @click="() => router.push('/sources')"
-            >
-              Sources
-            </button>
-          </li>
-          <li class="nav-item">
-            <button 
-              class="nav-link btn btn-sm"
-              :class="{ 'btn-primary': $route.name === 'slice-browser', 'btn-outline-secondary': $route.name !== 'slice-browser' }"
-              @click="navigateToSliceBrowser"
-            >
-              Slice Browser
-            </button>
-          </li>
-        </ul>
+  <div class="app d-flex xbg-dark text-white" :class="{ 'is-dragging': isDragging }">
+    <!-- Activity Bar (VS Code-style) -->
+    <aside class="activity-bar d-flex flex-column align-items-center py-2">
+      <ul class="activity-list list-unstyled m-0 p-0 w-100">
+        <li>
+          <router-link to="/" class="activity-item" :class="{ active: $route.name === 'home' }" aria-label="Home">
+            <i class="fa-solid fa-house"></i>
+          </router-link>
+        </li>
+        <li>
+          <router-link to="/library" class="activity-item" :class="{ active: $route.name === 'library' }" aria-label="Library">
+            <i class="fa-solid fa-book"></i>
+          </router-link>
+        </li>
+        <li>
+          <router-link to="/sources" class="activity-item" :class="{ active: $route.name === 'sources' }" aria-label="Sources">
+            <i class="fa-solid fa-database"></i>
+          </router-link>
+        </li>
+        <li>
+          <router-link to="/slices" class="activity-item" :class="{ active: $route.name === 'slice-browser' }" aria-label="Slice Browser">
+            <i class="fa-solid fa-scissors"></i>
+          </router-link>
+        </li>
+        <li>
+          <router-link to="/projects" class="activity-item" :class="{ active: $route.name === 'projects' || $route.name === 'project' }" aria-label="Projects">
+            <i class="fa-solid fa-folder"></i>
+          </router-link>
+        </li>
+      </ul>
+      <div class="mt-auto w-100">
+        <router-link to="/settings" class="activity-item" :class="{ active: $route.name === 'settings' }" aria-label="Settings">
+          <i class="fa-solid fa-gear"></i>
+        </router-link>
       </div>
-    </nav>
+    </aside>
 
     <!-- Views -->
     <main class="main-content flex-fill">
@@ -354,31 +343,42 @@ body {
   pointer-events: none;
 }
 
-/* Navigation Bar */
-.navbar {
-  height: 60px;
+/* Activity Bar */
+.activity-bar {
+  width: 56px;
   flex-shrink: 0;
+  background-color: rgba(33, 37, 41, 1);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.navbar-brand {
-  font-size: 1.25rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
+.activity-list li + li {
+  margin-top: 4px;
 }
 
-.navbar-brand:hover {
-  opacity: 0.8;
+.activity-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 46px;
+  color: #adb5bd;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.view-name {
-  font-weight: 400;
-  font-size: 1rem;
+.activity-item:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #e9ecef;
 }
 
-.nav-item .nav-link {
-  font-size: 0.95rem;
-  font-weight: 500;
+.activity-item.active {
+  background-color: rgba(13, 110, 253, 0.25);
+  color: #ffffff;
+}
+
+.activity-item i {
+  font-size: 20px;
 }
 
 /* Main Content */

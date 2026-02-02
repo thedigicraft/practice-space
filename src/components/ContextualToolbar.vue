@@ -23,28 +23,55 @@
           </button>
           <button class="btn btn-secondary" disabled>Export</button>
         </div>
-        <button @click.stop="emit('clearSelection')" class="btn btn-sm btn-outline-secondary">✕</button>
+        <button @click.stop="emit('clearSelection')" class="btn btn-sm btn-outline-secondary visually-hidden">✕</button>
       </template>
 
       <!-- Slice Edit Mode -->
       <template v-if="mode === 'slice' && slice">
-        <div class="btn-group" role="group">
+        <div class="btn-group align-self-start" role="group">
           <button @click.stop="emit('seekToSlice', slice)" class="btn btn-primary" style="width: 40px; height: 40px;" title="Jump playhead to slice start">
             <i class="fas fa-step-backward"></i>
           </button>
           <button @click.stop="emit('zoomToSlice', slice)" class="btn btn-outline-primary" style="width: 40px; height: 40px;" title="Zoom to fit slice">
             <i class="fas fa-search-plus"></i>
           </button>
+          <button v-if="!editingMetadata" @click.stop="toggleEditMetadata" class="btn btn-outline-secondary" style="width: 40px; height: 40px;" title="Edit metadata">
+            <i class="fas fa-pencil-alt"></i>
+          </button>
+          <button v-else @click.stop="cancelEditMetadata" class="btn btn-outline-secondary" style="width: 40px; height: 40px;" title="Cancel edits">
+            <i class="fas fa-times"></i>
+          </button>
         </div>
-        <div class="slice-info">
+        <div v-if="!editingMetadata" class="slice-info">
           <p class="m-0"><strong>{{ slice.title }}</strong></p>
           <p class="text-muted">{{ formatTime(selection?.startTime ?? slice.startTime) }} - {{ formatTime(selection?.endTime ?? slice.endTime) }}</p>
         </div>
-        <div class="actions">
-          <button @click="emit('saveSlice')" class="btn btn-success">Save</button>
-          <button @click="emit('deleteSlice', slice.id)" class="btn btn-danger">Delete</button>
+        <div class="metadata-inline d-flex align-items-center gap-2 flex-wrap">
+          <template v-if="!editingMetadata">
+            <span v-if="slice.type" class="badge bg-secondary">{{ slice.type }}</span>
+            <span v-for="c in (slice.composers || [])" :key="'c-'+c" class="badge bg-secondary">{{ c }}</span>
+            <span v-for="p in (slice.performers || [])" :key="'p-'+p" class="badge bg-secondary">{{ p }}</span>
+            <span v-for="t in (slice.tags || [])" :key="'t-'+t" class="badge bg-dark">#{{ t }}</span>
+          </template>
+          <template v-else>
+            <input class="form-control form-control-sm w-auto" style="max-width: 220px;" v-model="titleInput" placeholder="Title" />
+            <input class="form-control form-control-sm w-auto" style="max-width: 140px;" v-model="typeInput" placeholder="Type" />
+            <input class="form-control form-control-sm w-auto" style="max-width: 180px;" v-model="composersInput" placeholder="Composers (comma)" />
+            <input class="form-control form-control-sm w-auto" style="max-width: 180px;" v-model="performersInput" placeholder="Performers (comma)" />
+            <input class="form-control form-control-sm w-auto" style="max-width: 180px;" v-model="tagsInput" placeholder="Tags (comma)" />
+            <div class="w-100"></div>
+            <textarea class="form-control form-control-sm notes-input flex-grow-1" rows="2" v-model="notesInput" placeholder="Notes"></textarea>
+          </template>
         </div>
-        <button @click.stop="emit('clearSelection')" class="btn btn-sm btn-outline-secondary">✕</button>
+        <div class="actions">
+          <button @click="saveWithMetadata()" class="btn btn-success rounded-circle p-0" style="width: 40px; height: 40px;" title="Save slice">
+            <i class="fas fa-save"></i>
+          </button>
+          <button @click="emit('deleteSlice', slice.id)" class="btn btn-danger rounded-circle p-0" style="width: 40px; height: 40px;" title="Delete slice">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+        <button @click.stop="emit('clearSelection')" class="btn btn-sm btn-outline-secondary visually-hidden">✕</button>
       </template>
     </div>
     <div v-else class="empty-state">
@@ -78,11 +105,55 @@ const emit = defineEmits<{
   seekToSlice: [slice: Slice]
   zoomToSlice: [slice: Slice]
   createSlice: []
-  saveSlice: []
+  saveSlice: [metadata?: { title?: string; type?: string; composers?: string[]; performers?: string[]; tags?: string[]; notes?: string }]
   deleteSlice: [sliceId: string]
   clearSelection: []
   'update:title': [value: string]
 }>()
+
+// Inline metadata editing state
+const editingMetadata = ref(false)
+const titleInput = ref('')
+const typeInput = ref('')
+const composersInput = ref('')
+const performersInput = ref('')
+const tagsInput = ref('')
+const notesInput = ref('')
+
+const setInputsFromSlice = (s: Slice | null) => {
+  if (!s) return
+  titleInput.value = s.title || ''
+  typeInput.value = s.type || ''
+  composersInput.value = (s.composers || []).join(', ')
+  performersInput.value = (s.performers || []).join(', ')
+  tagsInput.value = (s.tags || []).join(', ')
+  notesInput.value = s.notes || ''
+}
+
+watch(() => props.slice, (s) => {
+  setInputsFromSlice(s)
+}, { immediate: true })
+
+const toggleEditMetadata = () => {
+  editingMetadata.value = !editingMetadata.value
+}
+
+const saveWithMetadata = () => {
+  const metadata = {
+    title: titleInput.value.trim() || undefined,
+    type: typeInput.value.trim() || undefined,
+    composers: composersInput.value.split(',').map(s => s.trim()).filter(Boolean),
+    performers: performersInput.value.split(',').map(s => s.trim()).filter(Boolean),
+    tags: tagsInput.value.split(',').map(s => s.trim()).filter(Boolean),
+    notes: notesInput.value.trim() || undefined,
+  }
+  emit('saveSlice', metadata)
+}
+
+const cancelEditMetadata = () => {
+  setInputsFromSlice(props.slice)
+  editingMetadata.value = false
+}
 </script>
 
 <style scoped>
@@ -98,7 +169,7 @@ const emit = defineEmits<{
 .toolbar-content {
   width: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
 }
 
@@ -132,6 +203,22 @@ const emit = defineEmits<{
   display: flex;
   gap: 0.5rem;
   margin-left: auto;
+}
+
+.metadata-inline .badge {
+  font-weight: 500;
+}
+
+.notes-input {
+  min-width: 300px;
+}
+
+.metadata-toggle {
+  flex: 0 0 auto;
+}
+
+.metadata-wrapper {
+  flex: 1 1 auto;
 }
 
 .slice-title-input {

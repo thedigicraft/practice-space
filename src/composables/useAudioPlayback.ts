@@ -4,7 +4,7 @@
 
 import { ref, onUnmounted } from 'vue'
 import { AudioService } from '@/services/audio'
-import { getFileFromHandle } from '@/services/fileSystem'
+import { getSourceArrayBuffer } from '@/services/platformAudio'
 import type { Source, Slice } from '@/types/models'
 
 export function useAudioPlayback() {
@@ -39,8 +39,8 @@ export function useAudioPlayback() {
       isLoading.value = true
       currentAudioFile = audioFile
 
-      const file = await getFileFromHandle(audioFile.fileHandle)
-      const buffer = await audioService.loadAudioFile(file)
+      const arrayBuffer = await getSourceArrayBuffer(audioFile)
+      const buffer = await audioService.loadArrayBuffer(arrayBuffer)
       
       duration.value = buffer.duration
       currentTime.value = 0
@@ -115,9 +115,7 @@ export function useAudioPlayback() {
     if (isPlaying.value) {
       pause()
     } else if (audioService.getAudioBuffer()) {
-      // Ensure we're fully stopped before starting playback
-      stop()
-      // Play from current position if buffer is loaded
+      // Resume or start from current position without resetting playhead
       audioService.play(currentTime.value)
       isPlaying.value = true
       updateTime()
@@ -127,10 +125,10 @@ export function useAudioPlayback() {
   /**
    * Stop playback
    */
-  const stop = () => {
-    audioService.stop()
+  const stop = (resetPosition: boolean = true) => {
+    audioService.stop(resetPosition)
     isPlaying.value = false
-    currentTime.value = 0
+    if (resetPosition) currentTime.value = 0
     currentlyPlayingFileId.value = null
     currentlyPlayingSliceId.value = null
     if (animationFrameId) {
@@ -144,7 +142,7 @@ export function useAudioPlayback() {
    */
   const seek = (time: number) => {
     const wasPlaying = isPlaying.value
-    stop()
+    stop(false)
     currentTime.value = time
     if (wasPlaying) {
       play(time)

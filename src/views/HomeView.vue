@@ -7,9 +7,12 @@
       <section class="home-section">
         <div class="section-header d-flex justify-content-between align-items-center">
           <h2 class="m-0">Sources</h2>
-          <a v-if="sources.length > 0" class="link-primary d-flex align-items-center" @click="$router.push('/sources')" role="button">
-            View All
-          </a>
+          <div class="d-flex align-items-center gap-2">
+            <ImportControls :icon-only="true" :show-status="false" @filesImported="handleFilesImported" />
+            <a v-if="sources.length > 0" class="link-primary d-flex align-items-center" @click="$router.push('/sources')" role="button" title="View All Sources" aria-label="View All Sources">
+              View All
+            </a>
+          </div>
         </div>
         
         <div v-if="sources.length === 0" class="empty-state text-center py-5 px-3">
@@ -22,6 +25,7 @@
             v-for="source in recentSources"
             :key="source.id"
             :source="source"
+            :slice-count="getSliceCount(source.id)"
             @click="$emit('openSource', source.id)"
             @edit="editSource(source)"
             @filter-location="filterByLocation"
@@ -67,10 +71,7 @@
       @close="editingSource = null"
     />
 
-    <!-- Bottom Action Bar -->
-    <div class="action-bar d-flex justify-content-center gap-3">
-      <ImportControls @filesImported="handleFilesImported" />
-    </div>
+    
   </div>
 </template>
 
@@ -79,6 +80,7 @@ import { ref, computed, toRef } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Source, Project, Slice } from '../types/models'
 import ImportControls from '../components/ImportControls.vue'
+import DeviceDiagnostics from '../components/DeviceDiagnostics.vue'
 import CreateProjectDialog from '../components/CreateProjectDialog.vue'
 import SourceMetadataEditor from '../components/SourceMetadataEditor.vue'
 import SourceCard from '../components/SourceCard.vue'
@@ -174,6 +176,11 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
     editingSource.value = null
   }
 }
+
+// Count slices for a given source
+const getSliceCount = (sourceId: string) => {
+  return props.slices.filter(s => s.audioFileId === sourceId).length
+}
 </script>
 
 <style scoped>
@@ -253,7 +260,7 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
 /* Source Grid */
 .source-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
   gap: 1rem;
 }
 

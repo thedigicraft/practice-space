@@ -7,6 +7,7 @@ import GroupedSlicesView from '../views/GroupedSlicesView.vue'
 import LibraryView from '../views/LibraryView.vue'
 import SourcesView from '../views/SourcesView.vue'
 import ProjectsView from '../views/ProjectsView.vue'
+import SettingsView from '../views/SettingsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -30,6 +31,11 @@ const router = createRouter({
       path: '/projects',
       name: 'projects',
       component: ProjectsView
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: SettingsView
     },
     {
       path: '/source/:id',

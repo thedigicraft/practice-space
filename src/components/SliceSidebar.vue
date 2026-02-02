@@ -1,10 +1,10 @@
 <template>
   <aside class="slice-sidebar" :class="{ 'is-collapsed': isCollapsed }">
-    <div v-if="!isCollapsed" class="sidebar-content p-4">
+    <div v-if="!isCollapsed" class="sidebar-content flex-fill overflow-auto">
       <div v-if="slices.length === 0" class="empty-state">
         No slices yet.
       </div>
-      <table v-else class="slices-table">
+      <table v-else class="app-table table table-hover table-striped">
         <thead>
           <tr>
             <th>Title</th>
@@ -78,36 +78,5 @@ const emit = defineEmits<{
   color: #888;
 }
 
-.slices-table {
-  width: 100%;
-  border-collapse: collapse;
-
-  th, td {
-    padding: 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid #333;
-  }
-
-  th {
-    font-size: 0.8rem;
-    color: #888;
-    text-transform: uppercase;
-
-    &:nth-child(1) { width: 30%; }
-    &:nth-child(2) { width: 20%; font-size: 0.85rem; }
-    &:nth-child(3) { width: 20%; font-size: 0.85rem; }
-    &:nth-child(4) { width: 15%; font-size: 0.85rem; }
-    &:nth-child(5) { width: 15%; font-family: 'Courier New', monospace; }
-    &:nth-child(6) { width: 10%; text-align: center; }
-  }
-
-  td {
-    &:nth-child(1) { width: 30%; }
-    &:nth-child(2) { width: 20%; font-size: 0.85rem; }
-    &:nth-child(3) { width: 20%; font-size: 0.85rem; }
-    &:nth-child(4) { width: 15%; font-size: 0.85rem; }
-    &:nth-child(5) { width: 15%; font-family: 'Courier New', monospace; }
-    &:nth-child(6) { width: 10%; text-align: center; }
-  }
-}
+/* Table layout now unified via global .app-table styles */
 </style>

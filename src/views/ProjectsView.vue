@@ -1,19 +1,18 @@
 <template>
   <div class="projects-view">
-    <header class="view-header p-4 border-bottom">
-      <button class="btn btn-outline-secondary mb-3" @click="$router.back()">
-        <i class="fas fa-arrow-left me-2"></i>Back
-      </button>
-      <div class="header-flex">
-        <div>
-          <h1 class="mb-2">Projects</h1>
-          <p class="subtitle m-0">{{ projects.length }} project{{ projects.length !== 1 ? 's' : '' }}</p>
+    <PanelHeader>
+      <template #left>
+        <div class="d-flex align-items-center gap-2">
+          <span class="fs-6 text-uppercase text-secondary fw-semibold">Projects</span>
+          <span class="badge bg-secondary">{{ projects.length }}</span>
         </div>
-        <button class="btn btn-primary" @click="showCreateProject = true">
+      </template>
+      <template #right>
+        <button class="btn btn-primary btn-sm" @click="showCreateProject = true" title="Create new project" aria-label="Create new project">
           <i class="fas fa-plus me-2"></i>New Project
         </button>
-      </div>
-    </header>
+      </template>
+    </PanelHeader>
 
     <div class="projects-content p-4">
       <div v-if="projects.length === 0" class="empty-state text-center py-5">
@@ -60,6 +59,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Project } from '@/types/models'
 import CreateProjectDialog from '@/components/CreateProjectDialog.vue'
+import PanelHeader from '@/components/PanelHeader.vue'
 
 interface Props {
   projects: Project[]
@@ -109,7 +109,7 @@ const handleCreateProject = (_project: Project) => {
 }
 
 .view-header {
-  background: #252525;
+  background: var(--bs-body-bg);
 }
 
 .header-flex {
@@ -120,8 +120,7 @@ const handleCreateProject = (_project: Project) => {
 }
 
 .subtitle {
-  color: #999;
-  font-size: 0.9rem;
+  color: var(--bs-secondary-color);
 }
 
 .projects-content {

@@ -1,12 +1,6 @@
 <template>
   <div class="slice-waveform-viewer p-3">
     <div v-if="slice && source" class="waveform-wrapper">
-      <div class="waveform-header">
-        <h4 class="m-0">{{ slice.title }} Waveform</h4>
-        <button @click="emit('toggle-waveform-mode')" class="btn btn-sm btn-outline-secondary" :title="props.waveformMode === 'line' ? 'Switch to bars view' : 'Switch to line view'">
-          {{ props.waveformMode === 'line' ? '▬' : '〜' }}
-        </button>
-      </div>
       <canvas ref="canvasRef" :width="800" :height="100"></canvas>
     </div>
     <div v-else class="empty-state text-center py-4">
@@ -68,8 +62,8 @@ const drawWaveform = () => {
   }
   
   if (props.waveformMode === 'bars') {
-    // Draw as bars (original style)
-    ctx.fillStyle = '#4a9eff'
+    // Draw as bars (slice-specific color for contrast)
+    ctx.fillStyle = '#9b59b6'
     const barWidth = width / sliceData.length
 
     for (let i = 0; i < sliceData.length; i++) {
@@ -81,8 +75,8 @@ const drawWaveform = () => {
       ctx.fillRect(x, y, Math.max(1, barWidth), barHeight)
     }
   } else {
-    // Draw as line
-    ctx.strokeStyle = '#4a9eff'
+    // Draw as line (slice-specific color for contrast)
+    ctx.strokeStyle = '#9b59b6'
     ctx.lineWidth = 1.5
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'

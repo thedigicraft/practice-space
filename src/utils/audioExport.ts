@@ -6,6 +6,9 @@
 import type { Slice } from '../types/models'
 import { Mp3Encoder } from '@breezystack/lamejs'
 import * as ID3Writer from 'browser-id3-writer'
+import { Capacitor } from '@capacitor/core'
+import { Filesystem, Directory } from '@capacitor/filesystem'
+import { Share } from '@capacitor/share'
 
 export type ExportFormat = 'wav' | 'mp3' | 'flac' | 'ogg'
 
@@ -14,6 +17,12 @@ export interface ExportOptions {
   quality?: number // For lossy formats (mp3, ogg): 0-100
   includeMetadata?: boolean
   onProgress?: (progress: number) => void // Progress callback for slow formats
+  mode?: 'auto' | 'save' | 'share' // Android: choose save vs share behavior
+}
+
+export interface ExportResult {
+  savedPath?: string
+  shared?: boolean
 }
 
 /**
@@ -122,22 +131,22 @@ export async function exportSlice(
   fileName: string,
   slice?: Slice,
   options: ExportOptions = { format: 'mp3', quality: 90, includeMetadata: true }
-): Promise<void> {
+): Promise<ExportResult> {
   // Extract the slice
   const sliceBuffer = extractSlice(buffer, startTime, endTime)
   
   // For now, we'll use WAV as the base format and convert via MediaRecorder for MP3
   // Since we're in a browser, we can use MediaRecorder API for MP3 encoding
-  const { format, quality = 90, includeMetadata = true, onProgress } = options
+  const { format, quality = 90, includeMetadata = true, onProgress, mode = 'auto' } = options
   
   if (format === 'wav') {
-    await exportAsWav(sliceBuffer, fileName, slice, includeMetadata)
+    return await exportAsWav(sliceBuffer, fileName, slice, includeMetadata, mode)
   } else if (format === 'mp3') {
-    await exportAsMp3(sliceBuffer, fileName, slice, quality, includeMetadata, onProgress)
+    return await exportAsMp3(sliceBuffer, fileName, slice, quality, includeMetadata, onProgress, mode)
   } else {
     // Fallback to WAV for unsupported formats
     console.warn(`Format ${format} not fully supported yet, using WAV`)
-    await exportAsWav(sliceBuffer, fileName, slice, includeMetadata)
+    return await exportAsWav(sliceBuffer, fileName, slice, includeMetadata, mode)
   }
 }
 
@@ -148,13 +157,14 @@ async function exportAsWav(
   buffer: AudioBuffer,
   fileName: string,
   slice?: Slice,
-  includeMetadata: boolean = true
-): Promise<void> {
+  includeMetadata: boolean = true,
+  mode: 'auto' | 'save' | 'share' = 'auto'
+): Promise<ExportResult> {
   const wavData = audioBufferToWav(buffer)
   const blob = new Blob([wavData], { type: 'audio/wav' })
   
   const finalFileName = fileName.endsWith('.wav') ? fileName : `${fileName}.wav`
-  downloadBlob(blob, finalFileName)
+  return await downloadBlob(blob, finalFileName, mode)
 }
 
 /**
@@ -166,8 +176,9 @@ async function exportAsMp3(
   slice?: Slice,
   quality: number = 192,
   includeMetadata: boolean = true,
-  onProgress?: (progress: number) => void
-): Promise<void> {
+  onProgress?: (progress: number) => void,
+  mode: 'auto' | 'save' | 'share' = 'auto'
+): Promise<ExportResult> {
   return new Promise((resolve, reject) => {
     try {
       // Convert quality (0-100) to bitrate (kbps)
@@ -208,7 +219,8 @@ async function exportAsMp3(
         
         const mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk)
         if (mp3buf.length > 0) {
-          mp3Data.push(mp3buf)
+          // Cast to any to accommodate encoder return type differences
+          mp3Data.push(mp3buf as any)
         }
         
         offset = end
@@ -227,7 +239,7 @@ async function exportAsMp3(
           // Finalize encoding
           const mp3buf = mp3encoder.flush()
           if (mp3buf.length > 0) {
-            mp3Data.push(mp3buf)
+            mp3Data.push(mp3buf as any)
           }
           
           if (onProgress) onProgress(100)
@@ -278,8 +290,8 @@ async function exportAsMp3(
           }
           
           const finalFileName = fileName.replace(/\.(wav|mp3|webm|ogg|mp4)$/i, '') + '.mp3'
-          downloadBlob(blob, finalFileName)
-          resolve()
+          const result = await downloadBlob(blob, finalFileName, mode)
+          resolve(result)
         }
       }
       
@@ -295,7 +307,65 @@ async function exportAsMp3(
 /**
  * Download a blob as a file
  */
-function downloadBlob(blob: Blob, fileName: string): void {
+async function downloadBlob(blob: Blob, fileName: string, mode: 'auto' | 'save' | 'share' = 'auto'): Promise<ExportResult> {
+  // On native (Android/iOS via Capacitor), write to filesystem and offer share
+  if (Capacitor.isNativePlatform()) {
+    const base64 = await blobToBase64(blob)
+    const mime = fileName.toLowerCase().endsWith('.mp3') ? 'audio/mp3' : 'audio/wav'
+
+    if (mode === 'share') {
+      await Share.share({ title: fileName, url: `data:${mime};base64,${base64}` })
+      return { shared: true }
+    }
+
+    // save (or auto): write file; in auto also attempt to share file URI
+    const preferredDir: Directory = Directory.External
+    const fallbackDir: Directory = Directory.Documents
+    const subfolder = 'Music'
+    const path = `${subfolder}/${fileName}`
+
+    // Ensure storage permission is granted when targeting External storage
+    try {
+      const perm = await (Filesystem as any).checkPermissions?.()
+      const status = perm?.publicStorage || perm?.state
+      if (status !== 'granted') {
+        await (Filesystem as any).requestPermissions?.()
+      }
+    } catch {
+      // If permission APIs are unavailable, proceed and rely on plugin internals
+    }
+
+    try {
+      await Filesystem.writeFile({ path, data: base64, directory: preferredDir })
+      if (mode === 'auto') {
+        try {
+          const uriResult = await Filesystem.getUri({ path, directory: preferredDir })
+          await Share.share({ title: fileName, files: [uriResult.uri] })
+          return { savedPath: path, shared: true }
+        } catch {
+          await Share.share({ title: fileName, url: `data:${mime};base64,${base64}` })
+          return { savedPath: path, shared: true }
+        }
+      }
+      return { savedPath: path, shared: false }
+    } catch {
+      // Fallback to Documents if External fails
+      await Filesystem.writeFile({ path: fileName, data: base64, directory: fallbackDir })
+      if (mode === 'auto') {
+        try {
+          const uriResult = await Filesystem.getUri({ path: fileName, directory: fallbackDir })
+          await Share.share({ title: fileName, files: [uriResult.uri] })
+          return { savedPath: `Documents/${fileName}`, shared: true }
+        } catch {
+          await Share.share({ title: fileName, url: `data:${mime};base64,${base64}` })
+          return { savedPath: `Documents/${fileName}`, shared: true }
+        }
+      }
+      return { savedPath: `Documents/${fileName}`, shared: false }
+    }
+  }
+
+  // Web: trigger a standard download
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
@@ -304,6 +374,20 @@ function downloadBlob(blob: Blob, fileName: string): void {
   link.click()
   document.body.removeChild(link)
   setTimeout(() => URL.revokeObjectURL(url), 100)
+  return {}
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const result = reader.result as string
+      const base64 = result.split(',')[1]
+      resolve(base64)
+    }
+    reader.onerror = (e) => reject(e)
+    reader.readAsDataURL(blob)
+  })
 }
 
 /**

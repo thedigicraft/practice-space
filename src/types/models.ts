@@ -12,7 +12,8 @@ export interface Source {
   id: string
   name: string
   title?: string // User-editable title (defaults to filename without extension)
-  fileHandle: FileSystemFileHandle // For File System Access API
+  fileHandle?: FileSystemFileHandle // Web: File System Access API handle
+  androidUri?: string // Android: SAF content URI or file path
   duration: number // in seconds
   sampleRate: number
   numberOfChannels: number

@@ -14,6 +14,7 @@ interface Props {
   isPlayingRegion: boolean
   selectedSliceId?: string | null // ID of currently selected slice being edited
   waveformMode?: 'line' | 'bars'
+  showControls?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -23,6 +24,7 @@ const props = withDefaults(defineProps<Props>(), {
   backgroundColor: '#1a1a1a',
   duration: 0,
   waveformMode: 'line',
+  showControls: true,
 })
 
 interface Region {
@@ -40,6 +42,7 @@ const emit = defineEmits<{
   selectSlice: [slice: Slice]
   seek: [time: number]
   'toggle-waveform-mode': []
+  zoomChanged: [zoom: number]
 }>()
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -706,13 +709,18 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
 })
 
-defineExpose({ clearRegion, setRegion, zoomToRange })
+// Notify parent when zoom level changes (covers all zoom operations)
+watch(zoomLevel, (z) => {
+  emit('zoomChanged', z)
+})
+
+defineExpose({ clearRegion, setRegion, zoomToRange, zoomIn, zoomOut, resetZoom, panLeft, panRight, zoomLevel })
 </script>
 
 <template>
   <div class="waveform-viewer ">
     <!-- Zoom Controls -->
-    <div class="zoom-controls">
+    <div v-if="props.showControls" class="zoom-controls">
       <button @click="emit('toggle-waveform-mode')" class="btn btn-sm btn-outline-primary" :title="props.waveformMode === 'line' ? 'Switch to bars view' : 'Switch to line view'">
         <i :class="props.waveformMode === 'line' ? 'fas fa-chart-bar' : 'fas fa-chart-line'"></i>
       </button>
@@ -779,7 +787,6 @@ defineExpose({ clearRegion, setRegion, zoomToRange })
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 6px;
   font-size: 0.85rem;

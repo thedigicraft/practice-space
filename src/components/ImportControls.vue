@@ -7,6 +7,8 @@ import {
   getAllAudioFiles,
   getFileFromHandle
 } from '@/services/fileSystem'
+import { isNativePlatform, pickAudioFilesNative } from '@/services/platformFileAccess'
+import { Capacitor } from '@capacitor/core'
 import { saveAudioFile } from '@/services/db'
 import { AudioService } from '@/services/audio'
 import { useWaveformWorker } from '@/composables/useWaveformWorker'
@@ -17,7 +19,15 @@ const emit = defineEmits<{
   filesImported: [files: AudioFile[]]
 }>()
 
+interface Props {
+  iconOnly?: boolean
+  showStatus?: boolean
+}
+
+const props = defineProps<Props>()
+
 const isSupported = isFileSystemAccessSupported()
+const isNative = isNativePlatform()
 const isImporting = ref(false)
 const importStatus = ref('')
 
@@ -25,14 +35,18 @@ const audioService = new AudioService()
 const { generateWaveform } = useWaveformWorker()
 
 const importFiles = async () => {
-  if (!isSupported) return
+  if (!isSupported && !isNative) return
 
   try {
     isImporting.value = true
     importStatus.value = 'Opening file picker...'
-
-    const handles = await pickAudioFiles()
-    await processFileHandles(handles)
+    if (isSupported) {
+      const handles = await pickAudioFiles()
+      await processFileHandles(handles)
+    } else if (isNative) {
+      const picked = await pickAudioFilesNative()
+      await processNativeFiles(picked)
+    }
   } catch (error) {
     if (error instanceof Error && error.name !== 'AbortError') {
       console.error('Error importing files:', error)
@@ -117,34 +131,75 @@ const processFileHandles = async (handles: FileSystemFileHandle[]) => {
     }, 3000)
   }
 }
+
+const processNativeFiles = async (files: { name: string; uri?: string; path?: string }[]) => {
+  const importedFiles: AudioFile[] = []
+
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i]
+    importStatus.value = `Importing ${i + 1} of ${files.length}: ${f.name}`
+
+    try {
+      // Minimal record; decoding/waveform generation can be deferred on Android
+      const audioFile: AudioFile = {
+        id: generateId(),
+        name: f.name,
+        androidUri: f.uri || f.path,
+        duration: 0,
+        sampleRate: 0,
+        numberOfChannels: 0,
+        waveformData: undefined,
+        importedAt: Date.now(),
+        size: 0,
+      }
+
+      await saveAudioFile(audioFile)
+      importedFiles.push(audioFile)
+    } catch (error) {
+      console.error(`Error importing ${f.name}:`, error)
+    }
+  }
+
+  if (importedFiles.length > 0) {
+    importStatus.value = `Imported ${importedFiles.length} file(s)`
+    emit('filesImported', importedFiles)
+    setTimeout(() => { importStatus.value = '' }, 3000)
+  }
+}
 </script>
 
 <template>
   <div class="import-controls">
-    <div v-if="!isSupported" class="not-supported">
+    <div v-if="!isSupported && !isNative" class="not-supported" v-show="!props.iconOnly">
       <p>⚠️ File System Access API is not supported in this browser.</p>
       <p class="hint">Try Chrome or Edge for full functionality.</p>
     </div>
 
-    <div v-else class="import-buttons">
+    <div v-else :class="props.iconOnly ? 'import-buttons-inline' : 'import-buttons'">
       <button 
         @click="importFiles" 
         :disabled="isImporting"
-        class="btn-import"
+        :class="props.iconOnly ? 'btn btn-sm btn-outline-secondary' : 'btn-import'"
+        :title="'Import Files'"
+        aria-label="Import Files"
       >
-        📁 Import Files
+        <span v-if="props.iconOnly"><i class="fas fa-file-import"></i></span>
+        <span v-else>📁 Import Files</span>
       </button>
-
       <button 
+        v-if="isSupported"
         @click="importFolder" 
         :disabled="isImporting"
-        class="btn-import"
+        :class="props.iconOnly ? 'btn btn-sm btn-outline-secondary' : 'btn-import'"
+        :title="'Import Folder'"
+        aria-label="Import Folder"
       >
-        📂 Import Folder
+        <span v-if="props.iconOnly"><i class="fas fa-folder-open"></i></span>
+        <span v-else>📂 Import Folder</span>
       </button>
     </div>
 
-    <div v-if="importStatus" class="import-status">
+    <div v-if="importStatus && (props.showStatus ?? true) && !props.iconOnly" class="import-status">
       <div class="status-spinner" v-if="isImporting"></div>
       {{ importStatus }}
     </div>
@@ -178,6 +233,12 @@ const processFileHandles = async (handles: FileSystemFileHandle[]) => {
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+.import-buttons-inline {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .btn-import {

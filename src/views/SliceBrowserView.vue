@@ -1,15 +1,32 @@
 <template>
   <div class="slice-browser-view d-flex flex-column">
-    <header class="view-header">
-      <div class="header-content px-4 py-3 d-flex align-items-center gap-3">
-        <button class="btn btn-outline-secondary" @click="$emit('back')">
-          <i class="fas fa-arrow-left me-2"></i>Back
-        </button>
-        <h1 class="m-0">Slice Browser</h1>
-      </div>
-    </header>
+    <PanelHeader title="Slice Browser">
+      <template #center>
+        <div class="header-center d-flex align-items-center gap-2">
+          <SearchBox
+            v-model="searchInput"
+            placeholder="Search slices by title, tags, or file..."
+            title="Search slices"
+            aria-label="Search slices"
+            :minWidth="340"
+            @update:modelValue="applySearchFilter"
+            @cleared="clearSearch"
+          />
+          <button 
+            class="btn btn-outline-secondary btn-sm"
+            :class="{ 'active': selectionActive }"
+            @click="toggleSelectionFromHeader"
+            title="Toggle selection mode"
+            aria-label="Toggle selection mode"
+          >
+            <i class="fas fa-check-square me-1"></i> Select
+          </button>
+          <ExportSettings />
+        </div>
+      </template>
+    </PanelHeader>
 
-    <div class="browser-content p-4">
+    <div class="browser-content">
       <FileBrowser
         ref="fileBrowserRef"
         :slices="slices"
@@ -31,9 +48,14 @@ import { onMounted, watch, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Source, Slice, SliceFolder } from '../types/models'
 import FileBrowser from '../components/FileBrowser.vue'
+import ExportSettings from '../components/ExportSettings.vue'
+import PanelHeader from '../components/PanelHeader.vue'
+import SearchBox from '@/components/SearchBox.vue'
 
 const route = useRoute()
 const fileBrowserRef = ref<InstanceType<typeof FileBrowser> | null>(null)
+const searchInput = ref('')
+const selectionActive = ref(false)
 
 interface Props {
   slices: Slice[]
@@ -83,6 +105,24 @@ const handleCreateFolder = (folder: Omit<SliceFolder, 'id' | 'createdAt'>) => {
 const handleDeleteSlice = (sliceId: string) => {
   emit('deleteSlice', sliceId)
 }
+
+const applySearchFilter = () => {
+  if (fileBrowserRef.value) {
+    fileBrowserRef.value.setSearchFilter(searchInput.value)
+  }
+}
+
+const clearSearch = () => {
+  searchInput.value = ''
+  applySearchFilter()
+}
+
+const toggleSelectionFromHeader = () => {
+  if (fileBrowserRef.value) {
+    fileBrowserRef.value.toggleSelectionMode()
+    selectionActive.value = !selectionActive.value
+  }
+}
 </script>
 
 <style scoped>
@@ -92,25 +132,18 @@ const handleDeleteSlice = (sliceId: string) => {
 }
 
 .view-header {
-  
-  border-bottom: 1px solid #333;
-  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--bs-border-color);
 }
 
 .header-content {
 }
 
-.view-header h1 {
-  margin: 0;
-  font-size: 1.5rem;
-  color: #fff;
+.view-header .fs-6 {
+  color: var(--bs-secondary-color);
 }
 
 .browser-content {
   overflow: auto;
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
   width: 100%;
 }
 </style>
