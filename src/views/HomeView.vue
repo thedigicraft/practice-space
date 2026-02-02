@@ -7,9 +7,12 @@
       <section class="home-section">
         <div class="section-header d-flex justify-content-between align-items-center">
           <h2 class="m-0">Sources</h2>
-          <a v-if="sources.length > 0" class="link-primary d-flex align-items-center" @click="$router.push('/sources')" role="button">
-            View All
-          </a>
+          <div class="d-flex align-items-center gap-2">
+            <ImportControls :icon-only="true" :show-status="false" @filesImported="handleFilesImported" />
+            <a v-if="sources.length > 0" class="link-primary d-flex align-items-center" @click="$router.push('/sources')" role="button" title="View All Sources" aria-label="View All Sources">
+              View All
+            </a>
+          </div>
         </div>
         
         <div v-if="sources.length === 0" class="empty-state text-center py-5 px-3">
@@ -68,11 +71,7 @@
       @close="editingSource = null"
     />
 
-    <!-- Bottom Action Bar -->
-    <div class="action-bar d-flex justify-content-center gap-3">
-      <DeviceDiagnostics />
-      <ImportControls @filesImported="handleFilesImported" />
-    </div>
+    
   </div>
 </template>
 
@@ -261,7 +260,7 @@ const getSliceCount = (sourceId: string) => {
 /* Source Grid */
 .source-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
   gap: 1rem;
 }
 

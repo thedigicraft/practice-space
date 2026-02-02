@@ -63,6 +63,29 @@
                   <i class="fas fa-chevron-right"></i>
                 </button>
               </div>
+
+                <!-- Slices dropdown moved from footer action bar -->
+                <div class="dropdown position-relative" style="overflow: visible;">
+                  <button 
+                    class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center"
+                    type="button"
+                    @click="showSlicesDropdown = !showSlicesDropdown"
+                    :aria-expanded="showSlicesDropdown ? 'true' : 'false'"
+                    title="View and select slices"
+                  >
+                    <i class="fa-solid fa-scissors me-1"></i>
+                    <span>Slices</span>
+                    <span class="badge bg-primary rounded-pill ms-2">{{ sourceSlices.length }}</span>
+                  </button>
+                  <ul class="dropdown-menu show" v-show="showSlicesDropdown" style="max-height: 260px; overflow-y: auto; min-width: 480px; max-width: 60vw; z-index: 2000; right: 0; left: auto;">
+                    <li v-if="sourceSlices.length === 0" class="px-3 py-2 text-muted">No slices</li>
+                    <li v-for="s in sourceSlices" :key="s.id">
+                      <button class="dropdown-item d-flex align-items-center justify-content-between" @click="selectSliceFromDropdown(s)">
+                        <span class="me-2 flex-grow-1 text-truncate">{{ s.title || (formatTime(s.startTime) + ' - ' + formatTime(s.endTime)) }}</span>
+                      </button>
+                    </li>
+                  </ul>
+                </div>
             </div>
 
             <div class="waveform-container px-2">
@@ -173,16 +196,7 @@
     </div>
 
     <!-- Action Bar -->
-    <div class="action-bar">
-      <button 
-        @click="toggleSidebar" 
-        class="btn btn-outline-secondary"
-        :title="sidebarCollapsed ? 'Show slices' : 'Hide slices'"
-      >
-        <i :class="sidebarCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right'"></i> Slices 
-        <span class="badge bg-primary rounded-pill ms-2">{{ sourceSlices.length }}</span>
-      </button>
-    </div>
+    
   </div>
 </template>
 
@@ -269,6 +283,13 @@ const toggleWaveformMode = () => {
   waveformMode.value = waveformMode.value === 'line' ? 'bars' : 'line'
 }
 let waveformZoom = ref(1)
+
+// Dropdown state and handler for slices list in top bar
+const showSlicesDropdown = ref(false)
+const selectSliceFromDropdown = (slice: Slice) => {
+  handleSelectSlice(slice)
+  showSlicesDropdown.value = false
+}
 const newSliceTitle = ref('')
 const copied = ref(false)
 const copyShareLink = async () => {
@@ -659,7 +680,7 @@ const seek = (time: number) => {
 }
 
 .editor-layout {
-  overflow: hidden;
+  overflow: visible;
   padding-bottom: 80px;
 }
 
