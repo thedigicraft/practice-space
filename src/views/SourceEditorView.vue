@@ -98,24 +98,6 @@
                   @toggle-waveform-mode="waveformMode = waveformMode === 'line' ? 'bars' : 'line'"
                 />
               </div>
-
-              <div v-if="selectedSlice && !detailsSidebarCollapsed" class="sidebar-resizer" @mousedown="startResize" @dblclick="resetSidebarWidth" title="Drag to resize. Double-click to reset."></div>
-
-              <div v-if="selectedSlice" :class="['details-sidebar', { collapsed: detailsSidebarCollapsed }]" :style="detailsSidebarCollapsed ? { flexBasis: '40px', width: '40px' } : { flexBasis: sourceSidebarWidth + 'px', width: sourceSidebarWidth + 'px' }">
-                <button @click="toggleDetailsSidebar" class="sidebar-toggle-btn py-4 px-2">
-                  <i :class="detailsSidebarCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right'"></i>
-                </button>
-                <div v-if="!detailsSidebarCollapsed" class="details-content px-4">
-                  <SliceEditorForm
-                    :slice="selectedSlice"
-                    :selection="selectedRegion"
-                    :hide-save-button="true"
-                    @update="handleUpdateSlice"
-                    @cancel="clearSelection"
-                    ref="sliceEditorFormRef"
-                  />
-                </div>
-              </div>
             </div>
           </section>
         </div>
@@ -240,7 +222,8 @@ watch(source, (newSource) => {
 })
 
 const waveformRef = ref<InstanceType<typeof WaveformViewer> | null>(null)
-const sliceEditorFormRef = ref<InstanceType<typeof SliceEditorForm> | null>(null)
+// Inline metadata editing moved to ContextualToolbar; sidebar removed
+// const sliceEditorFormRef = ref<InstanceType<typeof SliceEditorForm> | null>(null)
 const showSliceDialog = ref(false)
 const selectedRegion = ref<{ startTime: number; endTime: number } | null>(null)
 const editingSlice = ref<Slice | null>(null)
@@ -248,7 +231,8 @@ const isPlayingRegion = ref(false)
 const selectedSliceId = ref<string | null>(null)
 const toolbarMode = ref<'region' | 'slice' | null>(null)
 const sidebarCollapsed = ref(true)
-const detailsSidebarCollapsed = ref(false)
+// Sidebar removed; keep variable for type compatibility if needed
+const detailsSidebarCollapsed = ref(true)
 const waveformMode = ref<'line' | 'bars'>('bars')
 const newSliceTitle = ref('')
 const copied = ref(false)
@@ -269,46 +253,7 @@ const sourceNameValue = ref('')
 const sourceNameInput = ref<HTMLInputElement | null>(null)
 
 // Sidebar width settings and resizing
-const { sourceSidebarWidth } = useAppSettings()
-const isResizing = ref(false)
-let resizeStartX = 0
-let resizeStartWidth = 0
-const MIN_SIDEBAR = 280
-const MAX_SIDEBAR = 900
-
-const startResize = (e: MouseEvent) => {
-  if (detailsSidebarCollapsed.value) return
-  isResizing.value = true
-  resizeStartX = e.clientX
-  resizeStartWidth = sourceSidebarWidth.value
-  window.addEventListener('mousemove', onResizeMove)
-  window.addEventListener('mouseup', stopResize)
-  e.preventDefault()
-}
-
-const onResizeMove = (e: MouseEvent) => {
-  if (!isResizing.value) return
-  const delta = e.clientX - resizeStartX
-  let next = resizeStartWidth + delta
-  if (next < MIN_SIDEBAR) next = MIN_SIDEBAR
-  if (next > MAX_SIDEBAR) next = MAX_SIDEBAR
-  sourceSidebarWidth.value = next
-}
-
-const stopResize = () => {
-  if (!isResizing.value) return
-  isResizing.value = false
-  window.removeEventListener('mousemove', onResizeMove)
-  window.removeEventListener('mouseup', stopResize)
-}
-
-onBeforeUnmount(() => {
-  stopResize()
-})
-
-const resetSidebarWidth = () => {
-  sourceSidebarWidth.value = 500
-}
+// Sidebar resize logic removed
 
 // Sync selected slice with query param for shareable URLs
 const routeSelectedSliceId = computed(() => {
@@ -590,10 +535,22 @@ const handleEditSlice = (slice: Slice) => {
   showSliceDialog.value = true
 }
 
-const handleSaveSliceFromToolbar = () => {
-  if (sliceEditorFormRef.value) {
-    sliceEditorFormRef.value.triggerSave()
+const handleSaveSliceFromToolbar = (metadata?: { title?: string; type?: string; composers?: string[]; performers?: string[]; tags?: string[]; notes?: string }) => {
+  if (!selectedSlice.value) return
+  const base = selectedSlice.value
+  const updated: Slice = {
+    ...base,
+    startTime: selectedRegion.value?.startTime ?? base.startTime,
+    endTime: selectedRegion.value?.endTime ?? base.endTime,
+    title: metadata?.title?.trim() ? metadata.title.trim() : base.title,
+    type: metadata?.type || base.type,
+    composers: metadata?.composers && metadata.composers.length > 0 ? metadata.composers : base.composers,
+    performers: metadata?.performers && metadata.performers.length > 0 ? metadata.performers : base.performers,
+    tags: metadata?.tags && metadata.tags.length > 0 ? metadata.tags : base.tags,
+    notes: metadata?.notes ?? base.notes,
+    updatedAt: Date.now(),
   }
+  emit('updateSlice', updated)
 }
 
 const handleDeleteSlice = (sliceId: string) => {

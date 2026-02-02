@@ -110,9 +110,6 @@ const formatDate = (timestamp: number) => {
 </script>
 
 <style scoped lang="scss">
-.source-metadata {
-  border-bottom: 1px solid var(--bs-border-color);
-}
 
 .source-title {
   margin-bottom: 1rem;
