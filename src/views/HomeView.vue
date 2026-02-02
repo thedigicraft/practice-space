@@ -22,6 +22,7 @@
             v-for="source in recentSources"
             :key="source.id"
             :source="source"
+            :slice-count="getSliceCount(source.id)"
             @click="$emit('openSource', source.id)"
             @edit="editSource(source)"
             @filter-location="filterByLocation"
@@ -175,6 +176,11 @@ const handleSaveSourceMetadata = (metadata: Partial<Source>) => {
     emit('updateSource', editingSource.value.id, metadata)
     editingSource.value = null
   }
+}
+
+// Count slices for a given source
+const getSliceCount = (sourceId: string) => {
+  return props.slices.filter(s => s.audioFileId === sourceId).length
 }
 </script>
 

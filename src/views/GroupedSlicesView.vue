@@ -1,82 +1,62 @@
 <template>
   <div class="grouped-slices-view d-flex flex-column">
-    <header class="view-header px-3 py-2 border-bottom">
-      <div class="d-flex justify-content-between align-items-center">
+    <PanelHeader>
+      <template #left>
         <div class="d-flex align-items-center">
           <span class="fs-6 text-uppercase text-secondary fw-semibold">{{ title }}</span>
           <span class="badge bg-secondary ms-2">{{ slices.length }}</span>
           <span class="subtitle small m-0 text-secondary ms-3">{{ type }}</span>
         </div>
-        <router-link to="/" class="btn btn-outline-secondary btn-sm" title="Close">
-          <i class="fas fa-xmark"></i>
-        </router-link>
-      </div>
-    </header>
+      </template>
+    </PanelHeader>
 
-    <div class="slices-content p-4 container-fluid flex-fill overflow-auto">
+    <div class="slices-content flex-fill overflow-auto">
       <div v-if="slices.length === 0" class="empty-state text-center py-5">
         <p>No slices found.</p>
       </div>
 
-      <div v-else class="slices-list">
-        <div
-          v-for="slice in slices"
-          :key="slice.id"
-          class="slice-item mb-4"
-        >
-          <div class="slice-header d-flex justify-content-between align-items-start mb-2">
-            <div>
-              <h3 class="mb-1">{{ slice.title }}</h3>
-              <div class="slice-meta">
-                <span v-if="slice.composers && slice.composers.length > 0">
-                  <i class="fas fa-user-edit me-1"></i>
-                  {{ slice.composers.join(', ') }}
-                </span>
-                <span v-if="slice.performers && slice.performers.length > 0" class="ms-3">
-                  <i class="fas fa-user me-1"></i>
-                  {{ slice.performers.join(', ') }}
-                </span>
-              </div>
-              <div class="slice-source mt-1">
-                <i class="fas fa-file-audio me-1"></i>
-                {{ getSourceName(slice.audioFileId) }}
-              </div>
-              <div v-if="audioFiles[slice.audioFileId]?.location" class="slice-location mt-1">
-                <i class="fas fa-map-marker-alt me-1"></i>
-                {{ audioFiles[slice.audioFileId].location }}
-              </div>
-            </div>
-            <div class="slice-actions d-flex gap-2">
-              <button class="btn btn-primary btn-sm d-flex align-items-center justify-content-center" @click="playSlice(slice)" :title="playingSliceId === slice.id ? 'Pause' : 'Play'">
-                <i :class="playingSliceId === slice.id ? 'fas fa-pause' : 'fas fa-play'"></i>
-              </button>
-              <button class="btn btn-outline-secondary btn-sm" @click="openInEditor(slice)" title="Open in Editor">
-                <i class="fas fa-edit"></i>
-              </button>
-            </div>
-          </div>
-
-          <div class="waveform-container">
-            <SliceWaveformViewer
-              v-if="audioFiles[slice.audioFileId]"
+      <table v-else class="app-table table table-hover table-striped">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Composer</th>
+            <th>Performer</th>
+            <th>Type</th>
+            <th>Duration</th>
+            <th>Jump</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template v-for="slice in slices" :key="slice.id">
+            <SliceTableRow
               :slice="slice"
-              :source="audioFiles[slice.audioFileId]"
-              :currentTime="playingSliceId === slice.id ? slicePlaybackTime : 0"
-              :isPlaying="playingSliceId === slice.id"
-              :waveformMode="waveformMode"
-              @toggle-waveform-mode="toggleWaveformMode"
+              :isSelected="playingSliceId === slice.id"
+              @select="openInEditor(slice)"
+              @seek-to="playSlice(slice)"
+              @filter-artist="() => {}"
+              @filter-type="() => {}"
             />
-            <div v-else class="loading-waveform">
-              <i class="fas fa-spinner fa-spin"></i> Loading waveform...
-            </div>
-          </div>
-
-          <div v-if="slice.notes" class="slice-notes mt-2 p-2">
-            <i class="fas fa-sticky-note me-2"></i>
-            {{ slice.notes }}
-          </div>
-        </div>
-      </div>
+            <tr>
+              <td :colspan="6" class="waveform-cell">
+                <div class="waveform-container">
+                  <SliceWaveformViewer
+                    v-if="audioFiles[slice.audioFileId]"
+                    :slice="slice"
+                    :source="audioFiles[slice.audioFileId]"
+                    :currentTime="playingSliceId === slice.id ? slicePlaybackTime : 0"
+                    :isPlaying="playingSliceId === slice.id"
+                    :waveformMode="waveformMode"
+                    @toggle-waveform-mode="toggleWaveformMode"
+                  />
+                  <div v-else class="loading-waveform">
+                    <i class="fas fa-spinner fa-spin"></i> Loading waveform...
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
     </div>
   </div>
 </template>
@@ -87,8 +67,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { getAllSlices } from '@/services/db'
 import { getAudioFile } from '@/services/db'
 import type { Slice, AudioFile } from '@/types/models'
+import SliceTableRow from '@/components/SliceTableRow.vue'
 import SliceWaveformViewer from '@/components/SliceWaveformViewer.vue'
 import { useAudioPlayback } from '@/composables/useAudioPlayback'
+import PanelHeader from '@/components/PanelHeader.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -175,21 +157,11 @@ onMounted(() => {
 
 .slices-content {
   overflow-y: auto;
+  padding: 0;
 }
 
 
-.slice-item {
-  background: #252525;
-  border: 1px solid #353535;
-  border-radius: 8px;
-  padding: 1rem;
-  transition: all 0.2s;
-}
-
-.slice-item:hover {
-  border-color: #4a9eff;
-  box-shadow: 0 2px 8px rgba(74, 158, 255, 0.1);
-}
+/* Table layout now unified via global .app-table styles */
 
 .slice-header h3 {
   font-size: 1.1rem;

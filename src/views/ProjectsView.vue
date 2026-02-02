@@ -1,21 +1,18 @@
 <template>
   <div class="projects-view">
-    <header class="view-header px-3 py-2 border-bottom">
-      <div class="d-flex justify-content-between align-items-center gap-2">
+    <PanelHeader>
+      <template #left>
         <div class="d-flex align-items-center gap-2">
           <span class="fs-6 text-uppercase text-secondary fw-semibold">Projects</span>
           <span class="badge bg-secondary">{{ projects.length }}</span>
         </div>
-        <div class="d-flex align-items-center gap-2">
-          <button class="btn btn-primary btn-sm" @click="showCreateProject = true">
-            <i class="fas fa-plus me-2"></i>New Project
-          </button>
-          <router-link to="/" class="btn btn-outline-secondary btn-sm" title="Close">
-            <i class="fas fa-xmark"></i>
-          </router-link>
-        </div>
-      </div>
-    </header>
+      </template>
+      <template #right>
+        <button class="btn btn-primary btn-sm" @click="showCreateProject = true" title="Create new project" aria-label="Create new project">
+          <i class="fas fa-plus me-2"></i>New Project
+        </button>
+      </template>
+    </PanelHeader>
 
     <div class="projects-content p-4">
       <div v-if="projects.length === 0" class="empty-state text-center py-5">
@@ -62,6 +59,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Project } from '@/types/models'
 import CreateProjectDialog from '@/components/CreateProjectDialog.vue'
+import PanelHeader from '@/components/PanelHeader.vue'
 
 interface Props {
   projects: Project[]

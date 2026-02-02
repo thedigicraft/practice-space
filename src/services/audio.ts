@@ -28,7 +28,7 @@ export class AudioService {
    */
   async loadAudioFile(file: File): Promise<AudioBuffer> {
     // Stop any existing playback before loading new audio
-    this.stop()
+    this.stop(true)
     
     const arrayBuffer = await file.arrayBuffer()
     const audioContext = this.getAudioContext()
@@ -41,7 +41,7 @@ export class AudioService {
    * Load from an ArrayBuffer (platform-agnostic)
    */
   async loadArrayBuffer(arrayBuffer: ArrayBuffer): Promise<AudioBuffer> {
-    this.stop()
+    this.stop(true)
     const audioContext = this.getAudioContext()
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
     this.currentBuffer = audioBuffer
@@ -107,7 +107,7 @@ export class AudioService {
   /**
    * Stop playback
    */
-  stop(): void {
+  stop(resetPosition: boolean = false): void {
     if (this.currentSource) {
       try {
         this.currentSource.stop()
@@ -118,7 +118,9 @@ export class AudioService {
       this.currentSource = null
     }
     this.isPlaying = false
-    this.pauseTime = 0
+    if (resetPosition) {
+      this.pauseTime = 0
+    }
   }
 
   /**
@@ -150,7 +152,7 @@ export class AudioService {
    * Clean up resources
    */
   dispose(): void {
-    this.stop()
+    this.stop(true)
     if (this.audioContext) {
       this.audioContext.close()
       this.audioContext = null

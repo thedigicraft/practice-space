@@ -1,5 +1,5 @@
 <template>
-  <div class="device-diagnostics card p-3">
+  <div class="device-diagnostics card p-3 d-none">
     <h5 class="mb-2">Device Diagnostics</h5>
     <ul class="list-unstyled mb-0">
       <li><strong>Native Platform:</strong> {{ isNative ? 'Yes' : 'No' }}</li>

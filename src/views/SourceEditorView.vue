@@ -1,11 +1,20 @@
 <template>
   <div class="source-editor-view">
-    <header class="view-header px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
-      <span class="fs-6 text-uppercase text-secondary fw-semibold">Source Editor</span>
-      <router-link to="/" class="btn btn-outline-secondary btn-sm" title="Close">
-        <i class="fas fa-xmark"></i>
-      </router-link>
-    </header>
+    <PanelHeader title="Source Editor">
+      <template #right>
+        <div class="d-flex align-items-center gap-2">
+          <button
+            class="btn btn-sm btn-outline-secondary"
+            @click="copyShareLink"
+            :title="copied ? 'Copied!' : 'Copy shareable link'"
+            aria-label="Copy shareable link"
+          >
+            <i class="fas fa-link me-1"></i>
+            <span>Copy Link</span>
+          </button>
+        </div>
+      </template>
+    </PanelHeader>
     <SourceMetadataBar
       v-if="source"
       :title="source.title || source.name"
@@ -58,7 +67,7 @@
                 :duration="duration"
                 :isLoading="isLoading"
                 @play="togglePlayPause"
-                @pause="$emit('stop')"
+                @pause="togglePlayPause"
                 @seek="seek"
               />
             </div>
@@ -78,7 +87,7 @@
               @clear-selection="clearSelection"
             />
 
-            <div v-if="selectedRegion || selectedSlice" class="slice-preview-area mt-">
+            <div v-if="selectedRegion || selectedSlice" class="slice-preview-area mt-3">
               <div class="slice-preview-content">
                 <SliceWaveformViewer
                   :slice="selectedSliceForWaveform"
@@ -90,7 +99,9 @@
                 />
               </div>
 
-              <div v-if="selectedSlice" :class="['details-sidebar', { collapsed: detailsSidebarCollapsed }]">
+              <div v-if="selectedSlice && !detailsSidebarCollapsed" class="sidebar-resizer" @mousedown="startResize" @dblclick="resetSidebarWidth" title="Drag to resize. Double-click to reset."></div>
+
+              <div v-if="selectedSlice" :class="['details-sidebar', { collapsed: detailsSidebarCollapsed }]" :style="detailsSidebarCollapsed ? { flexBasis: '40px', width: '40px' } : { flexBasis: sourceSidebarWidth + 'px', width: sourceSidebarWidth + 'px' }">
                 <button @click="toggleDetailsSidebar" class="sidebar-toggle-btn py-4 px-2">
                   <i :class="detailsSidebarCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right'"></i>
                 </button>
@@ -163,8 +174,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, inject, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, watch, inject, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import type { Ref } from 'vue'
 import type { Source, Slice } from '../types/models'
 import WaveformViewer from '../components/WaveformViewer.vue'
@@ -176,8 +187,11 @@ import SliceWaveformViewer from '../components/SliceWaveformViewer.vue'
 import SliceEditorForm from '../components/SliceEditorForm.vue'
 import SourceMetadataBar from '../components/SourceMetadataBar.vue'
 import { formatTime, formatFileSize } from '../utils/helpers'
+import PanelHeader from '@/components/PanelHeader.vue'
+import { useAppSettings } from '@/composables/useAppSettings'
 
 const router = useRouter()
+const route = useRoute()
 
 interface Props {
   id: string
@@ -237,6 +251,91 @@ const sidebarCollapsed = ref(true)
 const detailsSidebarCollapsed = ref(false)
 const waveformMode = ref<'line' | 'bars'>('bars')
 const newSliceTitle = ref('')
+const copied = ref(false)
+const copyShareLink = async () => {
+  try {
+    const url = window.location.href
+    await navigator.clipboard.writeText(url)
+    copied.value = true
+    setTimeout(() => copied.value = false, 1500)
+  } catch (e) {
+    // Fallback: prompt on failure
+    window.prompt('Copy link:', window.location.href)
+  }
+}
+// Source title inline edit refs (prevent compile errors)
+const editingSourceName = ref(false)
+const sourceNameValue = ref('')
+const sourceNameInput = ref<HTMLInputElement | null>(null)
+
+// Sidebar width settings and resizing
+const { sourceSidebarWidth } = useAppSettings()
+const isResizing = ref(false)
+let resizeStartX = 0
+let resizeStartWidth = 0
+const MIN_SIDEBAR = 280
+const MAX_SIDEBAR = 900
+
+const startResize = (e: MouseEvent) => {
+  if (detailsSidebarCollapsed.value) return
+  isResizing.value = true
+  resizeStartX = e.clientX
+  resizeStartWidth = sourceSidebarWidth.value
+  window.addEventListener('mousemove', onResizeMove)
+  window.addEventListener('mouseup', stopResize)
+  e.preventDefault()
+}
+
+const onResizeMove = (e: MouseEvent) => {
+  if (!isResizing.value) return
+  const delta = e.clientX - resizeStartX
+  let next = resizeStartWidth + delta
+  if (next < MIN_SIDEBAR) next = MIN_SIDEBAR
+  if (next > MAX_SIDEBAR) next = MAX_SIDEBAR
+  sourceSidebarWidth.value = next
+}
+
+const stopResize = () => {
+  if (!isResizing.value) return
+  isResizing.value = false
+  window.removeEventListener('mousemove', onResizeMove)
+  window.removeEventListener('mouseup', stopResize)
+}
+
+onBeforeUnmount(() => {
+  stopResize()
+})
+
+const resetSidebarWidth = () => {
+  sourceSidebarWidth.value = 500
+}
+
+// Sync selected slice with query param for shareable URLs
+const routeSelectedSliceId = computed(() => {
+  const q = route.query as Record<string, unknown>
+  const id = typeof q.sliceId === 'string' ? q.sliceId : null
+  return id
+})
+
+// When route query has sliceId, select that slice if it belongs to this source
+const selectSliceByIdFromRoute = (sliceId: string | null) => {
+  if (!sliceId) return
+  const slice = sourceSlices.value.find(s => s.id === sliceId)
+  if (slice) {
+    handleSelectSlice(slice)
+  }
+}
+
+onMounted(() => {
+  selectSliceByIdFromRoute(routeSelectedSliceId.value)
+})
+
+watch(routeSelectedSliceId, (newId) => {
+  // Avoid loop: only update if different from current
+  if (newId && newId !== selectedSliceId.value) {
+    selectSliceByIdFromRoute(newId)
+  }
+})
 
 const handleUpdateTitle = (newTitle: string) => {
   if (source.value) {
@@ -271,9 +370,9 @@ const formatDate = (timestamp: number) => {
 }
 
 const startSourceNameEdit = () => {
-  if (!props.source) return
+  if (!source.value) return
   editingSourceName.value = true
-  sourceNameValue.value = props.source.name
+  sourceNameValue.value = source.value.name
   setTimeout(() => {
     if (sourceNameInput.value) {
       sourceNameInput.value.focus()
@@ -288,14 +387,14 @@ const cancelSourceNameEdit = () => {
 }
 
 const saveSourceName = () => {
-  if (!props.source || !sourceNameValue.value.trim()) {
+  if (!source.value || !sourceNameValue.value.trim()) {
     cancelSourceNameEdit()
     return
   }
 
-  if (sourceNameValue.value.trim() !== props.source.name) {
+  if (sourceNameValue.value.trim() !== source.value.name) {
     const updatedSource: Source = {
-      ...props.source,
+      ...source.value,
       name: sourceNameValue.value.trim(),
     }
     emit('updateSource', updatedSource)
@@ -333,7 +432,7 @@ const handleRegionUpdated = (region: { startTime: number; endTime: number }) => 
 }
 
 const handlePlayRegion = () => {
-  if (!selectedRegion.value || !props.source) return
+  if (!selectedRegion.value || !source.value) return
   
   // This is a simplified play/pause toggle for the region
   if (isPlayingRegion.value) {
@@ -342,12 +441,10 @@ const handlePlayRegion = () => {
   } else {
     emit('playSlice', {
       id: 'region-playback', // temporary ID
-      audioFileId: props.source.id,
+      audioFileId: source.value.id,
       startTime: selectedRegion.value.startTime,
       endTime: selectedRegion.value.endTime,
       title: 'Selected Region',
-      inPoint: selectedRegion.value.startTime,
-      outPoint: selectedRegion.value.endTime,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     })
@@ -371,6 +468,10 @@ const handleSelectSlice = (slice: Slice) => {
     selectedRegion.value = { startTime: slice.startTime, endTime: slice.endTime }
     waveformRef.value.setRegion(slice.startTime, slice.endTime)
   }
+
+  // Update query param to reflect selected slice for shareable URL
+  const nextQuery = { ...route.query, sliceId: slice.id }
+  router.replace({ name: 'source-editor', params: { id: props.id }, query: nextQuery })
 }
 
 const selectedSlice = computed(() => {
@@ -426,6 +527,11 @@ const clearSelection = () => {
   if (waveformRef.value) {
     waveformRef.value.clearRegion()
   }
+
+  // Remove sliceId from query params when clearing selection
+  const nextQuery = { ...(route.query as Record<string, any>) }
+  delete nextQuery.sliceId
+  router.replace({ name: 'source-editor', params: { id: props.id }, query: nextQuery })
 }
 
 const handleCreateSlice = async () => {
@@ -436,9 +542,7 @@ const handleCreateSlice = async () => {
       title: newSliceTitle.value.trim() || 'Untitled Slice',
       startTime: selectedRegion.value.startTime,
       endTime: selectedRegion.value.endTime,
-      folderId: null,
-      projectIds: [],
-      composer: '',
+      composers: [],
       performers: [],
       type: '',
     }
@@ -511,7 +615,7 @@ const handleCancelSlice = () => {
 }
 
 const handleBack = () => {
-  emit('back')
+  router.back()
 }
 
 const handleFilterByArtist = (artistName: string) => {
@@ -679,13 +783,17 @@ const seek = (time: number) => {
 
 .slice-preview-area {
   position: relative;
+  display: flex;
+  align-items: stretch;
 }
 
 .slice-preview-content {
+  flex: 1 1 auto;
   min-width: 0;
 }
 
 .details-sidebar {
+  flex: 0 0 500px;
   width: 500px;
   
   border-left: 1px solid #333;
@@ -695,7 +803,20 @@ const seek = (time: number) => {
 }
 
 .details-sidebar.collapsed {
+  flex-basis: 40px;
   width: 40px;
+}
+
+.sidebar-resizer {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  background: rgba(255, 255, 255, 0.06);
+  border-left: 1px solid #333;
+  border-right: 1px solid #333;
+}
+
+.sidebar-resizer:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-toggle-btn {

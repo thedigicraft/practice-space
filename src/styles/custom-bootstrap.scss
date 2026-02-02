@@ -46,3 +46,43 @@
 
 // Custom styles after Bootstrap
 // Add your custom CSS here that extends or overrides Bootstrap
+
+/* Unified app table styles */
+.app-table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 0;
+}
+
+.app-table thead {
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	background: #161616; /* darker header for dark theme */
+}
+
+.app-table thead th {
+	font-size: 0.8rem;
+	text-transform: uppercase;
+	font-weight: 600;
+	padding: 0.75rem;
+	border-bottom: 1px solid var(--bs-border-color);
+}
+
+.app-table tbody td {
+	padding: 0.75rem;
+	vertical-align: middle;
+}
+
+/* Column width guidelines for unified tables */
+.app-table .col-title { width: 40%; }
+.app-table .col-composers { width: 15%; }
+.app-table .col-performers { width: 15%; }
+.app-table .col-type { width: 10%; white-space: nowrap; }
+.app-table .col-duration { width: 8%; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.app-table .col-actions { width: 6%; white-space: nowrap; }
+
+/* Sources-specific columns */
+.app-table .col-location { width: 20%; }
+.app-table .col-size { width: 10%; white-space: nowrap; }
+.app-table .col-date { width: 12%; white-space: nowrap; }

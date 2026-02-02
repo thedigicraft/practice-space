@@ -3,8 +3,8 @@
     :class="{ 'is-selected': isSelected }"
     @click="$emit('select')"
   >
-    <td>{{ slice.title }}</td>
-    <td>
+    <td class="col-title">{{ slice.title }}</td>
+    <td class="col-composers">
       <span v-if="slice.composers && slice.composers.length > 0">
         <a
           v-for="(composer, idx) in slice.composers"
@@ -17,7 +17,7 @@
       </span>
       <span v-else>—</span>
     </td>
-    <td>
+    <td class="col-performers">
       <span v-if="slice.performers && slice.performers.length > 0">
         <a
           v-for="(performer, idx) in slice.performers"
@@ -30,7 +30,7 @@
       </span>
       <span v-else>—</span>
     </td>
-    <td>
+    <td class="col-type">
       <a
         v-if="slice.type"
         @click.stop="$emit('filterType', slice.type)"
@@ -40,8 +40,8 @@
       </a>
       <span v-else>—</span>
     </td>
-    <td>{{ formatTime(slice.endTime - slice.startTime) }}</td>
-    <td>
+    <td class="col-duration">{{ formatTime(slice.endTime - slice.startTime) }}</td>
+    <td class="col-actions">
       <button 
         @click.stop="$emit('seekTo')" 
         class="btn btn-sm btn-link" 

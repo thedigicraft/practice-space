@@ -10,6 +10,7 @@ import ExportMenu from './ExportMenu.vue'
 import ExportSettings from './ExportSettings.vue'
 import FolderNavigationBreadcrumbs from './FolderNavigationBreadcrumbs.vue'
 import SliceSelectionToolbar from './SliceSelectionToolbar.vue'
+import SliceTableRow from './SliceTableRow.vue'
 import { useAppSettings } from '@/composables/useAppSettings'
 
 interface Props {
@@ -18,9 +19,17 @@ interface Props {
   audioFiles: AudioFile[]
   currentlyPlayingSliceId?: string | null
   isPlaying?: boolean
+  showFolders?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  slices: [],
+  folders: [],
+  audioFiles: [],
+  currentlyPlayingSliceId: null,
+  isPlaying: false,
+  showFolders: false
+})
 
 const emit = defineEmits<{
   selectSlice: [slice: Slice]
@@ -83,15 +92,19 @@ const childFolders = computed(() => {
 const currentSlices = computed(() => {
   let slices: Slice[]
   
-  if (currentFolderId.value) {
+  // If folders are hidden, show all slices regardless of folder
+  if (!props.showFolders) {
+    slices = props.slices
+  } else if (currentFolderId.value) {
     const folder = currentFolder.value
     if (!folder) return []
-    slices = props.slices.filter(s => folder.sliceIds.includes(s.id))
+    const ids = folder.sliceIds ?? []
+    slices = props.slices.filter(s => ids.includes(s.id))
   } else {
     // Root level: show slices not in any folder
     const slicesInFolders = new Set<string>()
-    props.folders.forEach(f => {
-      f.sliceIds.forEach(id => slicesInFolders.add(id))
+    props.folders?.forEach(f => {
+      (f.sliceIds ?? []).forEach(id => slicesInFolders.add(id))
     })
     slices = props.slices.filter(s => !slicesInFolders.has(s.id))
   }
@@ -300,8 +313,8 @@ const exportSelected = async () => {
   }
 }
 
-const handlePlaySlice = (slice: Slice, event: MouseEvent) => {
-  event.stopPropagation()
+const handlePlaySlice = (slice: Slice, event?: MouseEvent) => {
+  event?.stopPropagation()
   emit('playSlice', slice)
 }
 
@@ -352,15 +365,13 @@ const handleExportSlice = async (slice: Slice, format: ExportFormat) => {
   }
 }
 
-const filterByArtist = (artistName: string, event: MouseEvent) => {
-  event.stopPropagation()
+const filterByArtist = (artistName: string) => {
   searchQuery.value = artistName
   // Clear folder navigation to show global search results
   currentFolderId.value = undefined
 }
 
-const filterByType = (type: string, event: MouseEvent) => {
-  event.stopPropagation()
+const filterByType = (type: string) => {
   searchQuery.value = type
   // Clear folder navigation to show global search results
   currentFolderId.value = undefined
@@ -387,7 +398,7 @@ defineExpose({
 <template>
   <div class="file-browser d-flex flex-column">
     <!-- Breadcrumb navigation -->
-    <FolderNavigationBreadcrumbs
+    <FolderNavigationBreadcrumbs v-if="showFolders"
       :breadcrumbs="breadcrumbs"
       @navigate="navigateToFolder"
     />
@@ -421,20 +432,20 @@ defineExpose({
 
     <!-- Search info -->
     <div v-if="searchQuery.trim()" class="search-info">
-      Showing {{ displaySlices.length }} result{{ displaySlices.length !== 1 ? 's' : '' }} for "{{ searchQuery }}"
+      Showing {{ (displaySlices?.length ?? 0) }} result{{ (displaySlices?.length ?? 0) !== 1 ? 's' : '' }} for "{{ searchQuery }}"
     </div>
 
     <!-- Browser content -->
     <div class="browser-content">
       <!-- Empty state -->
-      <div v-if="childFolders.length === 0 && displaySlices.length === 0" class="empty-state">
+      <div v-if="(displaySlices?.length ?? 0) === 0" class="empty-state">
         <p v-if="searchQuery.trim()">No slices found matching "{{ searchQuery }}"</p>
-        <p v-else>No folders or slices here</p>
+        <p v-else>No slices here</p>
         <p class="hint">Create slices from audio regions or organize them in folders</p>
       </div>
 
       <!-- Folders list -->
-      <div v-if="childFolders.length > 0 && !searchQuery.trim()" class="folders-section">
+      <div v-if="showFolders && (childFolders?.length ?? 0) > 0 && !searchQuery.trim()" class="folders-section">
         <div
           v-for="folder in childFolders"
           :key="folder.id"
@@ -443,121 +454,35 @@ defineExpose({
         >
           <span class="folder-icon"><i class="fas fa-folder"></i></span>
           <span class="folder-name flex-fill">{{ folder.name }}</span>
-          <span class="folder-count">({{ folder.sliceIds.length }})</span>
+          <span class="folder-count">({{ folder.sliceIds?.length ?? 0 }})</span>
         </div>
       </div>
 
-      <!-- Slices list -->
-      <div v-if="displaySlices.length > 0" class="slices-section">
-        <div
-          v-for="slice in displaySlices"
-          :key="slice.id"
-          class="slice-item-browser d-flex align-items-start gap-2"
-          :class="{ 
-            'is-playing': slice.id === currentlyPlayingSliceId,
-            'is-selected': selectedSliceIds.has(slice.id)
-          }"
-          @click="emit('selectSlice', slice)"
-        >
-          <input
-            v-if="isSelectionMode"
-            type="checkbox"
-            class="slice-checkbox"
-            :checked="selectedSliceIds.has(slice.id)"
-            @click="toggleSelection(slice.id, $event)"
+      <!-- Slices table -->
+      <table v-if="(displaySlices?.length ?? 0) > 0" class="app-table table table-hover table-striped">
+        <thead>
+          <tr>
+            <th class="col-title">Title</th>
+            <th class="col-composers">Composer</th>
+            <th class="col-performers">Performer</th>
+            <th class="col-type">Type</th>
+            <th class="col-duration">Duration</th>
+            <th class="col-actions">Jump</th>
+          </tr>
+        </thead>
+        <tbody>
+          <SliceTableRow
+            v-for="slice in displaySlices"
+            :key="slice.id"
+            :slice="slice"
+            :isSelected="selectedSliceIds.has(slice.id)"
+            @select="emit('selectSlice', slice)"
+            @seek-to="handlePlaySlice(slice)"
+            @filter-artist="filterByArtist"
+            @filter-type="filterByType"
           />
-          <button 
-            class="btn btn-primary btn-sm play-btn-slice"
-            @click="handlePlaySlice(slice, $event)"
-            title="Play slice"
-          >
-            <span v-if="slice.id === currentlyPlayingSliceId && isPlaying" class="playing-icon"><i class="fas fa-pause"></i></span>
-            <span v-else><i class="fas fa-play"></i></span>
-          </button>
-          <div class="slice-icon">🎵</div>
-          <div class="slice-details flex-fill">
-            <div class="slice-grid">
-              <div class="grid-col title-col d-flex flex-column gap-1">
-                <div class="slice-title">{{ slice.title }}</div>
-                <div class="slice-source">{{ getAudioFileName(slice.audioFileId) }}</div>
-              </div>
-              <div class="grid-col composer-col">
-                <div class="col-label">Composer</div>
-                <div class="col-value">
-                  <span v-if="slice.composers && slice.composers.length > 0">
-                    <a
-                      v-for="(composer, idx) in slice.composers"
-                      :key="composer"
-                      @click="filterByArtist(composer, $event)"
-                      class="artist-link"
-                    >
-                      {{ composer }}<span v-if="idx < slice.composers.length - 1">, </span>
-                    </a>
-                  </span>
-                  <span v-else>—</span>
-                </div>
-              </div>
-              <div class="grid-col performer-col">
-                <div class="col-label">Performer</div>
-                <div class="col-value">
-                  <span v-if="slice.performers && slice.performers.length > 0">
-                    <a
-                      v-for="(performer, idx) in slice.performers"
-                      :key="performer"
-                      @click="filterByArtist(performer, $event)"
-                      class="artist-link"
-                    >
-                      {{ performer }}<span v-if="idx < slice.performers.length - 1">, </span>
-                    </a>
-                  </span>
-                  <span v-else>—</span>
-                </div>
-              </div>
-              <div class="grid-col type-col">
-                <div class="col-label">Type</div>
-                <div class="col-value">
-                  <a
-                    v-if="slice.type"
-                    @click="filterByType(slice.type, $event)"
-                    class="type-link"
-                  >
-                    {{ slice.type }}
-                  </a>
-                  <span v-else>—</span>
-                </div>
-              </div>
-              <div class="grid-col location-col">
-                <div class="col-label">Location</div>
-                <div class="col-value">
-                  <a
-                    v-if="audioFiles.find(f => f.id === slice.audioFileId)?.location"
-                    @click="filterByLocation(audioFiles.find(f => f.id === slice.audioFileId)!.location!, $event)"
-                    class="location-link"
-                  >
-                    <i class="fas fa-map-marker-alt me-1"></i>
-                    {{ audioFiles.find(f => f.id === slice.audioFileId)?.location }}
-                  </a>
-                  <span v-else>—</span>
-                </div>
-              </div>
-              <div class="grid-col duration-col">
-                <div class="col-label">Duration</div>
-                <div class="col-value duration-value">{{ formatTime(slice.endTime - slice.startTime) }}</div>
-              </div>
-            </div>
-            <div v-if="slice.tags?.length" class="slice-tags-compact d-flex gap-1 flex-wrap">
-              <span v-for="tag in slice.tags" :key="tag" class="tag-compact">
-                {{ tag }}
-              </span>
-            </div>
-          </div>
-          <ExportMenu
-            :is-open="exportDropdownOpen === slice.id"
-            @toggle="() => toggleExportDropdown(slice.id)"
-            @export="(format) => handleExportSlice(slice, format)"
-          />
-        </div>
-      </div>
+        </tbody>
+      </table>
     </div>
   </div>
   
@@ -599,7 +524,7 @@ defineExpose({
 
 .browser-content {
   overflow-y: auto;
-  padding: 1rem;
+  padding: 0;
 }
 
 .empty-state {
@@ -847,4 +772,6 @@ defineExpose({
 .play-btn-slice:active {
   transform: scale(0.95);
 }
+
+/* Table layout now unified via global .app-table styles */
 </style>

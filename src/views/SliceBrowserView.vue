@@ -1,40 +1,30 @@
 <template>
   <div class="slice-browser-view d-flex flex-column">
-    <header class="view-header border-bottom">
-      <div class="header-content px-3 py-2 d-flex align-items-center">
-        <div class="header-left flex-grow-1">
-          <span class="fs-6 text-uppercase text-secondary fw-semibold">Slice Browser</span>
-        </div>
-        <div class="header-center flex-grow-1 d-flex justify-content-center align-items-center gap-2">
-          <div class="search-box d-flex align-items-center" style="min-width: 340px;">
-            <input
-              v-model="searchInput"
-              type="text"
-              class="form-control form-control-sm"
-              placeholder="Search slices by title, tags, or file..."
-              @input="applySearchFilter"
-            />
-            <button v-if="searchInput" class="btn btn-outline-secondary btn-sm ms-2" title="Clear" @click="clearSearch">
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
+    <PanelHeader title="Slice Browser">
+      <template #center>
+        <div class="header-center d-flex align-items-center gap-2">
+          <SearchBox
+            v-model="searchInput"
+            placeholder="Search slices by title, tags, or file..."
+            title="Search slices"
+            aria-label="Search slices"
+            :minWidth="340"
+            @update:modelValue="applySearchFilter"
+            @cleared="clearSearch"
+          />
           <button 
             class="btn btn-outline-secondary btn-sm"
             :class="{ 'active': selectionActive }"
             @click="toggleSelectionFromHeader"
             title="Toggle selection mode"
+            aria-label="Toggle selection mode"
           >
             <i class="fas fa-check-square me-1"></i> Select
           </button>
           <ExportSettings />
         </div>
-        <div class="header-right flex-grow-1 d-flex justify-content-end">
-          <router-link to="/" class="btn btn-outline-secondary btn-sm" title="Close">
-            <i class="fas fa-xmark"></i>
-          </router-link>
-        </div>
-      </div>
-    </header>
+      </template>
+    </PanelHeader>
 
     <div class="browser-content">
       <FileBrowser
@@ -59,6 +49,8 @@ import { useRoute } from 'vue-router'
 import type { Source, Slice, SliceFolder } from '../types/models'
 import FileBrowser from '../components/FileBrowser.vue'
 import ExportSettings from '../components/ExportSettings.vue'
+import PanelHeader from '../components/PanelHeader.vue'
+import SearchBox from '@/components/SearchBox.vue'
 
 const route = useRoute()
 const fileBrowserRef = ref<InstanceType<typeof FileBrowser> | null>(null)

@@ -1,7 +1,7 @@
 <template>
   <div class="project-view">
-    <header class="view-header border-bottom">
-      <div class="header-content px-3 py-2 d-flex align-items-center justify-content-between">
+    <PanelHeader>
+      <template #left>
         <div class="project-header-info d-flex align-items-start gap-2" v-if="project">
           <div class="project-color-bar" :style="{ backgroundColor: project.color || '#4a9eff' }"></div>
           <div class="project-title">
@@ -11,11 +11,8 @@
             </p>
           </div>
         </div>
-        <router-link to="/" class="btn btn-outline-secondary btn-sm" title="Close">
-          <i class="fas fa-xmark"></i>
-        </router-link>
-      </div>
-    </header>
+      </template>
+    </PanelHeader>
 
     <div class="project-content p-4" v-if="project">
       <section class="card slices-section">
@@ -56,6 +53,7 @@ import type { Ref } from 'vue'
 import type { Project, Slice, Source } from '../types/models'
 import SliceListItem from '../components/SliceListItem.vue'
 import { formatTime } from '../utils/helpers'
+import PanelHeader from '@/components/PanelHeader.vue'
 
 interface Props {
   id: string
@@ -82,8 +80,8 @@ const emit = defineEmits<{
 }>()
 
 const projectSlices = computed(() => {
-  if (!props.project) return []
-  return props.slices.filter(s => props.project!.sliceIds.includes(s.id))
+  if (!project.value) return []
+  return props.slices.filter(s => project.value!.sliceIds.includes(s.id))
 })
 
 const getSourceName = (sourceId: string): string | null => {

@@ -1,28 +1,17 @@
 <template>
   <div class="library-view d-flex flex-column">
-    <header class="view-header px-3 py-2 border-bottom">
-      <div class="d-flex align-items-center">
-        <div class="header-left flex-grow-1">
-          <span class="fs-6 text-uppercase text-secondary fw-semibold">Library</span>
-        </div>
-        <div class="header-center flex-grow-1 d-flex justify-content-center align-items-center">
-          <div class="search-box d-flex align-items-center" style="min-width: 340px;">
-            <input
-              v-model="searchQuery"
-              type="text"
-              class="form-control form-control-sm"
-              placeholder="Filter library groups..."
-            />
-            <button v-if="searchQuery" class="btn btn-outline-secondary btn-sm ms-2" title="Clear" @click="searchQuery=''"><i class="fas fa-times"></i></button>
-          </div>
-        </div>
-        <div class="header-right flex-grow-1 d-flex justify-content-end">
-          <router-link to="/" class="btn btn-outline-secondary btn-sm" title="Close">
-            <i class="fas fa-xmark"></i>
-          </router-link>
-        </div>
-      </div>
-    </header>
+    <PanelHeader title="Library">
+      <template #center>
+        <SearchBox
+          v-model="searchQuery"
+          placeholder="Filter library groups..."
+          title="Filter library groups"
+          aria-label="Filter library groups"
+          :minWidth="340"
+          @cleared="searchQuery=''"
+        />
+      </template>
+    </PanelHeader>
     <div class="library-content p-4">
       <div v-if="Object.keys(groupedSlices).length === 0" class="empty-state text-center py-5">
         <p>No slices in your library yet.</p>
@@ -47,6 +36,8 @@ import { computed, inject, toRef, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Slice, Source } from '@/types/models'
 import LibraryTypeSection from '@/components/LibraryTypeSection.vue'
+import PanelHeader from '@/components/PanelHeader.vue'
+import SearchBox from '@/components/SearchBox.vue'
 import { useSliceGrouping } from '@/composables/useSliceGrouping'
 
 const router = useRouter()
