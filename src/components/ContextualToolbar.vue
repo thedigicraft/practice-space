@@ -28,7 +28,7 @@
 
       <!-- Slice Edit Mode -->
       <template v-if="mode === 'slice' && slice">
-        <div class="btn-group" role="group">
+        <div class="btn-group align-self-start" role="group">
           <button @click.stop="emit('seekToSlice', slice)" class="btn btn-primary" style="width: 40px; height: 40px;" title="Jump playhead to slice start">
             <i class="fas fa-step-backward"></i>
           </button>
@@ -169,7 +169,7 @@ const cancelEditMetadata = () => {
 .toolbar-content {
   width: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
 }
 

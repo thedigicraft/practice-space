@@ -127,7 +127,6 @@
                   :current-time="currentTime"
                   :is-playing="isPlaying"
                   :waveform-mode="waveformMode"
-                  @toggle-waveform-mode="waveformMode = waveformMode === 'line' ? 'bars' : 'line'"
                 />
               </div>
             </div>
