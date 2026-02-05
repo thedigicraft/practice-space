@@ -233,9 +233,9 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
 </script>
 
 <template>
-  <div class="app d-flex xbg-dark text-white" :class="{ 'is-dragging': isDragging }">
+  <div class="app d-flex text-white" :class="{ 'is-dragging': isDragging }">
     <!-- Activity Bar (VS Code-style) -->
-    <aside class="activity-bar d-flex flex-column align-items-center py-2">
+    <aside class="activity-bar d-flex flex-column align-items-center">
       <ul class="activity-list list-unstyled m-0 p-0 w-100">
         <li>
           <router-link to="/" class="activity-item" :class="{ active: $route.name === 'home' }" aria-label="Home">
@@ -351,10 +351,6 @@ body {
   border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.activity-list li + li {
-  margin-top: 4px;
-}
-
 .activity-item {
   display: flex;
   align-items: center;
@@ -363,7 +359,6 @@ body {
   height: 46px;
   color: #adb5bd;
   text-decoration: none;
-  border-radius: 6px;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 

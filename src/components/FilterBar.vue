@@ -78,6 +78,5 @@ defineEmits<{
 .filters-bar {
   background: var(--bs-body-bg);
   border-radius: 8px;
-  padding: 1rem;
 }
 </style>
