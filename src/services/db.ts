@@ -6,7 +6,7 @@
  */
 
 import { openDB, DBSchema, IDBPDatabase } from 'idb'
-import type { AudioFile, Slice, Project, SliceFolder } from '@/types/models'
+import type { AudioFile, Slice, Collection, SliceFolder } from '@/types/models'
 
 interface PracticeSpaceDB extends DBSchema {
   audioFiles: {
@@ -20,7 +20,7 @@ interface PracticeSpaceDB extends DBSchema {
   }
   projects: {
     key: string
-    value: Project
+    value: Collection
   }
   folders: {
     key: string
@@ -134,23 +134,39 @@ export async function deleteSlice(id: string): Promise<void> {
   await db.delete('slices', id)
 }
 
-// Project operations
-export async function saveProject(project: Project): Promise<void> {
+// Collection operations
+export async function saveCollection(collection: Collection): Promise<void> {
   const db = await getDB()
-  await db.put('projects', project)
+  // Create a clean copy to avoid Vue reactive proxies or non-cloneable refs
+  const cleanCollection: Collection = {
+    id: collection.id,
+    name: collection.name,
+    description: collection.description,
+    sliceIds: collection.sliceIds ? [...collection.sliceIds] : [],
+    groups: collection.groups
+      ? collection.groups.map(g => ({ type: g.type, title: g.title }))
+      : undefined,
+    owner: collection.owner,
+    collaborators: collection.collaborators ? [...collection.collaborators] : undefined,
+    type: collection.type,
+    createdAt: collection.createdAt,
+    updatedAt: collection.updatedAt,
+    color: collection.color,
+  }
+  await db.put('projects', cleanCollection)
 }
 
-export async function getProject(id: string): Promise<Project | undefined> {
+export async function getCollection(id: string): Promise<Collection | undefined> {
   const db = await getDB()
   return db.get('projects', id)
 }
 
-export async function getAllProjects(): Promise<Project[]> {
+export async function getAllCollections(): Promise<Collection[]> {
   const db = await getDB()
   return db.getAll('projects')
 }
 
-export async function deleteProject(id: string): Promise<void> {
+export async function deleteCollection(id: string): Promise<void> {
   const db = await getDB()
   await db.delete('projects', id)
 }

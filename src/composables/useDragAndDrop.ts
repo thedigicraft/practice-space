@@ -37,7 +37,8 @@ export function useDragAndDrop(options: DragAndDropOptions) {
   const handleDragEnter = (e: DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    
+    const hasFiles = !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')
+    if (!hasFiles) return
     dragCounter.value++
     if (dragCounter.value === 1) {
       isDragging.value = true
@@ -47,7 +48,8 @@ export function useDragAndDrop(options: DragAndDropOptions) {
   const handleDragLeave = (e: DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    
+    const hasFiles = !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')
+    if (!hasFiles) return
     dragCounter.value--
     if (dragCounter.value === 0) {
       isDragging.value = false
@@ -57,7 +59,8 @@ export function useDragAndDrop(options: DragAndDropOptions) {
   const handleDragOver = (e: DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    
+    const hasFiles = !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')
+    if (!hasFiles) return
     if (e.dataTransfer) {
       e.dataTransfer.dropEffect = 'copy'
     }
@@ -71,6 +74,8 @@ export function useDragAndDrop(options: DragAndDropOptions) {
     dragCounter.value = 0
 
     if (!e.dataTransfer) return
+    const hasFiles = Array.from(e.dataTransfer.types || []).includes('Files')
+    if (!hasFiles) return
 
     const files: File[] = []
     const items = Array.from(e.dataTransfer.items)

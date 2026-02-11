@@ -8,6 +8,21 @@
           <span class="subtitle small m-0 text-secondary ms-3">{{ type }}</span>
         </div>
       </template>
+      <template #right>
+        <div class="d-flex align-items-center gap-2" v-if="projects.length">
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" @click="showProjectDropdown = !showProjectDropdown" :aria-expanded="showProjectDropdown ? 'true' : 'false'" title="Add this group to a project" aria-label="Add group to project">
+              <i class="fas fa-folder-plus me-1"></i>
+              <span class="d-none d-sm-inline">Add to Project</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end show" v-show="showProjectDropdown" style="max-height: 260px; overflow-y: auto; min-width: 240px;">
+              <li v-for="p in projects" :key="p.id">
+                <button class="dropdown-item" @click="addGroupToProject(p)">{{ p.name }}</button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </template>
     </PanelHeader>
 
     <div class="slices-content flex-fill overflow-auto">
@@ -62,11 +77,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getAllSlices } from '@/services/db'
-import { getAudioFile } from '@/services/db'
-import type { Slice, AudioFile } from '@/types/models'
+import { getAllSlices, getAllProjects, saveProject, getAudioFile } from '@/services/db'
+import type { Slice, AudioFile, Project } from '@/types/models'
 import SliceTableRow from '@/components/SliceTableRow.vue'
 import SliceWaveformViewer from '@/components/SliceWaveformViewer.vue'
 import { useAudioPlayback } from '@/composables/useAudioPlayback'
@@ -79,6 +93,8 @@ const title = ref(route.query.title as string || 'Grouped Slices')
 const type = ref(route.query.type as string || '')
 const slices = ref<Slice[]>([])
 const audioFiles = ref<Record<string, AudioFile>>({})
+const projects = inject<any>('projects') as any
+const showProjectDropdown = ref(false)
 
 const { playSlice: playAudioSlice, pause, currentlyPlaying } = useAudioPlayback()
 const playingSliceId = ref<string | null>(null)
@@ -106,6 +122,20 @@ const loadSlices = async () => {
       audioFiles.value[audioFileId] = audioFile
     }
   }
+}
+
+const addGroupToProject = async (project: Project) => {
+  const groupSliceIds = slices.value.map(s => s.id)
+  const existing = new Set(project.sliceIds)
+  groupSliceIds.forEach(id => existing.add(id))
+  const updated: Project = { ...project, sliceIds: Array.from(existing), updatedAt: Date.now() }
+  await saveProject(updated)
+  // Refresh provided projects for UI consistency
+  try {
+    const all = await getAllProjects()
+    projects.value = all
+  } catch {}
+  showProjectDropdown.value = false
 }
 
 const toggleWaveformMode = () => {

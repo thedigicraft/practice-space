@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { saveProject } from '@/services/db'
-import { generateId } from '@/utils/helpers'
 import type { Project } from '@/types/models'
 import { getAllCreditSuggestions, getCreditSuggestions, addCreditName } from '@/services/credits'
 import { Modal } from 'bootstrap'
 
 interface Props {
   show: boolean
+  project: Project
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
   close: []
-  created: [project: Project]
+  updated: [project: Project]
 }>()
 
 const name = ref('')
@@ -28,35 +28,41 @@ const projectType = ref('')
 const artistSuggestions = computed(() => getAllCreditSuggestions())
 const projectTypeSuggestions = computed(() => getCreditSuggestions('projectTypes'))
 
-const colors = [
-  '#4a9eff', // Blue
-  '#ff6b6b', // Red
-  '#51cf66', // Green
-  '#ffd93d', // Yellow
-  '#a78bfa', // Purple
-  '#f783ac', // Pink
-  '#38bdf8', // Cyan
-  '#fb923c', // Orange
-]
-
 const modalEl = ref<HTMLElement | null>(null)
 let modalInstance: any | null = null
 
-// Reset form and control modal when dialog opens/closes
-watch(() => props.show, (show) => {
-  if (show) {
-    name.value = ''
-    description.value = ''
-    color.value = '#4a9eff'
-    owner.value = ''
-    collaboratorsInput.value = ''
-    projectType.value = ''
+const populateFromProject = () => {
+  if (!props.project) return
+  name.value = props.project.name || ''
+  description.value = props.project.description || ''
+  color.value = props.project.color || '#4a9eff'
+  owner.value = props.project.owner || ''
+  collaboratorsInput.value = (props.project.collaborators || []).join(', ')
+  projectType.value = props.project.type || ''
+}
+
+// Sync fields and show/hide modal when prop changes
+watch(
+  () => props.show,
+  (show) => {
+    if (show) {
+      populateFromProject()
+    }
+    if (modalInstance) {
+      if (show) modalInstance.show()
+      else modalInstance.hide()
+    }
+  },
+  { immediate: true }
+)
+
+// Also repopulate if the incoming project changes while open
+watch(
+  () => props.project,
+  () => {
+    if (props.show) populateFromProject()
   }
-  if (modalInstance) {
-    if (show) modalInstance.show()
-    else modalInstance.hide()
-  }
-})
+)
 
 onMounted(() => {
   if (modalEl.value) {
@@ -78,39 +84,34 @@ onUnmounted(() => {
 })
 
 const handleSave = async () => {
-  if (!name.value.trim()) {
-    return
-  }
+  if (!name.value.trim()) return
 
   try {
     isSaving.value = true
 
-    const project: Project = {
-      id: generateId(),
+    const updated: Project = {
+      ...props.project,
       name: name.value.trim(),
       description: description.value.trim() || undefined,
-      sliceIds: [],
       owner: owner.value.trim() || undefined,
       collaborators: collaboratorsInput.value
         .split(',')
         .map(s => s.trim())
         .filter(Boolean),
       type: projectType.value.trim() || undefined,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
       color: color.value,
+      updatedAt: Date.now(),
     }
 
-    // Persist new project type into the pool for future suggestions
-    if (project.type) {
-      addCreditName('projectTypes', project.type)
+    if (updated.type) {
+      addCreditName('projectTypes', updated.type)
     }
 
-    await saveProject(project)
-    emit('created', project)
+    await saveProject(updated)
+    emit('updated', updated)
     modalInstance?.hide()
   } catch (error) {
-    console.error('Error creating project:', error)
+    console.error('Error updating project:', error)
   } finally {
     isSaving.value = false
   }
@@ -127,7 +128,7 @@ const handleCancel = () => {
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Create Project</h5>
+            <h5 class="modal-title">Edit Project</h5>
             <button type="button" class="btn-close" aria-label="Close" @click="handleCancel"></button>
           </div>
 
@@ -144,19 +145,7 @@ const handleCancel = () => {
 
             <div class="mb-3">
               <label class="form-label">Color</label>
-              <div class="color-picker">
-                <button
-                  v-for="c in colors"
-                  :key="c"
-                  @click="color = c"
-                  class="color-option btn"
-                  :class="{ selected: color === c }"
-                  :style="{ background: c }"
-                  type="button"
-                >
-                  <span v-if="color === c" class="check">✓</span>
-                </button>
-              </div>
+              <input type="color" v-model="color" class="form-control form-control-color" />
             </div>
 
             <div class="mb-3">
@@ -183,8 +172,8 @@ const handleCancel = () => {
 
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" :disabled="isSaving" @click="handleCancel">Cancel</button>
-            <button type="button" class="btn btn-primary" :disabled="!name.trim() || isSaving" @click="handleSave" :style="{ background: color, borderColor: color }">
-              {{ isSaving ? 'Creating...' : 'Create Project' }}
+            <button type="button" class="btn btn-primary" :disabled="!name.trim() || isSaving" @click="handleSave">
+              {{ isSaving ? 'Saving...' : 'Save Changes' }}
             </button>
           </div>
         </div>
@@ -194,39 +183,5 @@ const handleCancel = () => {
 </template>
 
 <style scoped>
-.color-picker {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 0.5rem;
-}
-
-.color-option {
-  width: 100%;
-  aspect-ratio: 1;
-  border: 2px solid transparent;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-  color: white;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-.color-option:hover {
-  transform: scale(1.1);
-}
-
-.color-option.selected {
-  border-color: white;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
-}
-
-.check {
-  font-weight: bold;
-}
-
-/* Keep color grid styling; Bootstrap provides base modal styles */
+/* Minimal overrides if needed */
 </style>

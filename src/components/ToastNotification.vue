@@ -65,20 +65,21 @@ const close = () => {
 <style scoped>
 .toast-notification {
   position: fixed;
-  top: 80px;
-  right: 20px;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
   background: rgba(30, 30, 30, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 1rem 1.5rem;
-  min-width: 300px;
-  max-width: 500px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 8px 14px;
+  min-width: 0;
+  max-width: 80vw;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
   display: flex;
-  align-items: flex-start;
-  gap: 1rem;
+  align-items: center;
+  gap: 10px;
   z-index: 10000;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(8px);
 }
 
 .toast-notification.success {
@@ -98,9 +99,8 @@ const close = () => {
 }
 
 .toast-icon {
-  font-size: 1.5rem;
+  font-size: 1rem;
   flex-shrink: 0;
-  margin-top: 0.125rem;
 }
 
 .toast-notification.success .toast-icon {
@@ -125,18 +125,19 @@ const close = () => {
 }
 
 .toast-message {
-  font-size: 0.95rem;
-  line-height: 1.4;
-  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .toast-progress-bar {
-  width: 100%;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
+  width: 120px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
   overflow: hidden;
-  margin-top: 0.75rem;
 }
 
 .toast-progress-fill {
@@ -149,12 +150,12 @@ const close = () => {
 .toast-close {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
-  font-size: 1.25rem;
+  font-size: 1rem;
   padding: 0;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -173,11 +174,11 @@ const close = () => {
 
 .toast-enter-from {
   opacity: 0;
-  transform: translateX(100px);
+  transform: translate(-50%, 20px);
 }
 
 .toast-leave-to {
   opacity: 0;
-  transform: translateX(100px) scale(0.9);
+  transform: translate(-50%, 20px) scale(0.98);
 }
 </style>

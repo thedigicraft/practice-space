@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { formatTime } from '@/utils/helpers'
 import { exportSlice, type ExportFormat } from '@/utils/audioExport'
 import { getSourceArrayBuffer } from '@/services/platformAudio'
-import type { Slice, SliceFolder, AudioFile } from '@/types/models'
+import type { Slice, SliceFolder, AudioFile, Project } from '@/types/models'
+import { saveProject, getAllProjects } from '@/services/db'
 import ToastNotification from './ToastNotification.vue'
 import ExportMenu from './ExportMenu.vue'
 import ExportSettings from './ExportSettings.vue'
@@ -23,9 +24,9 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  slices: [],
-  folders: [],
-  audioFiles: [],
+  slices: () => [],
+  folders: () => [],
+  audioFiles: () => [],
   currentlyPlayingSliceId: null,
   isPlaying: false,
   showFolders: false
@@ -34,7 +35,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   selectSlice: [slice: Slice]
   playSlice: [slice: Slice]
-  createFolder: []
+  createFolder: [folder: Omit<SliceFolder, 'id' | 'createdAt'>]
   deleteSlice: [sliceId: string]
 }>()
 
@@ -46,9 +47,12 @@ const isSelectionMode = ref(false)
 
 // Export dropdown state
 const exportDropdownOpen = ref<string | null>(null)
+const addProjectDropdownOpen = ref<boolean>(false)
 
 // App settings
 const { exportMode } = useAppSettings()
+// Inject projects from App.vue (if available)
+const projects = inject<any>('projects') as any
 
 const toggleExportDropdown = (sliceId: string, event?: MouseEvent) => {
   if (event) event.stopPropagation()
@@ -57,6 +61,11 @@ const toggleExportDropdown = (sliceId: string, event?: MouseEvent) => {
 
 const closeExportDropdown = () => {
   exportDropdownOpen.value = null
+}
+
+const toggleAddProjectDropdown = (event?: MouseEvent) => {
+  event?.stopPropagation()
+  addProjectDropdownOpen.value = !addProjectDropdownOpen.value
 }
 
 // Toast notification state
@@ -215,8 +224,8 @@ const breadcrumbs = computed(() => {
 })
 
 // Selection management
-const toggleSelection = (sliceId: string, event: MouseEvent) => {
-  event.stopPropagation()
+const toggleSelection = (sliceId: string, event?: MouseEvent) => {
+  event?.stopPropagation()
   if (selectedSliceIds.value.has(sliceId)) {
     selectedSliceIds.value.delete(sliceId)
   } else {
@@ -313,6 +322,29 @@ const exportSelected = async () => {
   }
 }
 
+const addSelectedToProject = async (project: Project) => {
+  if (selectedSliceIds.value.size === 0) return
+
+  const existing = new Set(project.sliceIds || [])
+  for (const id of selectedSliceIds.value) existing.add(id)
+  const updated: Project = { ...project, sliceIds: Array.from(existing), updatedAt: Date.now() }
+  try {
+    showToast(`Adding ${selectedSliceIds.value.size} slice(s) to "${project.name}"...`, 'loading')
+    await saveProject(updated)
+    // Refresh provided projects for UI consistency
+    try {
+      const all = await getAllProjects()
+      if (projects && projects.value) projects.value = all
+    } catch {}
+    showToast(`Added to "${project.name}"`, 'success')
+  } catch (err) {
+    console.error('Failed to add slices to project:', err)
+    showToast('Failed to add to project', 'error')
+  } finally {
+    addProjectDropdownOpen.value = false
+  }
+}
+
 const handlePlaySlice = (slice: Slice, event?: MouseEvent) => {
   event?.stopPropagation()
   emit('playSlice', slice)
@@ -391,7 +423,9 @@ defineExpose({
     searchQuery.value = filter
     currentFolderId.value = undefined
   },
-  toggleSelectionMode
+  toggleSelectionMode,
+  getSelectedCount: () => selectedSliceIds.value.size,
+  addSelectedToProject
 })
 </script>
 
@@ -413,6 +447,25 @@ defineExpose({
       <div class="action-buttons d-flex gap-2">
         <button @click="selectAll" class="btn btn-sm btn-outline-secondary">Select All</button>
         <button @click="deselectAll" class="btn btn-sm btn-outline-secondary">Clear</button>
+        <div class="dropdown" v-if="projects && (projects.value?.length ?? 0) > 0">
+          <button 
+            class="btn btn-sm btn-outline-secondary dropdown-toggle"
+            type="button"
+            @click="toggleAddProjectDropdown"
+            :aria-expanded="addProjectDropdownOpen ? 'true' : 'false'"
+            title="Add selected to a project"
+            aria-label="Add selected to a project"
+            :disabled="selectedSliceIds.size === 0"
+          >
+            <i class="fas fa-folder-plus me-1"></i>
+            <span class="d-none d-sm-inline">Add to Project</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end show" v-show="addProjectDropdownOpen" style="max-height: 260px; overflow-y: auto; min-width: 240px;">
+            <li v-for="p in projects.value" :key="p.id">
+              <button class="dropdown-item" @click="addSelectedToProject(p)">{{ p.name }}</button>
+            </li>
+          </ul>
+        </div>
         <button 
           @click="exportSelected" 
           class="btn btn-sm btn-success"
@@ -476,7 +529,7 @@ defineExpose({
             :key="slice.id"
             :slice="slice"
             :isSelected="selectedSliceIds.has(slice.id)"
-            @select="emit('selectSlice', slice)"
+            @select="isSelectionMode ? toggleSelection(slice.id, $event) : emit('selectSlice', slice)"
             @seek-to="handlePlaySlice(slice)"
             @filter-artist="filterByArtist"
             @filter-type="filterByType"
@@ -664,8 +717,6 @@ defineExpose({
   min-width: 0;
 }
 
-.title-col {
-}
 
 .slice-title {
   font-weight: 500;
@@ -738,8 +789,6 @@ defineExpose({
   font-weight: 500;
 }
 
-.slice-tags-compact {
-}
 
 .tag-compact {
   padding: 0.125rem 0.5rem;

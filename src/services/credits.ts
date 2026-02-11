@@ -10,6 +10,7 @@ export interface CreditNames {
   performers: string[]
   writers: string[]
   types: string[]
+  projectTypes: string[]
 }
 
 /**
@@ -21,6 +22,7 @@ export function getAllCreditNames(): CreditNames {
     performers: [],
     writers: [],
     types: [],
+    projectTypes: [],
   }
   
   const stored = localStorage.getItem(CREDITS_STORAGE_KEY)

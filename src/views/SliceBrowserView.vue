@@ -21,6 +21,36 @@
           >
             <i class="fas fa-check-square me-1"></i> Select
           </button>
+          <div class="dropdown" v-if="projects && (projects.value?.length ?? 0) > 0">
+            <button 
+              class="btn btn-outline-secondary btn-sm dropdown-toggle"
+              type="button"
+              @click="headerProjectDropdownOpen = !headerProjectDropdownOpen"
+              :aria-expanded="headerProjectDropdownOpen ? 'true' : 'false'"
+              title="Add selected to a project"
+              aria-label="Add selected to a project"
+              :disabled="(fileBrowserRef?.getSelectedCount?.() ?? 0) === 0"
+            >
+              <i class="fas fa-folder-plus me-1"></i>
+              Add to Project
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end show" v-show="headerProjectDropdownOpen" style="max-height: 260px; overflow-y: auto; min-width: 240px;">
+              <li v-for="p in projects.value" :key="p.id">
+                <button class="dropdown-item" @click="addSelectedToProjectFromHeader(p)">{{ p.name }}</button>
+              </li>
+            </ul>
+          </div>
+          <button 
+            v-if="currentProject"
+            class="btn btn-primary btn-sm"
+            :disabled="(fileBrowserRef?.getSelectedCount?.() ?? 0) === 0"
+            @click="quickAddToCurrentProject"
+            title="Add selected to current project"
+            aria-label="Add selected to current project"
+          >
+            <i class="fas fa-plus me-1"></i>
+            Add to {{ currentProject.name }}
+          </button>
           <ExportSettings />
         </div>
       </template>
@@ -44,9 +74,9 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, watch, ref } from 'vue'
+import { onMounted, watch, ref, inject, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import type { Source, Slice, SliceFolder } from '../types/models'
+import type { Source, Slice, SliceFolder, Project } from '../types/models'
 import FileBrowser from '../components/FileBrowser.vue'
 import ExportSettings from '../components/ExportSettings.vue'
 import PanelHeader from '../components/PanelHeader.vue'
@@ -56,6 +86,13 @@ const route = useRoute()
 const fileBrowserRef = ref<InstanceType<typeof FileBrowser> | null>(null)
 const searchInput = ref('')
 const selectionActive = ref(false)
+const headerProjectDropdownOpen = ref(false)
+const projects = inject<any>('projects') as any
+const currentProject = computed<Project | null>(() => {
+  const id = route.query.addToProject
+  if (!id || typeof id !== 'string') return null
+  return (projects?.value || []).find((p: Project) => p.id === id) || null
+})
 
 interface Props {
   slices: Slice[]
@@ -77,7 +114,7 @@ const emit = defineEmits<{
 }>()
 
 // Watch for filters in route query
-watch(() => [route.query.artist, route.query.type, route.query.location], ([artistName, type, location]) => {
+watch(() => [route.query.artist, route.query.type, route.query.location, route.query.addToProject], ([artistName, type, location, addToProject]) => {
   if (fileBrowserRef.value) {
     // Priority: location > type > artist (apply the first one found)
     if (location && typeof location === 'string') {
@@ -86,6 +123,11 @@ watch(() => [route.query.artist, route.query.type, route.query.location], ([arti
       fileBrowserRef.value.setSearchFilter(type)
     } else if (artistName && typeof artistName === 'string') {
       fileBrowserRef.value.setSearchFilter(artistName)
+    }
+    // Enable selection mode if arriving from Project view to add slices
+    if (addToProject && typeof addToProject === 'string') {
+      fileBrowserRef.value.toggleSelectionMode()
+      selectionActive.value = true
     }
   }
 }, { immediate: true })
@@ -123,6 +165,16 @@ const toggleSelectionFromHeader = () => {
     selectionActive.value = !selectionActive.value
   }
 }
+
+const addSelectedToProjectFromHeader = (project: Project) => {
+  headerProjectDropdownOpen.value = false
+  fileBrowserRef.value?.addSelectedToProject?.(project)
+}
+
+const quickAddToCurrentProject = () => {
+  if (!currentProject.value) return
+  fileBrowserRef.value?.addSelectedToProject?.(currentProject.value)
+}
 </script>
 
 <style scoped>
@@ -135,8 +187,6 @@ const toggleSelectionFromHeader = () => {
   border-bottom: 1px solid var(--bs-border-color);
 }
 
-.header-content {
-}
 
 .view-header .fs-6 {
   color: var(--bs-secondary-color);

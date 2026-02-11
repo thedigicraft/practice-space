@@ -49,14 +49,18 @@ export interface Slice {
 }
 
 /**
- * A project is a collection of slices
- * Slices can belong to multiple projects
+ * A collection is a grouping of slices
+ * Slices can belong to multiple collections
  */
-export interface Project {
+export interface Collection {
   id: string
   name: string
   description?: string
   sliceIds: string[] // References to Slice.id
+  groups?: { type: string; title: string }[] // Optional grouped slice references
+  owner?: string // Owner from artist pool (composers/performers/writers aggregate)
+  collaborators?: string[] // Collaborators from same artist pool
+  type?: string // Collection type from a dedicated pool
   createdAt: number
   updatedAt: number
   color?: string // For visual organization

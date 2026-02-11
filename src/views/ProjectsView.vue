@@ -14,35 +14,66 @@
       </template>
     </PanelHeader>
 
-    <div class="projects-content p-4">
-      <div v-if="projects.length === 0" class="empty-state text-center py-5">
-        <p>No projects created yet.</p>
-        <p class="hint">Create a project to organize your practice slices!</p>
-      </div>
+    <div class="projects-layout d-flex flex-row flex-grow-1">
+      <div class="projects-content flex-fill p-4">
+        <div v-if="projects.length === 0" class="empty-state text-center py-5">
+          <p>No projects created yet.</p>
+          <p class="hint">Create a project to organize your practice slices!</p>
+        </div>
 
-      <div v-else class="project-grid">
-        <div
-          v-for="project in sortedProjects"
-          :key="project.id"
-          class="card h-100"
-          style="cursor: pointer;"
-          @click="openProject(project.id)"
-        >
-          <div class="project-color" :style="{ backgroundColor: project.color || '#4a9eff', height: '6px' }"></div>
-          <div class="card-body">
-            <h3 class="card-title h5">{{ project.name }}</h3>
-            <p class="card-text" v-if="project.description">
-              {{ project.description }}
-            </p>
-            <p class="card-text text-muted small">
-              {{ project.sliceIds.length }} slice{{ project.sliceIds.length !== 1 ? 's' : '' }}
-            </p>
-            <p class="card-text text-muted small">
-              Updated {{ formatDate(project.updatedAt) }}
-            </p>
+        <div v-else class="project-grid">
+          <div
+            v-for="project in sortedProjects"
+            :key="project.id"
+            class="card h-100 project-card"
+            :class="{ 'is-drop-hover': dropHoverProjectId === project.id, 'is-drop-denied': dropDeniedProjectId === project.id }"
+            @click="openProject(project.id)"
+            @dragover.prevent="onDragOverProject(project, $event)"
+            @dragenter.prevent="onDragEnterProject(project, $event)"
+            @dragleave.prevent="onDragLeaveProject(project.id)"
+            @drop.prevent="onDropToProject(project, $event)"
+          >
+            <div class="project-color" :style="{ backgroundColor: project.color || '#4a9eff', height: '6px' }"></div>
+            <div class="card-body">
+              <h3 class="card-title h5 d-flex align-items-center justify-content-between">
+                <span>{{ project.name }}</span>
+                <span class="badge bg-secondary">{{ getEffectiveSliceCount(project) }}</span>
+              </h3>
+              <p class="card-text" v-if="project.description">
+                {{ project.description }}
+              </p>
+              <p class="card-text text-muted small" v-if="project.type">
+                Type: {{ project.type }}
+              </p>
+              <p class="card-text text-muted small" v-if="project.owner">
+                Owner: {{ project.owner }}
+              </p>
+              <p class="card-text text-muted small" v-if="project.collaborators && project.collaborators.length">
+                Collaborators: {{ project.collaborators.join(', ') }}
+              </p>
+              <p class="card-text text-muted small">
+                Updated {{ formatDate(project.updatedAt) }}
+              </p>
+              <div class="drop-hint small text-muted">Drag slices or groups here</div>
+            </div>
+
+            <!-- Drag-over overlay indication -->
+            <div v-if="dropHoverProjectId === project.id" :class="['drop-target-overlay', { denied: dropDeniedProjectId === project.id }]" aria-label="Drop slices to add to project">
+              <div class="overlay-inner d-flex flex-column align-items-center justify-content-center">
+                <i :class="dropDeniedProjectId === project.id ? 'fas fa-ban fa-2x mb-2' : 'fas fa-plus-circle fa-2x mb-2'"></i>
+                <div class="text">
+                  {{ dropDeniedProjectId === project.id
+                    ? 'Already added'
+                    : (hoverAddCount != null ? `Release to add ${hoverAddCount}` : 'Release to add') }}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- Sidebar Slice Browser -->
+      <SidebarSliceBrowser class="sidebar" :slices="slices" :sources="sources" />
     </div>
 
     <CreateProjectDialog
@@ -51,30 +82,85 @@
       @created="handleCreateProject"
       @close="showCreateProject = false"
     />
+
+    <!-- Toast -->
+    <ToastNotification
+      :visible="toastVisible"
+      :message="toastMessage"
+      :type="toastType"
+      @close="toastVisible = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Project } from '@/types/models'
 import CreateProjectDialog from '@/components/CreateProjectDialog.vue'
 import PanelHeader from '@/components/PanelHeader.vue'
+import SidebarSliceBrowser from '@/components/SidebarSliceBrowser.vue'
+import ToastNotification from '@/components/ToastNotification.vue'
+import type { Slice, Source } from '@/types/models'
+import { saveProject, getAllProjects } from '@/services/db'
 
 interface Props {
   projects: Project[]
+  slices: Slice[]
+  sources: Source[]
 }
 
 const props = defineProps<Props>()
 const router = useRouter()
 const showCreateProject = ref(false)
+const projectsRef = inject<any>('projects') as any
+const dropHoverProjectId = ref<string | null>(null)
+const lastDropAt = ref<number>(0)
+const dropDeniedProjectId = ref<string | null>(null)
+const hoverAddCount = ref<number | null>(null)
+
+// Effective slice IDs considering group references
+const getSlicesForGroup = (type: string, title: string): Slice[] => {
+  return props.slices.filter(s => s.type === type && s.title === title)
+}
+
+const getEffectiveSliceIds = (project: Project): Set<string> => {
+  const ids = new Set(project.sliceIds || [])
+  const groups = project.groups || []
+  for (const g of groups) {
+    for (const s of getSlicesForGroup(g.type, g.title)) {
+      ids.add(s.id)
+    }
+  }
+  return ids
+}
+
+const getEffectiveSliceCount = (project: Project): number => {
+  return getEffectiveSliceIds(project).size
+}
+
+// Toast state
+const toastVisible = ref(false)
+const toastMessage = ref('')
+const toastType = ref<'success' | 'error' | 'info' | 'loading'>('info')
+const showToast = (message: string, type: 'success' | 'error' | 'info' | 'loading' = 'info') => {
+  toastMessage.value = message
+  toastType.value = type
+  toastVisible.value = true
+}
 
 const emit = defineEmits<{
   projectCreated: []
 }>()
 
 const sortedProjects = computed(() => {
-  return [...props.projects].sort((a, b) => b.updatedAt - a.updatedAt)
+  return [...props.projects].sort((a, b) => {
+    const an = (a.name || '').toLocaleLowerCase()
+    const bn = (b.name || '').toLocaleLowerCase()
+    if (an < bn) return -1
+    if (an > bn) return 1
+    return 0
+  })
 })
 
 const formatDate = (timestamp: number) => {
@@ -89,7 +175,110 @@ const formatDate = (timestamp: number) => {
 }
 
 const openProject = (projectId: string) => {
+  // Suppress accidental click triggered immediately after a drop
+  if (Date.now() - lastDropAt.value < 300) return
   router.push(`/project/${projectId}`)
+}
+
+type DragPayload = { kind: 'slice-ids'; sliceIds: string[] } | { kind: 'group-ref'; ref: { type: string; title: string } }
+
+const getDragPayload = (dt: DataTransfer | null): DragPayload | null => {
+  if (!dt) return null
+  try {
+    const raw = dt.getData('application/x-practice-slices')
+    if (raw) {
+      const payload = JSON.parse(raw) as DragPayload
+      if (payload && payload.kind) return payload
+    }
+  } catch {}
+  const text = dt.getData('text/plain') || ''
+  if (text.startsWith('slices:')) {
+    const sliceIds = text.replace('slices:', '').split(',').filter(Boolean)
+    return { kind: 'slice-ids', sliceIds }
+  }
+  if (text.startsWith('group:')) {
+    const parts = Object.fromEntries(text.replace('group:', '').split(';').map(kv => kv.split('='))) as any
+    if (parts.type && parts.title) return { kind: 'group-ref', ref: { type: parts.type, title: parts.title } }
+  }
+  return null
+}
+
+const evaluateDrop = (project: Project, e: DragEvent) => {
+  const payload = getDragPayload(e.dataTransfer)
+  if (!payload) {
+    dropDeniedProjectId.value = null
+    hoverAddCount.value = null
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+    return
+  }
+  if (payload.kind === 'slice-ids') {
+    const existing = getEffectiveSliceIds(project)
+    const addable = payload.sliceIds.filter(id => !existing.has(id))
+    hoverAddCount.value = addable.length
+    const denied = addable.length === 0
+    dropDeniedProjectId.value = denied ? project.id : null
+    if (e.dataTransfer) e.dataTransfer.dropEffect = denied ? 'none' : 'copy'
+  } else {
+    // group-ref
+    const exists = (project.groups || []).some(g => g.type === payload.ref.type && g.title === payload.ref.title)
+    dropDeniedProjectId.value = exists ? project.id : null
+    const groupSliceCount = getSlicesForGroup(payload.ref.type, payload.ref.title).length
+    hoverAddCount.value = exists ? 0 : groupSliceCount
+    if (e.dataTransfer) e.dataTransfer.dropEffect = exists ? 'none' : 'copy'
+  }
+}
+
+const onDragOverProject = (project: Project, e: DragEvent) => {
+  evaluateDrop(project, e)
+}
+
+const onDragEnterProject = (project: Project, e: DragEvent) => {
+  dropHoverProjectId.value = project.id
+  evaluateDrop(project, e)
+}
+
+const onDragLeaveProject = (id: string) => {
+  if (dropHoverProjectId.value === id) dropHoverProjectId.value = null
+  if (dropDeniedProjectId.value === id) dropDeniedProjectId.value = null
+  hoverAddCount.value = null
+}
+
+const onDropToProject = async (project: Project, e: DragEvent) => {
+  dropHoverProjectId.value = null
+  try {
+    const payload = getDragPayload(e.dataTransfer)
+    if (!payload) return
+    if (payload.kind === 'slice-ids') {
+      const existing = getEffectiveSliceIds(project)
+      const toAdd = payload.sliceIds.filter(id => !existing.has(id))
+      if (toAdd.length === 0) {
+        showToast('Already in project', 'info')
+        return
+      }
+      const updated: Project = { ...project, sliceIds: Array.from(new Set([...(project.sliceIds || []), ...toAdd])), updatedAt: Date.now() }
+      showToast(`Adding ${toAdd.length} to \"${project.name}\"...`, 'loading')
+      await saveProject(updated)
+    } else {
+      // Add group reference
+      const already = (project.groups || []).some(g => g.type === payload.ref.type && g.title === payload.ref.title)
+      if (already) {
+        showToast('Group already in project', 'info')
+        return
+      }
+      const updated: Project = { ...project, groups: [ ...(project.groups || []), { type: payload.ref.type, title: payload.ref.title } ], updatedAt: Date.now() }
+      showToast(`Adding group to \"${project.name}\"...`, 'loading')
+      await saveProject(updated)
+    }
+    lastDropAt.value = Date.now()
+    try {
+      const all = await getAllProjects()
+      if (projectsRef && projectsRef.value) projectsRef.value = all
+    } catch {}
+    showToast(`Added to "${project.name}"`, 'success')
+  } catch (err) {
+    console.error('Drop failed', err)
+    showToast('Failed to add to project', 'error')
+  }
 }
 
 const handleCreateProject = (_project: Project) => {
@@ -123,6 +312,8 @@ const handleCreateProject = (_project: Project) => {
   color: var(--bs-secondary-color);
 }
 
+.projects-layout { min-height: 0; }
+
 .projects-content {
   flex: 1;
   overflow-y: auto;
@@ -134,6 +325,24 @@ const handleCreateProject = (_project: Project) => {
   gap: 1.5rem;
   max-width: 1400px;
   margin: 0 auto;
+}
+
+.project-card {
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.project-card.is-drop-hover {
+  border-color: rgba(74, 158, 255, 0.8) !important;
+  box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.35), 0 8px 24px rgba(0,0,0,0.35);
+}
+
+.project-card.is-drop-denied {
+  border-color: rgba(244, 67, 54, 0.85) !important;
+  box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.35), 0 8px 24px rgba(0,0,0,0.35);
+  cursor: not-allowed;
 }
 
 .project-color {
@@ -177,5 +386,35 @@ const handleCreateProject = (_project: Project) => {
 .hint {
   color: #666;
   font-size: 0.9rem;
+}
+
+.sidebar {
+  flex-shrink: 0;
+}
+
+.drop-hint {
+  opacity: 0.6;
+}
+
+.drop-target-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(74, 158, 255, 0.12);
+  border: 2px dashed rgba(74, 158, 255, 0.6);
+  border-radius: 0.375rem; /* match .card */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.drop-target-overlay .overlay-inner .text {
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+.drop-target-overlay.denied {
+  background: rgba(244, 67, 54, 0.12);
+  border-color: rgba(244, 67, 54, 0.65);
 }
 </style>

@@ -29,10 +29,14 @@
         View Source <i class="fas fa-arrow-right"></i>
       </button>
     </div>
+    <div v-if="slots.footer" class="card-footer py-2 px-3">
+      <slot name="footer" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useSlots } from 'vue'
 import type { Slice } from '@/types/models'
 import { formatTime } from '@/utils/helpers'
 
@@ -54,6 +58,7 @@ defineEmits<{
 }>()
 
 const formatDuration = (seconds: number) => formatTime(seconds)
+const slots = useSlots()
 </script>
 
 <style scoped lang="scss">

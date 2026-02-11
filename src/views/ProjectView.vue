@@ -1,22 +1,37 @@
 <template>
   <div class="project-view">
-    <PanelHeader>
+    <PanelHeader :style="headerBgStyle">
       <template #left>
         <div class="project-header-info d-flex align-items-start gap-2" v-if="project">
-          <div class="project-color-bar" :style="{ backgroundColor: project.color || '#4a9eff' }"></div>
           <div class="project-title">
-            <span class="fs-6 text-uppercase text-secondary fw-semibold">{{ project.name }}</span>
+            <span class="fs-6 text-uppercase fw-semibold">{{ project.name }}</span>
             <p class="project-description mt-1 mb-0" v-if="project.description">
               {{ project.description }}
             </p>
+            <div class="project-meta small mt-1">
+              <span v-if="project.type" class="me-3">Type: {{ project.type }}</span>
+              <span v-if="project.owner" class="me-3">Owner: {{ project.owner }}</span>
+              <span v-if="project.collaborators && project.collaborators.length">Collab: {{ project.collaborators.join(', ') }}</span>
+            </div>
           </div>
+        </div>
+      </template>
+      <template #right>
+        <div class="d-flex align-items-center gap-2" v-if="project">
+          <button class="btn btn-sm btn-outline-secondary" @click="navigateToSliceBrowser" title="Add slices to this project" aria-label="Add slices">
+            <i class="fas fa-folder-plus me-1"></i>
+            <span class="d-none d-sm-inline">Add Slices</span>
+          </button>
+          <button class="btn btn-sm btn-outline-secondary" @click="showEditProject = true" title="Edit Project" aria-label="Edit Project">
+            <i class="fas fa-pen"></i>
+          </button>
         </div>
       </template>
     </PanelHeader>
 
-    <div class="project-content p-4" v-if="project">
-      <section class="card slices-section">
-        <div class="card-header py-2 d-flex align-items-center">
+    <div class="project-content" v-if="project">
+      <section class="card slices-section rounded-0">
+        <div class="card-header py-2 d-flex align-items-center rounded-0">
           <span class="fs-6 text-uppercase text-secondary fw-semibold">Slices in this project</span>
           <span class="badge bg-secondary ms-2">{{ projectSlices.length }}</span>
         </div>
@@ -44,16 +59,26 @@
     <div v-else class="empty-state">
       <p>Project not found.</p>
     </div>
+    <EditProjectDialog
+      v-if="project && showEditProject"
+      :show="showEditProject"
+      :project="project"
+      @updated="handleProjectUpdated"
+      @close="showEditProject = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, inject } from 'vue'
+import { ref, computed, inject } from 'vue'
+import { useRouter } from 'vue-router'
 import type { Ref } from 'vue'
 import type { Project, Slice, Source } from '../types/models'
 import SliceListItem from '../components/SliceListItem.vue'
 import { formatTime } from '../utils/helpers'
 import PanelHeader from '@/components/PanelHeader.vue'
+import EditProjectDialog from '@/components/EditProjectDialog.vue'
+import { getAllProjects } from '@/services/db'
 
 interface Props {
   id: string
@@ -67,11 +92,14 @@ const props = defineProps<Props>()
 
 // Inject projects from App.vue
 const projects = inject<Ref<Project[]>>('projects')!
+const router = useRouter()
 
 // Find the project by ID from route param
 const project = computed(() => {
   return projects.value.find(p => p.id === props.id) || null
 })
+
+const showEditProject = ref(false)
 
 const emit = defineEmits<{
   back: []
@@ -80,13 +108,54 @@ const emit = defineEmits<{
 }>()
 
 const projectSlices = computed(() => {
-  if (!project.value) return []
-  return props.slices.filter(s => project.value!.sliceIds.includes(s.id))
+  const p = project.value
+  if (!p) return []
+  const explicit = new Set(p.sliceIds || [])
+  const effective = new Set(explicit)
+  // Include group-referenced slices dynamically
+  for (const g of p.groups || []) {
+    for (const s of props.slices) {
+      if (s.type === g.type && s.title === g.title) {
+        effective.add(s.id)
+      }
+    }
+  }
+  return props.slices.filter(s => effective.has(s.id))
 })
 
-const getSourceName = (sourceId: string): string | null => {
+// Compute a dark, muted background tint from the project color
+const headerBgStyle = computed(() => {
+  const baseDark = { r: 18, g: 18, b: 18 } // near app bg
+  const hex = project.value?.color || '#4a9eff'
+  const c = hexToRgb(hex)
+  if (!c) {
+    return { backgroundColor: `rgb(${baseDark.r}, ${baseDark.g}, ${baseDark.b})` }
+  }
+  // Mix heavily toward dark base for a muted tint
+  const weightToDark = 0.8 // 80% dark base, 20% project color
+  const r = Math.round(c.r * (1 - weightToDark) + baseDark.r * weightToDark)
+  const g = Math.round(c.g * (1 - weightToDark) + baseDark.g * weightToDark)
+  const b = Math.round(c.b * (1 - weightToDark) + baseDark.b * weightToDark)
+  return { backgroundColor: `rgb(${r}, ${g}, ${b})` }
+})
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const normalized = hex.replace('#', '')
+  const full = normalized.length === 3
+    ? normalized.split('').map(ch => ch + ch).join('')
+    : normalized
+  const int = parseInt(full, 16)
+  if (Number.isNaN(int)) return null
+  return {
+    r: (int >> 16) & 255,
+    g: (int >> 8) & 255,
+    b: int & 255,
+  }
+}
+
+const getSourceName = (sourceId: string): string | undefined => {
   const source = props.sources.find(s => s.id === sourceId)
-  return source?.name || null
+  return source?.name || undefined
 }
 
 const handlePlaySlice = (slice: Slice) => {
@@ -95,6 +164,15 @@ const handlePlaySlice = (slice: Slice) => {
 
 const handleViewSource = (sourceId: string) => {
   emit('viewSource', sourceId)
+}
+
+const handleProjectUpdated = async (_project: Project) => {
+  projects.value = await getAllProjects()
+}
+
+const navigateToSliceBrowser = () => {
+  if (!project.value) return
+  router.push({ path: '/slices', query: { addToProject: project.value.id } })
 }
 </script>
 
@@ -120,15 +198,8 @@ const handleViewSource = (sourceId: string) => {
   flex: 1;
   min-width: 0;
   display: flex;
-  gap: 1rem;
+  gap: 0.5rem;
   align-items: flex-start;
-}
-
-.project-color-bar {
-  width: 4px;
-  height: 60px;
-  border-radius: 2px;
-  flex-shrink: 0;
 }
 
 .project-title {
@@ -137,25 +208,27 @@ const handleViewSource = (sourceId: string) => {
 }
 
 .project-title .fs-6 {
-  color: var(--bs-secondary-color);
+  color: #fefefe; /* Brighten project title for contrast */
 }
 
 .project-description {
   font-size: 0.9rem;
-  color: var(--bs-secondary-color);
+  color: #fefefe; /* Lighter description text on tinted header */
+}
+
+.project-meta {
+  color: #fefefe; /* Subtle but readable meta text */
 }
 
 .project-content {
   flex: 1;
   overflow: auto;
-  padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
 }
 
 .slices-section {
-  border-radius: 8px;
 }
 
 .section-header {

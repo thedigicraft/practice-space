@@ -12,10 +12,14 @@
         </p>
       </div>
     </div>
+    <div v-if="slots.footer" class="card-footer py-2 px-3">
+      <slot name="footer" />
+    </div>
   </div>
-</template>
+  </template>
 
 <script setup lang="ts">
+import { useSlots } from 'vue'
 interface Props {
   title: string
   count: number
@@ -27,6 +31,7 @@ defineProps<Props>()
 defineEmits<{
   click: []
 }>()
+const slots = useSlots()
 </script>
 
 <style scoped lang="scss">
