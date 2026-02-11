@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, provide } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAllAudioFiles, getAllSlices, getAllFolders, getAllProjects, saveSlice, saveFolder, saveProject, deleteSlice, saveAudioFile } from './services/db'
+import { getAllAudioFiles, getAllSlices, getAllFolders, getAllCollections, saveSlice, saveFolder, saveCollection, deleteSlice, saveAudioFile } from './services/db'
 import { processAudioFile } from './services/audio'
 import { useAudioPlayback } from './composables/useAudioPlayback'
 import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
 import { useDragAndDrop } from './composables/useDragAndDrop'
-import type { Source, Slice, SliceFolder, Project } from './types/models'
+import type { Source, Slice, SliceFolder, Collection } from './types/models'
 
 const router = useRouter()
 
@@ -46,14 +46,14 @@ useKeyboardShortcuts({
 const sources = ref<Source[]>([])
 const slices = ref<Slice[]>([])
 const folders = ref<SliceFolder[]>([])
-const projects = ref<Project[]>([])
+const collections = ref<Collection[]>([])
 const selectedSlice = ref<Slice | null>(null)
 
 // Provide data to child components
 provide('sources', sources)
 provide('slices', slices)
 provide('folders', folders)
-provide('projects', projects)
+provide('collections', collections)
 provide('audioPlayback', {
   isPlaying,
   currentTime,
@@ -81,8 +81,8 @@ const navigateToSourceEditor = (sourceId: string) => {
   router.push(`/source/${sourceId}`)
 }
 
-const navigateToProject = (projectId: string) => {
-  router.push(`/project/${projectId}`)
+const navigateToCollection = (collectionId: string) => {
+  router.push(`/collection/${collectionId}`)
 }
 
 // File import handling
@@ -114,7 +114,7 @@ onMounted(async () => {
   sources.value = await getAllAudioFiles()
   slices.value = await getAllSlices()
   folders.value = await getAllFolders()
-  projects.value = await getAllProjects()
+  collections.value = await getAllCollections()
 })
 
 const handleFilesImported = async (files: Source[]) => {
@@ -196,22 +196,22 @@ const handleCreateFolder = async (folder: Omit<SliceFolder, 'id' | 'createdAt'>)
   folders.value = await getAllFolders()
 }
 
-const handleCreateProject = async (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
+const handleCreateCollection = async (collection: Omit<Collection, 'id' | 'createdAt' | 'updatedAt'>) => {
   const now = Date.now()
-  const newProject: Project = {
-    ...project,
-    id: `project-${now}`,
+  const newCollection: Collection = {
+    ...collection,
+    id: `collection-${now}`,
     createdAt: now,
     updatedAt: now,
   }
   
-  await saveProject(newProject)
-  projects.value = await getAllProjects()
+  await saveCollection(newCollection)
+  collections.value = await getAllCollections()
 }
 
-const handleProjectCreated = async () => {
-  // Reload projects after one is created by the dialog
-  projects.value = await getAllProjects()
+const handleCollectionCreated = async () => {
+  // Reload collections after one is created by the dialog
+  collections.value = await getAllCollections()
 }
 
 const getViewName = (routeName: string | symbol | null | undefined): string => {
@@ -223,8 +223,8 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
     'source-editor': 'Source Editor',
     'slice-browser': 'Slice Browser',
     'grouped-slices': 'Grouped Slices',
-    'project': 'Project',
-    'projects': 'Projects',
+    'collection': 'Collection',
+    'collections': 'Collections',
     'settings': 'Settings'
   }
   
@@ -258,7 +258,7 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
           </router-link>
         </li>
         <li>
-          <router-link to="/projects" class="activity-item" :class="{ active: $route.name === 'projects' || $route.name === 'project' }" aria-label="Projects">
+          <router-link to="/collections" class="activity-item" :class="{ active: $route.name === 'collections' || $route.name === 'collection' }" aria-label="Collections">
             <i class="fa-solid fa-folder"></i>
           </router-link>
         </li>
@@ -276,18 +276,18 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
         :sources="sources"
         :slices="slices"
         :folders="folders"
-        :projects="projects"
+        :collections="collections"
         :currentlyPlayingSliceId="currentlyPlayingSliceId"
         :isPlaying="isPlaying"
         :currentTime="currentTime"
         :duration="duration"
         :isLoading="isLoading"
         @openSource="navigateToSourceEditor"
-        @openProject="navigateToProject"
+        @openCollection="navigateToCollection"
         @viewSource="navigateToSourceEditor"
         @filesImported="handleFilesImported"
-        @createProject="handleCreateProject"
-        @projectCreated="handleProjectCreated"
+        @createCollection="handleCreateCollection"
+        @collectionCreated="handleCollectionCreated"
         @createFolder="handleCreateFolder"
         @createSlice="handleCreateSlice"
         @updateSlice="handleUpdateSlice"

@@ -4,8 +4,8 @@ import { useRouter } from 'vue-router'
 import { formatTime } from '@/utils/helpers'
 import { exportSlice, type ExportFormat } from '@/utils/audioExport'
 import { getSourceArrayBuffer } from '@/services/platformAudio'
-import type { Slice, SliceFolder, AudioFile, Project } from '@/types/models'
-import { saveProject, getAllProjects } from '@/services/db'
+import type { Slice, SliceFolder, AudioFile, Collection } from '@/types/models'
+import { saveCollection, getAllCollections } from '@/services/db'
 import ToastNotification from './ToastNotification.vue'
 import ExportMenu from './ExportMenu.vue'
 import ExportSettings from './ExportSettings.vue'
@@ -51,8 +51,8 @@ const addProjectDropdownOpen = ref<boolean>(false)
 
 // App settings
 const { exportMode } = useAppSettings()
-// Inject projects from App.vue (if available)
-const projects = inject<any>('projects') as any
+// Inject collections from App.vue (if available)
+const collections = inject<any>('collections') as any
 
 const toggleExportDropdown = (sliceId: string, event?: MouseEvent) => {
   if (event) event.stopPropagation()
@@ -322,24 +322,24 @@ const exportSelected = async () => {
   }
 }
 
-const addSelectedToProject = async (project: Project) => {
+const addSelectedToCollection = async (collection: Collection) => {
   if (selectedSliceIds.value.size === 0) return
 
-  const existing = new Set(project.sliceIds || [])
+  const existing = new Set(collection.sliceIds || [])
   for (const id of selectedSliceIds.value) existing.add(id)
-  const updated: Project = { ...project, sliceIds: Array.from(existing), updatedAt: Date.now() }
+  const updated: Collection = { ...collection, sliceIds: Array.from(existing), updatedAt: Date.now() }
   try {
-    showToast(`Adding ${selectedSliceIds.value.size} slice(s) to "${project.name}"...`, 'loading')
-    await saveProject(updated)
-    // Refresh provided projects for UI consistency
+    showToast(`Adding ${selectedSliceIds.value.size} slice(s) to "${collection.name}"...`, 'loading')
+    await saveCollection(updated)
+    // Refresh provided collections for UI consistency
     try {
-      const all = await getAllProjects()
-      if (projects && projects.value) projects.value = all
+      const all = await getAllCollections()
+      if (collections && collections.value) collections.value = all
     } catch {}
-    showToast(`Added to "${project.name}"`, 'success')
+    showToast(`Added to "${collection.name}"`, 'success')
   } catch (err) {
-    console.error('Failed to add slices to project:', err)
-    showToast('Failed to add to project', 'error')
+    console.error('Failed to add slices to collection:', err)
+    showToast('Failed to add to collection', 'error')
   } finally {
     addProjectDropdownOpen.value = false
   }
@@ -425,7 +425,7 @@ defineExpose({
   },
   toggleSelectionMode,
   getSelectedCount: () => selectedSliceIds.value.size,
-  addSelectedToProject
+  addSelectedToCollection
 })
 </script>
 
@@ -447,22 +447,22 @@ defineExpose({
       <div class="action-buttons d-flex gap-2">
         <button @click="selectAll" class="btn btn-sm btn-outline-secondary">Select All</button>
         <button @click="deselectAll" class="btn btn-sm btn-outline-secondary">Clear</button>
-        <div class="dropdown" v-if="projects && (projects.value?.length ?? 0) > 0">
+        <div class="dropdown" v-if="collections && (collections.value?.length ?? 0) > 0">
           <button 
             class="btn btn-sm btn-outline-secondary dropdown-toggle"
             type="button"
             @click="toggleAddProjectDropdown"
             :aria-expanded="addProjectDropdownOpen ? 'true' : 'false'"
-            title="Add selected to a project"
-            aria-label="Add selected to a project"
+            title="Add selected to a collection"
+            aria-label="Add selected to a collection"
             :disabled="selectedSliceIds.size === 0"
           >
             <i class="fas fa-folder-plus me-1"></i>
-            <span class="d-none d-sm-inline">Add to Project</span>
+            <span class="d-none d-sm-inline">Add to Collection</span>
           </button>
           <ul class="dropdown-menu dropdown-menu-end show" v-show="addProjectDropdownOpen" style="max-height: 260px; overflow-y: auto; min-width: 240px;">
-            <li v-for="p in projects.value" :key="p.id">
-              <button class="dropdown-item" @click="addSelectedToProject(p)">{{ p.name }}</button>
+            <li v-for="c in collections.value" :key="c.id">
+              <button class="dropdown-item" @click="addSelectedToCollection(c)">{{ c.name }}</button>
             </li>
           </ul>
         </div>

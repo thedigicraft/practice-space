@@ -1,23 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Project, Slice } from '@/types/models'
+import type { Collection, Slice } from '@/types/models'
 
 interface Props {
-  projects: Project[]
+  collections: Collection[]
   slices: Slice[]
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  selectProject: [project: Project]
-  createProject: []
+  selectCollection: [collection: Collection]
+  createCollection: []
 }>()
 
-const projectsWithCounts = computed(() => {
-  return props.projects.map(project => ({
-    ...project,
-    sliceCount: project.sliceIds.length,
+const collectionsWithCounts = computed(() => {
+  return props.collections.map(collection => ({
+    ...collection,
+    sliceCount: collection.sliceIds.length,
   }))
 })
 
@@ -28,38 +28,38 @@ const formatDate = (timestamp: number): string => {
 </script>
 
 <template>
-  <div class="project-list">
+  <div class="collection-list">
     <div class="list-header">
-      <h3>Projects</h3>
-      <button @click="emit('createProject')" class="btn btn-primary">
-        <i class="fas fa-plus me-1"></i>New Project
+      <h3>Collections</h3>
+      <button @click="emit('createCollection')" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i>New Collection
       </button>
     </div>
 
-    <div v-if="projects.length === 0" class="empty-state">
-      <p>No projects yet</p>
-      <p class="hint">Create projects to organize your slices</p>
+    <div v-if="collections.length === 0" class="empty-state">
+      <p>No collections yet</p>
+      <p class="hint">Create collections to organize your slices</p>
     </div>
 
-    <div v-else class="projects-grid">
+    <div v-else class="collections-grid">
       <div
-        v-for="project in projectsWithCounts"
-        :key="project.id"
+        v-for="collection in collectionsWithCounts"
+        :key="collection.id"
         class="card h-100"
         style="cursor: pointer;"
-        @click="emit('selectProject', project)"
+        @click="emit('selectCollection', collection)"
       >
-        <div class="project-color-bar" :style="{ background: project.color, height: '4px' }"></div>
+        <div class="collection-color-bar" :style="{ background: collection.color, height: '4px' }"></div>
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start mb-2">
-            <h4 class="card-title h6 m-0">{{ project.name }}</h4>
-            <span class="badge bg-primary">{{ project.sliceCount }}</span>
+            <h4 class="card-title h6 m-0">{{ collection.name }}</h4>
+            <span class="badge bg-primary">{{ collection.sliceCount }}</span>
           </div>
-          <p v-if="project.description" class="card-text">
-            {{ project.description }}
+          <p v-if="collection.description" class="card-text">
+            {{ collection.description }}
           </p>
           <p class="card-text text-muted small">
-            Updated {{ formatDate(project.updatedAt) }}
+            Updated {{ formatDate(collection.updatedAt) }}
           </p>
         </div>
       </div>
@@ -68,7 +68,7 @@ const formatDate = (timestamp: number): string => {
 </template>
 
 <style scoped>
-.project-list {
+.collection-list {
   width: 100%;
 }
 
@@ -98,13 +98,13 @@ const formatDate = (timestamp: number): string => {
   font-size: 0.85rem;
 }
 
-.projects-grid {
+.collections-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1rem;
 }
 
-.project-color-bar {
+.collection-color-bar {
   width: 100%;
 }
 </style>

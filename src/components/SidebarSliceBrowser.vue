@@ -28,7 +28,7 @@
         :class="{ active: hideAssigned }"
         :aria-pressed="hideAssigned ? 'true' : 'false'"
         @click="hideAssigned = !hideAssigned"
-        :title="hideAssigned ? 'Show all items' : 'Hide items already in a project'"
+        :title="hideAssigned ? 'Show all items' : 'Hide items already in a collection'"
         aria-label="Toggle hide assigned items"
       >
         <i :class="hideAssigned ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
@@ -51,14 +51,14 @@
             :showViewSource="false"
           >
             <template #footer>
-              <div v-if="(projectsBySliceId[slice.id]?.length || 0) > 0" class="project-badges">
+              <div v-if="(collectionsBySliceId[slice.id]?.length || 0) > 0" class="collection-badges">
                 <span
-                  v-for="p in projectsBySliceId[slice.id]"
-                  :key="p.id"
+                  v-for="c in collectionsBySliceId[slice.id]"
+                  :key="c.id"
                   class="badge rounded-pill me-1 mb-1"
-                  :style="badgeStyleForProject(p)"
-                  :title="p.name"
-                >{{ p.name }}</span>
+                  :style="badgeStyleForCollection(c)"
+                  :title="c.name"
+                >{{ c.name }}</span>
               </div>
             </template>
           </SliceListItem>
@@ -93,14 +93,14 @@
                 :locations="item.locations"
               >
                 <template #footer>
-                  <div v-if="projectsForGroup(item.sliceIds).length > 0" class="project-badges">
+                  <div v-if="collectionsForGroup(item.sliceIds).length > 0" class="collection-badges">
                     <span
-                      v-for="p in projectsForGroup(item.sliceIds)"
-                      :key="p.id"
+                      v-for="c in collectionsForGroup(item.sliceIds)"
+                      :key="c.id"
                       class="badge rounded-pill me-1 mb-1"
-                      :style="badgeStyleForProject(p)"
-                      :title="p.name"
-                    >{{ p.name }}</span>
+                      :style="badgeStyleForCollection(c)"
+                      :title="c.name"
+                    >{{ c.name }}</span>
                   </div>
                 </template>
               </LibraryItemCard>
@@ -114,7 +114,7 @@
 
 <script setup lang="ts">
 import { computed, ref, inject } from 'vue'
-import type { Slice, Source, Project } from '@/types/models'
+import type { Slice, Source, Collection } from '@/types/models'
 import SliceListItem from '@/components/SliceListItem.vue'
 import LibraryItemCard from '@/components/LibraryItemCard.vue'
 import { useSliceGrouping } from '@/composables/useSliceGrouping'
@@ -125,7 +125,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const projectsRef = inject<any>('projects') as { value: Project[] } | undefined
+const collectionsRef = inject<any>('collections') as { value: Collection[] } | undefined
 const activeTab = ref<'slices' | 'library'>('slices')
 const hideAssigned = ref<boolean>(false)
 
@@ -135,7 +135,7 @@ const sortedSlices = computed(() => {
 
 const filteredSlices = computed(() => {
   if (!hideAssigned.value) return sortedSlices.value
-  return sortedSlices.value.filter(s => (projectsBySliceId.value[s.id]?.length || 0) === 0)
+  return sortedSlices.value.filter(s => (collectionsBySliceId.value[s.id]?.length || 0) === 0)
 })
 
 const getSourceName = (id: string) => props.sources.find(s => s.id === id)?.name || 'Unknown'
@@ -164,7 +164,7 @@ const filteredGroups = computed(() => {
   if (!hideAssigned.value) return groupedArray.value
   const out: Record<string, Array<{ type: string; title: string; count: number; locations: Set<string>; sliceIds: string[] }>> = {}
   for (const type of Object.keys(groupedArray.value)) {
-    const items = groupedArray.value[type].filter(item => projectsForGroup(item.sliceIds).length === 0)
+    const items = groupedArray.value[type].filter(item => collectionsForGroup(item.sliceIds).length === 0)
     if (items.length > 0) out[type] = items
   }
   return out
@@ -189,24 +189,24 @@ const onDragStartGroup = (item: { type: string; title: string }, e: DragEvent) =
   e.dataTransfer.effectAllowed = 'copyMove'
 }
 
-// Projects mapping for badges
-const projectsBySliceId = computed<Record<string, Project[]>>(() => {
-  const out: Record<string, Project[]> = {}
-  const projects = projectsRef?.value || []
+// Collections mapping for badges
+const collectionsBySliceId = computed<Record<string, Collection[]>>(() => {
+  const out: Record<string, Collection[]> = {}
+  const collections = collectionsRef?.value || []
   const allSlices = props.slices || []
-  for (const p of projects) {
+  for (const c of collections) {
     // Explicit slice membership
-    for (const id of p.sliceIds || []) {
+    for (const id of c.sliceIds || []) {
       if (!out[id]) out[id] = []
-      if (!out[id].some(pp => pp.id === p.id)) out[id].push(p)
+      if (!out[id].some(cc => cc.id === c.id)) out[id].push(c)
     }
     // Group-derived membership (dynamic)
-    for (const g of p.groups || []) {
+    for (const g of c.groups || []) {
       for (const s of allSlices) {
         if (s.type === g.type && s.title === g.title) {
           const id = s.id
           if (!out[id]) out[id] = []
-          if (!out[id].some(pp => pp.id === p.id)) out[id].push(p)
+          if (!out[id].some(cc => cc.id === c.id)) out[id].push(c)
         }
       }
     }
@@ -214,11 +214,11 @@ const projectsBySliceId = computed<Record<string, Project[]>>(() => {
   return out
 })
 
-const projectsForGroup = (sliceIds: string[]): Project[] => {
-  const seen = new Map<string, Project>()
+const collectionsForGroup = (sliceIds: string[]): Collection[] => {
+  const seen = new Map<string, Collection>()
   for (const id of sliceIds) {
-    for (const p of projectsBySliceId.value[id] || []) {
-      if (!seen.has(p.id)) seen.set(p.id, p)
+    for (const c of collectionsBySliceId.value[id] || []) {
+      if (!seen.has(c.id)) seen.set(c.id, c)
     }
   }
   return Array.from(seen.values())
@@ -248,8 +248,8 @@ const getTextColorForBg = (hex: string): string => {
   return yiq >= 140 ? '#111111' : '#ffffff'
 }
 
-const badgeStyleForProject = (p: Project): Record<string, string> => {
-  const base = p.color || '#4a9eff'
+const badgeStyleForCollection = (c: Collection): Record<string, string> => {
+  const base = c.color || '#4a9eff'
   const color = getTextColorForBg(base)
   return {
     backgroundColor: base,
@@ -295,9 +295,7 @@ const toggleTypeCollapse = (type: string) => {
   border-bottom-color: transparent;
 }
 
-.tab-label {
-  /* Keep label compact */
-}
+/* removed empty .tab-label ruleset to satisfy linter */
 
 .toggle-btn {
   border-radius: 0;
@@ -319,7 +317,5 @@ const toggleTypeCollapse = (type: string) => {
   cursor: grabbing;
 }
 
-.project-badges {
-  /* compact badge row */
-}
+/* removed empty .collection-badges ruleset to satisfy linter */
 </style>

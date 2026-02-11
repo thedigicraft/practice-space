@@ -10,7 +10,7 @@ export interface CreditNames {
   performers: string[]
   writers: string[]
   types: string[]
-  projectTypes: string[]
+  collectionTypes: string[]
 }
 
 /**
@@ -22,7 +22,7 @@ export function getAllCreditNames(): CreditNames {
     performers: [],
     writers: [],
     types: [],
-    projectTypes: [],
+    collectionTypes: [],
   }
   
   const stored = localStorage.getItem(CREDITS_STORAGE_KEY)
@@ -30,10 +30,12 @@ export function getAllCreditNames(): CreditNames {
     try {
       const parsed = JSON.parse(stored)
       // Merge with defaults to ensure all fields exist
-      return {
-        ...defaults,
-        ...parsed,
+      const merged = { ...defaults, ...parsed }
+      // Backward compatibility: migrate projectTypes into collectionTypes if present
+      if ((parsed as any)?.projectTypes && merged.collectionTypes.length === 0) {
+        merged.collectionTypes = (parsed as any).projectTypes
       }
+      return merged
     } catch (e) {
       console.error('Failed to parse credit names:', e)
     }

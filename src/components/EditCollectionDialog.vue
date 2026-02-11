@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
-import { saveProject } from '@/services/db'
-import type { Project } from '@/types/models'
+import { saveCollection } from '@/services/db'
+import type { Collection } from '@/types/models'
 import { getAllCreditSuggestions, getCreditSuggestions, addCreditName } from '@/services/credits'
 import { Modal } from 'bootstrap'
 
 interface Props {
   show: boolean
-  project: Project
+  collection: Collection
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
   close: []
-  updated: [project: Project]
+  updated: [collection: Collection]
 }>()
 
 const name = ref('')
@@ -23,22 +23,22 @@ const color = ref('#4a9eff')
 const isSaving = ref(false)
 const owner = ref('')
 const collaboratorsInput = ref('') // comma-separated
-const projectType = ref('')
+const collectionType = ref('')
 
 const artistSuggestions = computed(() => getAllCreditSuggestions())
-const projectTypeSuggestions = computed(() => getCreditSuggestions('projectTypes'))
+const collectionTypeSuggestions = computed(() => getCreditSuggestions('collectionTypes'))
 
 const modalEl = ref<HTMLElement | null>(null)
 let modalInstance: any | null = null
 
-const populateFromProject = () => {
-  if (!props.project) return
-  name.value = props.project.name || ''
-  description.value = props.project.description || ''
-  color.value = props.project.color || '#4a9eff'
-  owner.value = props.project.owner || ''
-  collaboratorsInput.value = (props.project.collaborators || []).join(', ')
-  projectType.value = props.project.type || ''
+const populateFromCollection = () => {
+  if (!props.collection) return
+  name.value = props.collection.name || ''
+  description.value = props.collection.description || ''
+  color.value = props.collection.color || '#4a9eff'
+  owner.value = props.collection.owner || ''
+  collaboratorsInput.value = (props.collection.collaborators || []).join(', ')
+  collectionType.value = props.collection.type || ''
 }
 
 // Sync fields and show/hide modal when prop changes
@@ -46,7 +46,7 @@ watch(
   () => props.show,
   (show) => {
     if (show) {
-      populateFromProject()
+      populateFromCollection()
     }
     if (modalInstance) {
       if (show) modalInstance.show()
@@ -56,11 +56,11 @@ watch(
   { immediate: true }
 )
 
-// Also repopulate if the incoming project changes while open
+// Also repopulate if the incoming collection changes while open
 watch(
-  () => props.project,
+  () => props.collection,
   () => {
-    if (props.show) populateFromProject()
+    if (props.show) populateFromCollection()
   }
 )
 
@@ -89,8 +89,8 @@ const handleSave = async () => {
   try {
     isSaving.value = true
 
-    const updated: Project = {
-      ...props.project,
+    const updated: Collection = {
+      ...props.collection,
       name: name.value.trim(),
       description: description.value.trim() || undefined,
       owner: owner.value.trim() || undefined,
@@ -98,20 +98,20 @@ const handleSave = async () => {
         .split(',')
         .map(s => s.trim())
         .filter(Boolean),
-      type: projectType.value.trim() || undefined,
+      type: collectionType.value.trim() || undefined,
       color: color.value,
       updatedAt: Date.now(),
     }
 
     if (updated.type) {
-      addCreditName('projectTypes', updated.type)
+      addCreditName('collectionTypes', updated.type)
     }
 
-    await saveProject(updated)
+    await saveCollection(updated)
     emit('updated', updated)
     modalInstance?.hide()
   } catch (error) {
-    console.error('Error updating project:', error)
+    console.error('Error updating collection:', error)
   } finally {
     isSaving.value = false
   }
@@ -128,19 +128,19 @@ const handleCancel = () => {
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Edit Project</h5>
+            <h5 class="modal-title">Edit Collection</h5>
             <button type="button" class="btn-close" aria-label="Close" @click="handleCancel"></button>
           </div>
 
           <div class="modal-body">
             <div class="mb-3">
-              <label for="project-name" class="form-label">Project Name *</label>
-              <input id="project-name" v-model="name" type="text" class="form-control" placeholder="Enter project name" autofocus />
+              <label for="collection-name" class="form-label">Collection Name *</label>
+              <input id="collection-name" v-model="name" type="text" class="form-control" placeholder="Enter collection name" autofocus />
             </div>
 
             <div class="mb-3">
-              <label for="project-description" class="form-label">Description</label>
-              <textarea id="project-description" v-model="description" class="form-control" rows="3" placeholder="Add a description"></textarea>
+              <label for="collection-description" class="form-label">Description</label>
+              <textarea id="collection-description" v-model="description" class="form-control" rows="3" placeholder="Add a description"></textarea>
             </div>
 
             <div class="mb-3">
@@ -149,23 +149,23 @@ const handleCancel = () => {
             </div>
 
             <div class="mb-3">
-              <label for="project-owner" class="form-label">Owner</label>
-              <input id="project-owner" v-model="owner" type="text" class="form-control" placeholder="Select or type owner" list="artist-list" />
+              <label for="collection-owner" class="form-label">Owner</label>
+              <input id="collection-owner" v-model="owner" type="text" class="form-control" placeholder="Select or type owner" list="artist-list" />
               <datalist id="artist-list">
                 <option v-for="a in artistSuggestions" :key="a" :value="a">{{ a }}</option>
               </datalist>
             </div>
 
             <div class="mb-3">
-              <label for="project-collaborators" class="form-label">Collaborators (comma-separated)</label>
-              <input id="project-collaborators" v-model="collaboratorsInput" type="text" class="form-control" placeholder="e.g., Alice, Bob" list="artist-list" />
+              <label for="collection-collaborators" class="form-label">Collaborators (comma-separated)</label>
+              <input id="collection-collaborators" v-model="collaboratorsInput" type="text" class="form-control" placeholder="e.g., Alice, Bob" list="artist-list" />
             </div>
 
             <div class="mb-0">
-              <label for="project-type" class="form-label">Project Type</label>
-              <input id="project-type" v-model="projectType" type="text" class="form-control" placeholder="Enter or select a type" list="project-type-list" />
-              <datalist id="project-type-list">
-                <option v-for="t in projectTypeSuggestions" :key="t" :value="t">{{ t }}</option>
+              <label for="collection-type" class="form-label">Collection Type</label>
+              <input id="collection-type" v-model="collectionType" type="text" class="form-control" placeholder="Enter or select a type" list="collection-type-list" />
+              <datalist id="collection-type-list">
+                <option v-for="t in collectionTypeSuggestions" :key="t" :value="t">{{ t }}</option>
               </datalist>
             </div>
           </div>

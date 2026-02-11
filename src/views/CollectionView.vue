@@ -1,49 +1,49 @@
 <template>
-  <div class="project-view">
+  <div class="collection-view">
     <PanelHeader :style="headerBgStyle">
       <template #left>
-        <div class="project-header-info d-flex align-items-start gap-2" v-if="project">
-          <div class="project-title">
-            <span class="fs-6 text-uppercase fw-semibold">{{ project.name }}</span>
-            <p class="project-description mt-1 mb-0" v-if="project.description">
-              {{ project.description }}
+        <div class="collection-header-info d-flex align-items-start gap-2" v-if="collection">
+          <div class="collection-title">
+            <span class="fs-6 text-uppercase fw-semibold">{{ collection.name }}</span>
+            <p class="collection-description mt-1 mb-0" v-if="collection.description">
+              {{ collection.description }}
             </p>
-            <div class="project-meta small mt-1">
-              <span v-if="project.type" class="me-3">Type: {{ project.type }}</span>
-              <span v-if="project.owner" class="me-3">Owner: {{ project.owner }}</span>
-              <span v-if="project.collaborators && project.collaborators.length">Collab: {{ project.collaborators.join(', ') }}</span>
+            <div class="collection-meta small mt-1">
+              <span v-if="collection.type" class="me-3">Type: {{ collection.type }}</span>
+              <span v-if="collection.owner" class="me-3">Owner: {{ collection.owner }}</span>
+              <span v-if="collection.collaborators && collection.collaborators.length">Collab: {{ collection.collaborators.join(', ') }}</span>
             </div>
           </div>
         </div>
       </template>
       <template #right>
-        <div class="d-flex align-items-center gap-2" v-if="project">
-          <button class="btn btn-sm btn-outline-secondary" @click="navigateToSliceBrowser" title="Add slices to this project" aria-label="Add slices">
+        <div class="d-flex align-items-center gap-2" v-if="collection">
+          <button class="btn btn-sm btn-outline-secondary" @click="navigateToSliceBrowser" title="Add slices to this collection" aria-label="Add slices">
             <i class="fas fa-folder-plus me-1"></i>
             <span class="d-none d-sm-inline">Add Slices</span>
           </button>
-          <button class="btn btn-sm btn-outline-secondary" @click="showEditProject = true" title="Edit Project" aria-label="Edit Project">
+          <button class="btn btn-sm btn-outline-secondary" @click="showEditCollection = true" title="Edit Collection" aria-label="Edit Collection">
             <i class="fas fa-pen"></i>
           </button>
         </div>
       </template>
     </PanelHeader>
 
-    <div class="project-content" v-if="project">
+    <div class="collection-content" v-if="collection">
       <section class="card slices-section rounded-0">
         <div class="card-header py-2 d-flex align-items-center rounded-0">
-          <span class="fs-6 text-uppercase text-secondary fw-semibold">Slices in this project</span>
-          <span class="badge bg-secondary ms-2">{{ projectSlices.length }}</span>
+          <span class="fs-6 text-uppercase text-secondary fw-semibold">Slices in this collection</span>
+          <span class="badge bg-secondary ms-2">{{ collectionSlices.length }}</span>
         </div>
         <div class="card-body p-3">
-          <div v-if="projectSlices.length === 0" class="empty-state text-center py-4">
-            <p class="my-2">This project has no slices yet.</p>
-            <p class="hint my-2">Add slices to this project from the Slice Browser!</p>
+          <div v-if="collectionSlices.length === 0" class="empty-state text-center py-4">
+            <p class="my-2">This collection has no slices yet.</p>
+            <p class="hint my-2">Add slices to this collection from the Slice Browser!</p>
           </div>
 
           <div v-else class="slices-list">
             <SliceListItem
-              v-for="slice in projectSlices"
+              v-for="slice in collectionSlices"
               :key="slice.id"
               :slice="slice"
               :source-name="getSourceName(slice.audioFileId)"
@@ -57,14 +57,14 @@
     </div>
 
     <div v-else class="empty-state">
-      <p>Project not found.</p>
+      <p>Collection not found.</p>
     </div>
-    <EditProjectDialog
-      v-if="project && showEditProject"
-      :show="showEditProject"
-      :project="project"
-      @updated="handleProjectUpdated"
-      @close="showEditProject = false"
+    <EditCollectionDialog
+      v-if="collection && showEditCollection"
+      :show="showEditCollection"
+      :collection="collection"
+      @updated="handleCollectionUpdated"
+      @close="showEditCollection = false"
     />
   </div>
 </template>
@@ -73,12 +73,12 @@
 import { ref, computed, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Ref } from 'vue'
-import type { Project, Slice, Source } from '../types/models'
+import type { Collection, Slice, Source } from '../types/models'
 import SliceListItem from '../components/SliceListItem.vue'
 import { formatTime } from '../utils/helpers'
 import PanelHeader from '@/components/PanelHeader.vue'
-import EditProjectDialog from '@/components/EditProjectDialog.vue'
-import { getAllProjects } from '@/services/db'
+import EditCollectionDialog from '@/components/EditCollectionDialog.vue'
+import { getAllCollections } from '@/services/db'
 
 interface Props {
   id: string
@@ -90,16 +90,16 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// Inject projects from App.vue
-const projects = inject<Ref<Project[]>>('projects')!
+// Inject collections from App.vue
+const collections = inject<Ref<Collection[]>>('collections')!
 const router = useRouter()
 
-// Find the project by ID from route param
-const project = computed(() => {
-  return projects.value.find(p => p.id === props.id) || null
+// Find the collection by ID from route param
+const collection = computed(() => {
+  return collections.value.find(p => p.id === props.id) || null
 })
 
-const showEditProject = ref(false)
+const showEditCollection = ref(false)
 
 const emit = defineEmits<{
   back: []
@@ -107,8 +107,8 @@ const emit = defineEmits<{
   viewSource: [sourceId: string]
 }>()
 
-const projectSlices = computed(() => {
-  const p = project.value
+const collectionSlices = computed(() => {
+  const p = collection.value
   if (!p) return []
   const explicit = new Set(p.sliceIds || [])
   const effective = new Set(explicit)
@@ -123,16 +123,16 @@ const projectSlices = computed(() => {
   return props.slices.filter(s => effective.has(s.id))
 })
 
-// Compute a dark, muted background tint from the project color
+// Compute a dark, muted background tint from the collection color
 const headerBgStyle = computed(() => {
   const baseDark = { r: 18, g: 18, b: 18 } // near app bg
-  const hex = project.value?.color || '#4a9eff'
+  const hex = collection.value?.color || '#4a9eff'
   const c = hexToRgb(hex)
   if (!c) {
     return { backgroundColor: `rgb(${baseDark.r}, ${baseDark.g}, ${baseDark.b})` }
   }
   // Mix heavily toward dark base for a muted tint
-  const weightToDark = 0.8 // 80% dark base, 20% project color
+  const weightToDark = 0.8 // 80% dark base, 20% collection color
   const r = Math.round(c.r * (1 - weightToDark) + baseDark.r * weightToDark)
   const g = Math.round(c.g * (1 - weightToDark) + baseDark.g * weightToDark)
   const b = Math.round(c.b * (1 - weightToDark) + baseDark.b * weightToDark)
@@ -166,18 +166,18 @@ const handleViewSource = (sourceId: string) => {
   emit('viewSource', sourceId)
 }
 
-const handleProjectUpdated = async (_project: Project) => {
-  projects.value = await getAllProjects()
+const handleCollectionUpdated = async (_collection: Collection) => {
+  collections.value = await getAllCollections()
 }
 
 const navigateToSliceBrowser = () => {
-  if (!project.value) return
-  router.push({ path: '/slices', query: { addToProject: project.value.id } })
+  if (!collection.value) return
+  router.push({ path: '/slices', query: { addToCollection: collection.value.id } })
 }
 </script>
 
 <style scoped>
-.project-view {
+.collection-view {
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -194,7 +194,7 @@ const navigateToSliceBrowser = () => {
   gap: 1rem;
 }
 
-.project-header-info {
+.collection-header-info {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -202,25 +202,25 @@ const navigateToSliceBrowser = () => {
   align-items: flex-start;
 }
 
-.project-title {
+.collection-title {
   flex: 1;
   min-width: 0;
 }
 
-.project-title .fs-6 {
-  color: #fefefe; /* Brighten project title for contrast */
+.collection-title .fs-6 {
+  color: #fefefe;
 }
 
-.project-description {
+.collection-description {
   font-size: 0.9rem;
-  color: #fefefe; /* Lighter description text on tinted header */
+  color: #fefefe;
 }
 
-.project-meta {
-  color: #fefefe; /* Subtle but readable meta text */
+.collection-meta {
+  color: #fefefe;
 }
 
-.project-content {
+.collection-content {
   flex: 1;
   overflow: auto;
   max-width: 1400px;
@@ -258,87 +258,5 @@ const navigateToSliceBrowser = () => {
 .slices-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-}
-
-.play-btn {
-  background: #4a9eff;
-  color: white;
-  border: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.2s;
-}
-
-.play-btn:hover {
-  background: #357abd;
-  transform: scale(1.05);
-}
-
-.slice-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.slice-title {
-  margin: 0 0 0.5rem 0;
-  font-size: 1rem;
-  color: #fff;
-}
-
-.slice-source {
-  margin: 0 0 0.25rem 0;
-  font-size: 0.85rem;
-  color: #4a9eff;
-}
-
-.slice-time {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.85rem;
-  color: #888;
-}
-
-.slice-duration {
-  color: #666;
-  margin-left: 0.5rem;
-}
-
-.slice-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.tag {
-  background: #333;
-  color: #4a9eff;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
-}
-
-.btn-view-source {
-  background: #2a2a2a;
-  color: #4a9eff;
-  border: 1px solid #4a9eff;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  transition: all 0.2s;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.btn-view-source:hover {
-  background: #4a9eff;
-  color: white;
 }
 </style>

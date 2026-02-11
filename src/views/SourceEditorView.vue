@@ -497,11 +497,6 @@ const selectedSliceForWaveform = computed(() => {
       title: newSliceTitle.value || 'New Slice',
       startTime: selectedRegion.value.startTime,
       endTime: selectedRegion.value.endTime,
-      folderId: null,
-      projectIds: [],
-      composer: '',
-      performers: [],
-      type: '',
       createdAt: Date.now(),
       updatedAt: Date.now(),
     } as Slice
@@ -789,9 +784,6 @@ const seek = (time: number) => {
   background: rgba(0, 0, 0, 0.85);
   z-index: 9999;
   backdrop-filter: blur(4px);
-}
-
-.loading-content {
 }
 
 .loading-text {

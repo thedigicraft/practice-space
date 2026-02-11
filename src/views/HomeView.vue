@@ -55,12 +55,12 @@
 
     </div>
 
-    <!-- Create Project Dialog -->
-    <CreateProjectDialog
-      v-if="showCreateProject"
-      :show="showCreateProject"
-      @created="handleCreateProject"
-      @close="showCreateProject = false"
+    <!-- Create Collection Dialog -->
+    <CreateCollectionDialog
+      v-if="showCreateCollection"
+      :show="showCreateCollection"
+      @created="handleCreateCollection"
+      @close="showCreateCollection = false"
     />
 
     <!-- Source Metadata Editor -->
@@ -78,10 +78,10 @@
 <script setup lang="ts">
 import { ref, computed, toRef } from 'vue'
 import { useRouter } from 'vue-router'
-import type { Source, Project, Slice } from '../types/models'
+import type { Source, Collection, Slice } from '../types/models'
 import ImportControls from '../components/ImportControls.vue'
 import DeviceDiagnostics from '../components/DeviceDiagnostics.vue'
-import CreateProjectDialog from '../components/CreateProjectDialog.vue'
+import CreateCollectionDialog from '../components/CreateCollectionDialog.vue'
 import SourceMetadataEditor from '../components/SourceMetadataEditor.vue'
 import SourceCard from '../components/SourceCard.vue'
 import LibraryTypeSection from '../components/LibraryTypeSection.vue'
@@ -90,7 +90,7 @@ import { formatTime, formatFileSize } from '../utils/helpers'
 
 interface Props {
   sources: Source[]
-  projects: Project[]
+  collections: Collection[]
   slices: Slice[]
 }
 
@@ -98,14 +98,14 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   openSource: [sourceId: string]
-  openProject: [projectId: string]
+  openCollection: [collectionId: string]
   filesImported: [files: Source[]]
-  projectCreated: []
+  collectionCreated: []
   updateSource: [sourceId: string, metadata: Partial<Source>]
 }>()
 
 const router = useRouter()
-const showCreateProject = ref(false)
+const showCreateCollection = ref(false)
 const editingSource = ref<Source | null>(null)
 
 // Use slice grouping composable
@@ -124,9 +124,9 @@ const recentSources = computed(() => {
     .slice(0, 5)
 })
 
-// Show only 3 most recent projects
-const recentProjects = computed(() => {
-  return [...props.projects]
+// Show only 3 most recent collections
+const recentCollections = computed(() => {
+  return [...props.collections]
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .slice(0, 3)
 })
@@ -160,10 +160,10 @@ const handleFilesImported = (files: Source[]) => {
   emit('filesImported', files)
 }
 
-const handleCreateProject = (_project: Project) => {
-  // CreateProjectDialog already creates and saves the project with id, timestamps
-  showCreateProject.value = false
-  emit('projectCreated') // Trigger reload of projects in parent
+const handleCreateCollection = (_collection: Collection) => {
+  // CreateCollectionDialog already creates and saves the collection with id, timestamps
+  showCreateCollection.value = false
+  emit('collectionCreated') // Trigger reload of collections in parent
 }
 
 const editSource = (source: Source) => {
@@ -220,9 +220,6 @@ const getSliceCount = (sourceId: string) => {
   margin: 0;
   font-size: 1.5rem;
   color: #fff;
-}
-
-.section-header-actions {
 }
 
 .view-all-link {
@@ -291,6 +288,7 @@ const getSliceCount = (sourceId: string) => {
   font-size: 0.9rem;
   color: #aaa;
   display: -webkit-box;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;

@@ -1,12 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import SourceEditorView from '../views/SourceEditorView.vue'
-import ProjectView from '../views/ProjectView.vue'
+import CollectionView from '../views/CollectionView.vue'
 import SliceBrowserView from '../views/SliceBrowserView.vue'
 import GroupedSlicesView from '../views/GroupedSlicesView.vue'
 import LibraryView from '../views/LibraryView.vue'
 import SourcesView from '../views/SourcesView.vue'
-import ProjectsView from '../views/ProjectsView.vue'
+import CollectionsView from '../views/CollectionsView.vue'
 import SettingsView from '../views/SettingsView.vue'
 
 const router = createRouter({
@@ -28,9 +28,9 @@ const router = createRouter({
       component: SourcesView
     },
     {
-      path: '/projects',
-      name: 'projects',
-      component: ProjectsView
+      path: '/collections',
+      name: 'collections',
+      component: CollectionsView
     },
     {
       path: '/settings',
@@ -44,9 +44,9 @@ const router = createRouter({
       props: true
     },
     {
-      path: '/project/:id',
-      name: 'project',
-      component: ProjectView,
+      path: '/collection/:id',
+      name: 'collection',
+      component: CollectionView,
       props: true
     },
     {

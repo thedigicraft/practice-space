@@ -21,35 +21,35 @@
           >
             <i class="fas fa-check-square me-1"></i> Select
           </button>
-          <div class="dropdown" v-if="projects && (projects.value?.length ?? 0) > 0">
+          <div class="dropdown" v-if="collections && (collections.value?.length ?? 0) > 0">
             <button 
               class="btn btn-outline-secondary btn-sm dropdown-toggle"
               type="button"
-              @click="headerProjectDropdownOpen = !headerProjectDropdownOpen"
-              :aria-expanded="headerProjectDropdownOpen ? 'true' : 'false'"
-              title="Add selected to a project"
-              aria-label="Add selected to a project"
+              @click="headerCollectionDropdownOpen = !headerCollectionDropdownOpen"
+              :aria-expanded="headerCollectionDropdownOpen ? 'true' : 'false'"
+              title="Add selected to a collection"
+              aria-label="Add selected to a collection"
               :disabled="(fileBrowserRef?.getSelectedCount?.() ?? 0) === 0"
             >
               <i class="fas fa-folder-plus me-1"></i>
-              Add to Project
+              Add to Collection
             </button>
-            <ul class="dropdown-menu dropdown-menu-end show" v-show="headerProjectDropdownOpen" style="max-height: 260px; overflow-y: auto; min-width: 240px;">
-              <li v-for="p in projects.value" :key="p.id">
-                <button class="dropdown-item" @click="addSelectedToProjectFromHeader(p)">{{ p.name }}</button>
+            <ul class="dropdown-menu dropdown-menu-end show" v-show="headerCollectionDropdownOpen" style="max-height: 260px; overflow-y: auto; min-width: 240px;">
+              <li v-for="c in collections.value" :key="c.id">
+                <button class="dropdown-item" @click="addSelectedToCollectionFromHeader(c)">{{ c.name }}</button>
               </li>
             </ul>
           </div>
           <button 
-            v-if="currentProject"
+            v-if="currentCollection"
             class="btn btn-primary btn-sm"
             :disabled="(fileBrowserRef?.getSelectedCount?.() ?? 0) === 0"
-            @click="quickAddToCurrentProject"
-            title="Add selected to current project"
-            aria-label="Add selected to current project"
+            @click="quickAddToCurrentCollection"
+            title="Add selected to current collection"
+            aria-label="Add selected to current collection"
           >
             <i class="fas fa-plus me-1"></i>
-            Add to {{ currentProject.name }}
+            Add to {{ currentCollection.name }}
           </button>
           <ExportSettings />
         </div>
@@ -76,7 +76,7 @@
 <script setup lang="ts">
 import { onMounted, watch, ref, inject, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import type { Source, Slice, SliceFolder, Project } from '../types/models'
+import type { Source, Slice, SliceFolder, Collection } from '../types/models'
 import FileBrowser from '../components/FileBrowser.vue'
 import ExportSettings from '../components/ExportSettings.vue'
 import PanelHeader from '../components/PanelHeader.vue'
@@ -86,12 +86,12 @@ const route = useRoute()
 const fileBrowserRef = ref<InstanceType<typeof FileBrowser> | null>(null)
 const searchInput = ref('')
 const selectionActive = ref(false)
-const headerProjectDropdownOpen = ref(false)
-const projects = inject<any>('projects') as any
-const currentProject = computed<Project | null>(() => {
-  const id = route.query.addToProject
+const headerCollectionDropdownOpen = ref(false)
+const collections = inject<any>('collections') as any
+const currentCollection = computed<Collection | null>(() => {
+  const id = route.query.addToCollection
   if (!id || typeof id !== 'string') return null
-  return (projects?.value || []).find((p: Project) => p.id === id) || null
+  return (collections?.value || []).find((c: Collection) => c.id === id) || null
 })
 
 interface Props {
@@ -114,7 +114,7 @@ const emit = defineEmits<{
 }>()
 
 // Watch for filters in route query
-watch(() => [route.query.artist, route.query.type, route.query.location, route.query.addToProject], ([artistName, type, location, addToProject]) => {
+watch(() => [route.query.artist, route.query.type, route.query.location, route.query.addToCollection], ([artistName, type, location, addToCollection]) => {
   if (fileBrowserRef.value) {
     // Priority: location > type > artist (apply the first one found)
     if (location && typeof location === 'string') {
@@ -124,8 +124,8 @@ watch(() => [route.query.artist, route.query.type, route.query.location, route.q
     } else if (artistName && typeof artistName === 'string') {
       fileBrowserRef.value.setSearchFilter(artistName)
     }
-    // Enable selection mode if arriving from Project view to add slices
-    if (addToProject && typeof addToProject === 'string') {
+    // Enable selection mode if arriving from Collection view to add slices
+    if (addToCollection && typeof addToCollection === 'string') {
       fileBrowserRef.value.toggleSelectionMode()
       selectionActive.value = true
     }
@@ -166,14 +166,14 @@ const toggleSelectionFromHeader = () => {
   }
 }
 
-const addSelectedToProjectFromHeader = (project: Project) => {
-  headerProjectDropdownOpen.value = false
-  fileBrowserRef.value?.addSelectedToProject?.(project)
+const addSelectedToCollectionFromHeader = (collection: Collection) => {
+  headerCollectionDropdownOpen.value = false
+  fileBrowserRef.value?.addSelectedToCollection?.(collection)
 }
 
-const quickAddToCurrentProject = () => {
-  if (!currentProject.value) return
-  fileBrowserRef.value?.addSelectedToProject?.(currentProject.value)
+const quickAddToCurrentCollection = () => {
+  if (!currentCollection.value) return
+  fileBrowserRef.value?.addSelectedToCollection?.(currentCollection.value)
 }
 </script>
 

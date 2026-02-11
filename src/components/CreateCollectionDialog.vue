@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
-import { saveProject } from '@/services/db'
+import { saveCollection } from '@/services/db'
 import { generateId } from '@/utils/helpers'
-import type { Project } from '@/types/models'
+import type { Collection } from '@/types/models'
 import { getAllCreditSuggestions, getCreditSuggestions, addCreditName } from '@/services/credits'
 import { Modal } from 'bootstrap'
 
@@ -14,7 +14,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   close: []
-  created: [project: Project]
+  created: [collection: Collection]
 }>()
 
 const name = ref('')
@@ -23,10 +23,10 @@ const color = ref('#4a9eff')
 const isSaving = ref(false)
 const owner = ref('')
 const collaboratorsInput = ref('') // comma-separated
-const projectType = ref('')
+const collectionType = ref('')
 
 const artistSuggestions = computed(() => getAllCreditSuggestions())
-const projectTypeSuggestions = computed(() => getCreditSuggestions('projectTypes'))
+const collectionTypeSuggestions = computed(() => getCreditSuggestions('collectionTypes'))
 
 const colors = [
   '#4a9eff', // Blue
@@ -50,7 +50,7 @@ watch(() => props.show, (show) => {
     color.value = '#4a9eff'
     owner.value = ''
     collaboratorsInput.value = ''
-    projectType.value = ''
+    collectionType.value = ''
   }
   if (modalInstance) {
     if (show) modalInstance.show()
@@ -85,7 +85,7 @@ const handleSave = async () => {
   try {
     isSaving.value = true
 
-    const project: Project = {
+    const collection: Collection = {
       id: generateId(),
       name: name.value.trim(),
       description: description.value.trim() || undefined,
@@ -95,22 +95,22 @@ const handleSave = async () => {
         .split(',')
         .map(s => s.trim())
         .filter(Boolean),
-      type: projectType.value.trim() || undefined,
+      type: collectionType.value.trim() || undefined,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       color: color.value,
     }
 
-    // Persist new project type into the pool for future suggestions
-    if (project.type) {
-      addCreditName('projectTypes', project.type)
+    // Persist new collection type into the pool for future suggestions
+    if (collection.type) {
+      addCreditName('collectionTypes', collection.type)
     }
 
-    await saveProject(project)
-    emit('created', project)
+    await saveCollection(collection)
+    emit('created', collection)
     modalInstance?.hide()
   } catch (error) {
-    console.error('Error creating project:', error)
+    console.error('Error creating collection:', error)
   } finally {
     isSaving.value = false
   }
@@ -127,19 +127,19 @@ const handleCancel = () => {
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Create Project</h5>
+            <h5 class="modal-title">Create Collection</h5>
             <button type="button" class="btn-close" aria-label="Close" @click="handleCancel"></button>
           </div>
 
           <div class="modal-body">
             <div class="mb-3">
-              <label for="project-name" class="form-label">Project Name *</label>
-              <input id="project-name" v-model="name" type="text" class="form-control" placeholder="Enter project name" autofocus />
+              <label for="collection-name" class="form-label">Collection Name *</label>
+              <input id="collection-name" v-model="name" type="text" class="form-control" placeholder="Enter collection name" autofocus />
             </div>
 
             <div class="mb-3">
-              <label for="project-description" class="form-label">Description</label>
-              <textarea id="project-description" v-model="description" class="form-control" rows="3" placeholder="Add a description"></textarea>
+              <label for="collection-description" class="form-label">Description</label>
+              <textarea id="collection-description" v-model="description" class="form-control" rows="3" placeholder="Add a description"></textarea>
             </div>
 
             <div class="mb-3">
@@ -160,23 +160,23 @@ const handleCancel = () => {
             </div>
 
             <div class="mb-3">
-              <label for="project-owner" class="form-label">Owner</label>
-              <input id="project-owner" v-model="owner" type="text" class="form-control" placeholder="Select or type owner" list="artist-list" />
+              <label for="collection-owner" class="form-label">Owner</label>
+              <input id="collection-owner" v-model="owner" type="text" class="form-control" placeholder="Select or type owner" list="artist-list" />
               <datalist id="artist-list">
                 <option v-for="a in artistSuggestions" :key="a" :value="a">{{ a }}</option>
               </datalist>
             </div>
 
             <div class="mb-3">
-              <label for="project-collaborators" class="form-label">Collaborators (comma-separated)</label>
-              <input id="project-collaborators" v-model="collaboratorsInput" type="text" class="form-control" placeholder="e.g., Alice, Bob" list="artist-list" />
+              <label for="collection-collaborators" class="form-label">Collaborators (comma-separated)</label>
+              <input id="collection-collaborators" v-model="collaboratorsInput" type="text" class="form-control" placeholder="e.g., Alice, Bob" list="artist-list" />
             </div>
 
             <div class="mb-0">
-              <label for="project-type" class="form-label">Project Type</label>
-              <input id="project-type" v-model="projectType" type="text" class="form-control" placeholder="Enter or select a type" list="project-type-list" />
-              <datalist id="project-type-list">
-                <option v-for="t in projectTypeSuggestions" :key="t" :value="t">{{ t }}</option>
+              <label for="collection-type" class="form-label">Collection Type</label>
+              <input id="collection-type" v-model="collectionType" type="text" class="form-control" placeholder="Enter or select a type" list="collection-type-list" />
+              <datalist id="collection-type-list">
+                <option v-for="t in collectionTypeSuggestions" :key="t" :value="t">{{ t }}</option>
               </datalist>
             </div>
           </div>
@@ -184,7 +184,7 @@ const handleCancel = () => {
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" :disabled="isSaving" @click="handleCancel">Cancel</button>
             <button type="button" class="btn btn-primary" :disabled="!name.trim() || isSaving" @click="handleSave" :style="{ background: color, borderColor: color }">
-              {{ isSaving ? 'Creating...' : 'Create Project' }}
+              {{ isSaving ? 'Creating...' : 'Create Collection' }}
             </button>
           </div>
         </div>
