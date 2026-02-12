@@ -34,9 +34,21 @@
     <div class="project-content" v-if="project">
       <!-- Slices Section -->
       <section class="card slices-section rounded-0">
-        <div class="card-header py-2 d-flex align-items-center rounded-0">
+        <div class="card-header py-2 d-flex align-items-center gap-2 rounded-0">
           <span class="fs-6 text-uppercase text-secondary fw-semibold">Slices in this project</span>
-          <span class="badge bg-secondary ms-2">{{ projectSlices.length }}</span>
+          <span class="badge bg-secondary">{{ projectSlices.length }}</span>
+          <div class="ms-auto d-flex align-items-center gap-2">
+            <button class="btn btn-sm btn-outline-secondary" @click="toggleSelectionMode" title="Toggle selection" aria-label="Toggle selection" :class="{ active: selectionMode }">
+              <i class="fas fa-check-square me-1"></i> Select
+            </button>
+            <template v-if="selectionMode">
+              <button class="btn btn-sm btn-outline-secondary" @click="selectAllSlices" title="Select all" aria-label="Select all"><i class="fas fa-tasks me-1"></i> All</button>
+              <button class="btn btn-sm btn-outline-secondary" @click="clearSelection" title="Clear selection" aria-label="Clear selection"><i class="fas fa-times me-1"></i> Clear</button>
+              <button class="btn btn-sm btn-outline-danger" :disabled="selectedSliceIds.size === 0" @click="removeSelectedSlices" title="Remove selected" aria-label="Remove selected">
+                <i class="fas fa-trash me-1"></i> Remove ({{ selectedSliceIds.size }})
+              </button>
+            </template>
+          </div>
         </div>
         <div class="card-body p-3">
           <div v-if="projectSlices.length === 0" class="empty-state text-center py-4">
@@ -54,6 +66,14 @@
               @play="handlePlaySlice(slice)"
               @view-source="handleViewSource(slice.audioFileId)"
             >
+              <template #left>
+                <div v-if="selectionMode" class="form-check mt-1">
+                  <input class="form-check-input" type="checkbox" :checked="selectedSliceIds.has(slice.id)" @change="toggleSliceSelection(slice)" :aria-label="`Select ${slice.title}`" />
+                </div>
+                <button v-else class="btn btn-primary btn-sm play-btn" @click="handlePlaySlice(slice)">
+                  <i :class="(currentlyPlayingSliceId === slice.id && isPlaying) ? 'fas fa-pause' : 'fas fa-play'"></i>
+                </button>
+              </template>
               <template #footer>
                 <div class="d-flex justify-content-end">
                   <button class="btn btn-sm btn-outline-danger" @click="removeSliceFromProject(slice)" title="Remove from Project" aria-label="Remove from Project">
@@ -176,6 +196,8 @@ const project = computed(() => {
 const showEditProject = ref(false)
 const editingTab = ref<ProjectTabItem | null>(null)
 const editingLyrics = ref<ProjectLyricItem | null>(null)
+const selectionMode = ref(false)
+const selectedSliceIds = ref<Set<string>>(new Set())
 
 const emit = defineEmits<{
   back: []
@@ -336,6 +358,44 @@ const removeLyrics = async (l: ProjectLyricItem) => {
   }
   await saveProject(updated)
   projects.value = await getAllProjects()
+}
+
+// Selection helpers
+const toggleSelectionMode = () => {
+  selectionMode.value = !selectionMode.value
+  if (!selectionMode.value) {
+    selectedSliceIds.value.clear()
+  }
+}
+
+const toggleSliceSelection = (slice: Slice) => {
+  if (selectedSliceIds.value.has(slice.id)) selectedSliceIds.value.delete(slice.id)
+  else selectedSliceIds.value.add(slice.id)
+}
+
+const selectAllSlices = () => {
+  projectSlices.value.forEach(s => selectedSliceIds.value.add(s.id))
+}
+
+const clearSelection = () => {
+  selectedSliceIds.value.clear()
+}
+
+const removeSelectedSlices = async () => {
+  if (!project.value || selectedSliceIds.value.size === 0) return
+  const now = Date.now()
+  const toRemove = new Set(selectedSliceIds.value)
+  const sliceIds = (project.value.sliceIds || []).filter(id => !toRemove.has(id))
+  const updated: Project = { ...project.value, sliceIds, updatedAt: now }
+  if (updated.boardLayout) {
+    for (const id of toRemove) {
+      delete updated.boardLayout[`slice:${id}`]
+    }
+  }
+  await saveProject(updated)
+  projects.value = await getAllProjects()
+  selectedSliceIds.value.clear()
+  selectionMode.value = false
 }
 </script>
 

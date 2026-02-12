@@ -1,12 +1,14 @@
 <template>
   <div class="card mb-3" :class="{ 'border-primary': isPlaying }">
     <div class="card-body d-flex gap-3 align-items-start">
-      <button 
-        class="btn btn-primary btn-sm play-btn"
-        @click="$emit('play')"
-      >
-        <i :class="isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
-      </button>
+      <slot name="left">
+        <button 
+          class="btn btn-primary btn-sm play-btn"
+          @click="$emit('play')"
+        >
+          <i :class="isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
+        </button>
+      </slot>
       <div class="slice-info flex-fill">
         <h3 class="card-title h6 mb-2">{{ slice.title }}</h3>
         <p v-if="sourceName" class="card-text text-muted small mb-1">
