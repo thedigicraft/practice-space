@@ -1,7 +1,7 @@
 <template>
   <div class="slice-waveform-viewer p-3">
     <div v-if="slice && source" class="waveform-wrapper">
-      <canvas ref="canvasRef" :width="800" :height="100"></canvas>
+      <canvas ref="canvasRef" :width="width" :height="height"></canvas>
     </div>
     <div v-else class="empty-state text-center py-4">
       <p>No slice selected</p>
@@ -19,10 +19,14 @@ interface Props {
   currentTime: number
   isPlaying: boolean
   waveformMode?: 'line' | 'bars'
+  width?: number
+  height?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
   waveformMode: 'line',
+  width: 800,
+  height: 100,
 })
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 
@@ -121,7 +125,7 @@ const drawWaveform = () => {
   }
 }
 
-watch(() => [props.slice, props.currentTime, props.isPlaying, props.waveformMode], () => {
+watch(() => [props.slice, props.source, props.currentTime, props.isPlaying, props.waveformMode, props.width, props.height], () => {
   drawWaveform()
 }, { deep: true, immediate: true })
 

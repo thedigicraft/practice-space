@@ -6,7 +6,7 @@
  */
 
 import { openDB, DBSchema, IDBPDatabase } from 'idb'
-import type { AudioFile, Slice, Collection, SliceFolder } from '@/types/models'
+import type { AudioFile, Slice, Collection, SliceFolder, Project } from '@/types/models'
 
 interface PracticeSpaceDB extends DBSchema {
   audioFiles: {
@@ -22,6 +22,10 @@ interface PracticeSpaceDB extends DBSchema {
     key: string
     value: Collection
   }
+  songProjects: {
+    key: string
+    value: Project
+  }
   folders: {
     key: string
     value: SliceFolder
@@ -30,7 +34,7 @@ interface PracticeSpaceDB extends DBSchema {
 }
 
 const DB_NAME = 'practice-space'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 let dbInstance: IDBPDatabase<PracticeSpaceDB> | null = null
 
@@ -58,6 +62,11 @@ export async function getDB(): Promise<IDBPDatabase<PracticeSpaceDB>> {
       // Projects store
       if (!db.objectStoreNames.contains('projects')) {
         db.createObjectStore('projects', { keyPath: 'id' })
+      }
+
+      // Song Projects store (new projects feature)
+      if (!db.objectStoreNames.contains('songProjects')) {
+        db.createObjectStore('songProjects', { keyPath: 'id' })
       }
 
       // Folders store with index on parentId
@@ -169,6 +178,61 @@ export async function getAllCollections(): Promise<Collection[]> {
 export async function deleteCollection(id: string): Promise<void> {
   const db = await getDB()
   await db.delete('projects', id)
+}
+
+// Song Project operations (distinct store from legacy 'projects' used by collections)
+export async function saveProject(project: Project): Promise<void> {
+  const db = await getDB()
+  const cleanProject: Project = {
+    id: project.id,
+    name: project.name,
+    description: project.description,
+    sliceIds: project.sliceIds ? [...project.sliceIds] : [],
+    groups: project.groups
+      ? project.groups.map(g => ({ type: g.type, title: g.title }))
+      : undefined,
+    tabs: project.tabs
+      ? project.tabs.map(t => ({
+          id: t.id,
+          title: t.title,
+          content: t.content,
+          strings: t.strings,
+          tuning: t.tuning ? [...t.tuning] : undefined,
+          beatsPerBar: t.beatsPerBar,
+          beatUnit: t.beatUnit,
+          bars: t.bars,
+          grid: t.grid ? t.grid.map(row => row.map(v => v)) : undefined,
+          createdAt: t.createdAt,
+          updatedAt: t.updatedAt,
+        })
+      )
+      : undefined,
+    lyrics: project.lyrics
+      ? project.lyrics.map(l => ({ id: l.id, title: l.title, content: l.content, createdAt: l.createdAt, updatedAt: l.updatedAt }))
+      : undefined,
+    boardLayout: project.boardLayout
+      ? Object.fromEntries(Object.entries(project.boardLayout).map(([k, pos]) => [k, { x: pos.x, y: pos.y, w: pos.w, h: pos.h }]))
+      : undefined,
+    createdAt: project.createdAt,
+    updatedAt: project.updatedAt,
+    color: project.color,
+  }
+  await db.put('songProjects', cleanProject)
+}
+
+export async function getProject(id: string): Promise<Project | undefined> {
+  const db = await getDB()
+  return db.get('songProjects', id)
+}
+
+export async function getAllProjects(): Promise<Project[]> {
+  const db = await getDB()
+  return db.getAll('songProjects')
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  const db = await getDB()
+  await db.delete('songProjects', id)
 }
 
 // Folder operations

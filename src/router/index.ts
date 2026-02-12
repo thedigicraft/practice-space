@@ -7,7 +7,10 @@ import GroupedSlicesView from '../views/GroupedSlicesView.vue'
 import LibraryView from '../views/LibraryView.vue'
 import SourcesView from '../views/SourcesView.vue'
 import CollectionsView from '../views/CollectionsView.vue'
+import ProjectsView from '../views/ProjectsView.vue'
 import SettingsView from '../views/SettingsView.vue'
+import ProjectView from '../views/ProjectView.vue'
+import ProjectBoardView from '../views/ProjectBoardView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -33,6 +36,11 @@ const router = createRouter({
       component: CollectionsView
     },
     {
+      path: '/projects',
+      name: 'projects',
+      component: ProjectsView
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: SettingsView
@@ -47,6 +55,18 @@ const router = createRouter({
       path: '/collection/:id',
       name: 'collection',
       component: CollectionView,
+      props: true
+    },
+    {
+      path: '/project/:id',
+      name: 'project',
+      component: ProjectView,
+      props: true
+    },
+    {
+      path: '/project/:id/board',
+      name: 'project-board',
+      component: ProjectBoardView,
       props: true
     },
     {

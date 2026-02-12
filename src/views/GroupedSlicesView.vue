@@ -9,14 +9,25 @@
         </div>
       </template>
       <template #right>
-        <div class="d-flex align-items-center gap-2" v-if="collections.length">
-          <div class="dropdown">
+        <div class="d-flex align-items-center gap-2">
+          <div class="dropdown" v-if="projects && (projects.value?.length ?? 0) > 0">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" @click="showProjectDropdown = !showProjectDropdown" :aria-expanded="showProjectDropdown ? 'true' : 'false'" title="Add this group to a project" aria-label="Add group to project">
+              <i class="fas fa-music me-1"></i>
+              <span class="d-none d-sm-inline">Add to Project</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end show" v-show="showProjectDropdown" style="max-height: 260px; overflow-y: auto; min-width: 240px;">
+              <li v-for="p in projects.value" :key="p.id">
+                <button class="dropdown-item" @click="addGroupToProject(p)">{{ p.name }}</button>
+              </li>
+            </ul>
+          </div>
+          <div class="dropdown" v-if="collections && (collections.value?.length ?? 0) > 0">
             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" @click="showCollectionDropdown = !showCollectionDropdown" :aria-expanded="showCollectionDropdown ? 'true' : 'false'" title="Add this group to a collection" aria-label="Add group to collection">
               <i class="fas fa-folder-plus me-1"></i>
               <span class="d-none d-sm-inline">Add to Collection</span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end show" v-show="showCollectionDropdown" style="max-height: 260px; overflow-y: auto; min-width: 240px;">
-              <li v-for="c in collections" :key="c.id">
+              <li v-for="c in collections.value" :key="c.id">
                 <button class="dropdown-item" @click="addGroupToCollection(c)">{{ c.name }}</button>
               </li>
             </ul>
@@ -79,8 +90,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getAllSlices, getAllCollections, saveCollection, getAudioFile } from '@/services/db'
-import type { Slice, AudioFile, Collection } from '@/types/models'
+import { getAllSlices, getAllCollections, saveCollection, getAudioFile, getAllProjects, saveProject } from '@/services/db'
+import type { Slice, AudioFile, Collection, Project } from '@/types/models'
 import SliceTableRow from '@/components/SliceTableRow.vue'
 import SliceWaveformViewer from '@/components/SliceWaveformViewer.vue'
 import { useAudioPlayback } from '@/composables/useAudioPlayback'
@@ -94,7 +105,9 @@ const type = ref(route.query.type as string || '')
 const slices = ref<Slice[]>([])
 const audioFiles = ref<Record<string, AudioFile>>({})
 const collections = inject<any>('collections') as any
+const projects = inject<any>('projects') as any
 const showCollectionDropdown = ref(false)
+const showProjectDropdown = ref(false)
 
 const { playSlice: playAudioSlice, pause } = useAudioPlayback()
 const playingSliceId = ref<string | null>(null)
@@ -136,6 +149,20 @@ const addGroupToCollection = async (collection: Collection) => {
     collections.value = all
   } catch {}
   showCollectionDropdown.value = false
+}
+
+const addGroupToProject = async (project: Project) => {
+  const groupSliceIds = slices.value.map(s => s.id)
+  const existing = new Set(project.sliceIds)
+  groupSliceIds.forEach(id => existing.add(id))
+  const updated: Project = { ...project, sliceIds: Array.from(existing), updatedAt: Date.now() }
+  await saveProject(updated)
+  // Refresh provided projects for UI consistency
+  try {
+    const all = await getAllProjects()
+    projects.value = all
+  } catch {}
+  showProjectDropdown.value = false
 }
 
 const toggleWaveformMode = () => {

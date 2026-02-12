@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, provide } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAllAudioFiles, getAllSlices, getAllFolders, getAllCollections, saveSlice, saveFolder, saveCollection, deleteSlice, saveAudioFile } from './services/db'
+import { getAllAudioFiles, getAllSlices, getAllFolders, getAllCollections, getAllProjects, saveSlice, saveFolder, saveCollection, saveProject, deleteSlice, saveAudioFile } from './services/db'
 import { processAudioFile } from './services/audio'
 import { useAudioPlayback } from './composables/useAudioPlayback'
 import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
 import { useDragAndDrop } from './composables/useDragAndDrop'
-import type { Source, Slice, SliceFolder, Collection } from './types/models'
+import type { Source, Slice, SliceFolder, Collection, Project } from './types/models'
 
 const router = useRouter()
 
@@ -47,6 +47,7 @@ const sources = ref<Source[]>([])
 const slices = ref<Slice[]>([])
 const folders = ref<SliceFolder[]>([])
 const collections = ref<Collection[]>([])
+const projects = ref<Project[]>([])
 const selectedSlice = ref<Slice | null>(null)
 
 // Provide data to child components
@@ -54,6 +55,7 @@ provide('sources', sources)
 provide('slices', slices)
 provide('folders', folders)
 provide('collections', collections)
+provide('projects', projects)
 provide('audioPlayback', {
   isPlaying,
   currentTime,
@@ -83,6 +85,10 @@ const navigateToSourceEditor = (sourceId: string) => {
 
 const navigateToCollection = (collectionId: string) => {
   router.push(`/collection/${collectionId}`)
+}
+
+const navigateToProject = (projectId: string) => {
+  router.push(`/project/${projectId}`)
 }
 
 // File import handling
@@ -115,6 +121,7 @@ onMounted(async () => {
   slices.value = await getAllSlices()
   folders.value = await getAllFolders()
   collections.value = await getAllCollections()
+  projects.value = await getAllProjects()
 })
 
 const handleFilesImported = async (files: Source[]) => {
@@ -214,6 +221,22 @@ const handleCollectionCreated = async () => {
   collections.value = await getAllCollections()
 }
 
+const handleCreateProject = async (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const now = Date.now()
+  const newProject: Project = {
+    ...project,
+    id: `project-${now}`,
+    createdAt: now,
+    updatedAt: now,
+  }
+  await saveProject(newProject)
+  projects.value = await getAllProjects()
+}
+
+const handleProjectCreated = async () => {
+  projects.value = await getAllProjects()
+}
+
 const getViewName = (routeName: string | symbol | null | undefined): string => {
   if (!routeName || typeof routeName !== 'string') return ''
   
@@ -225,6 +248,8 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
     'grouped-slices': 'Grouped Slices',
     'collection': 'Collection',
     'collections': 'Collections',
+    'project': 'Project',
+    'projects': 'Projects',
     'settings': 'Settings'
   }
   
@@ -262,6 +287,11 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
             <i class="fa-solid fa-folder"></i>
           </router-link>
         </li>
+        <li>
+          <router-link to="/projects" class="activity-item" :class="{ active: $route.name === 'projects' || $route.name === 'project' }" aria-label="Projects">
+            <i class="fa-solid fa-music"></i>
+          </router-link>
+        </li>
       </ul>
       <div class="mt-auto w-100">
         <router-link to="/settings" class="activity-item" :class="{ active: $route.name === 'settings' }" aria-label="Settings">
@@ -277,6 +307,7 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
         :slices="slices"
         :folders="folders"
         :collections="collections"
+        :projects="projects"
         :currentlyPlayingSliceId="currentlyPlayingSliceId"
         :isPlaying="isPlaying"
         :currentTime="currentTime"
@@ -284,10 +315,13 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
         :isLoading="isLoading"
         @openSource="navigateToSourceEditor"
         @openCollection="navigateToCollection"
+        @openProject="navigateToProject"
         @viewSource="navigateToSourceEditor"
         @filesImported="handleFilesImported"
         @createCollection="handleCreateCollection"
         @collectionCreated="handleCollectionCreated"
+        @createProject="handleCreateProject"
+        @projectCreated="handleProjectCreated"
         @createFolder="handleCreateFolder"
         @createSlice="handleCreateSlice"
         @updateSlice="handleUpdateSlice"
