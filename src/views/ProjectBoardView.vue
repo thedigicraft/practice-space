@@ -10,33 +10,33 @@
       </div>
     </div>
     <div class="canvas-wrapper">
-      <div class="board-toolbar d-flex align-items-center justify-content-between mb-2">
-        <div class="d-flex align-items-center gap-2">
-          <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" v-model="snap" id="snapSwitch">
-            <label class="form-check-label" for="snapSwitch">Snap</label>
-          </div>
-          <div class="input-group input-group-sm" style="width: 200px;">
-            <span class="input-group-text">Zoom</span>
-            <input type="range" min="50" max="200" step="10" v-model.number="zoomPercent" class="form-range" />
-          </div>
-        </div>
-        <div class="btn-group btn-group-sm">
-          <button class="btn btn-outline-secondary" @click="alignLeft" :disabled="selectedKeys.length < 2" title="Align Left" aria-label="Align Left">
-            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><line x1="2" y1="2" x2="2" y2="16" stroke="#777" stroke-width="2"/><rect x="4" y="3" width="8" height="3" fill="#999"/><rect x="4" y="8" width="10" height="3" fill="#999"/><rect x="4" y="13" width="6" height="3" fill="#999"/></svg>
-          </button>
-          <button class="btn btn-outline-secondary" @click="alignTop" :disabled="selectedKeys.length < 2" title="Align Top" aria-label="Align Top">
-            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><line x1="2" y1="2" x2="16" y2="2" stroke="#777" stroke-width="2"/><rect x="3" y="4" width="3" height="6" fill="#999"/><rect x="8" y="4" width="3" height="10" fill="#999"/><rect x="13" y="4" width="3" height="4" fill="#999"/></svg>
-          </button>
-          <button class="btn btn-outline-secondary" @click="distributeH" :disabled="selectedKeys.length < 3" title="Distribute Horizontal" aria-label="Distribute Horizontal">
-            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="5" width="3" height="8" fill="#999"/><rect x="7.5" y="5" width="3" height="8" fill="#999"/><rect x="13" y="5" width="3" height="8" fill="#999"/></svg>
-          </button>
-          <button class="btn btn-outline-secondary" @click="distributeV" :disabled="selectedKeys.length < 3" title="Distribute Vertical" aria-label="Distribute Vertical">
-            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="2" width="8" height="3" fill="#999"/><rect x="5" y="7.5" width="8" height="3" fill="#999"/><rect x="5" y="13" width="8" height="3" fill="#999"/></svg>
-          </button>
-        </div>
-      </div>
       <div class="board-container" ref="boardRef" @mousedown="onBoardMouseDown" @wheel.prevent="onWheel" @touchstart.passive="onTouchStart" @touchmove.prevent="onTouchMove" @touchend="onTouchEnd">
+        <div class="board-toolbar d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-2">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" v-model="snap" id="snapSwitch">
+              <label class="form-check-label" for="snapSwitch">Snap</label>
+            </div>
+            <div class="input-group input-group-sm" style="width: 200px;">
+              <span class="input-group-text">Zoom</span>
+              <input type="range" min="50" max="200" step="10" v-model.number="zoomPercent" class="form-range" />
+            </div>
+          </div>
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary" @click="alignLeft" :disabled="selectedKeys.length < 2" title="Align Left" aria-label="Align Left">
+              <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><line x1="2" y1="2" x2="2" y2="16" stroke="#777" stroke-width="2"/><rect x="4" y="3" width="8" height="3" fill="#999"/><rect x="4" y="8" width="10" height="3" fill="#999"/><rect x="4" y="13" width="6" height="3" fill="#999"/></svg>
+            </button>
+            <button class="btn btn-outline-secondary" @click="alignTop" :disabled="selectedKeys.length < 2" title="Align Top" aria-label="Align Top">
+              <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><line x1="2" y1="2" x2="16" y2="2" stroke="#777" stroke-width="2"/><rect x="3" y="4" width="3" height="6" fill="#999"/><rect x="8" y="4" width="3" height="10" fill="#999"/><rect x="13" y="4" width="3" height="4" fill="#999"/></svg>
+            </button>
+            <button class="btn btn-outline-secondary" @click="distributeH" :disabled="selectedKeys.length < 3" title="Distribute Horizontal" aria-label="Distribute Horizontal">
+              <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="5" width="3" height="8" fill="#999"/><rect x="7.5" y="5" width="3" height="8" fill="#999"/><rect x="13" y="5" width="3" height="8" fill="#999"/></svg>
+            </button>
+            <button class="btn btn-outline-secondary" @click="distributeV" :disabled="selectedKeys.length < 3" title="Distribute Vertical" aria-label="Distribute Vertical">
+              <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="2" width="8" height="3" fill="#999"/><rect x="5" y="7.5" width="8" height="3" fill="#999"/><rect x="5" y="13" width="8" height="3" fill="#999"/></svg>
+            </button>
+          </div>
+        </div>
         <div class="board-inner" :style="boardTransformStyle">
           <div
             v-for="it in boardItems"
@@ -757,7 +757,7 @@ function onResizeUp() {
 .project-board-view { height: 100%; display: flex; flex-direction: column; }
 .header { padding: 6px 4px; }
 .canvas-wrapper { display: grid; grid-template-columns: 1fr 320px; grid-template-rows: auto 1fr; gap: 8px; flex: 1; height: 100%; align-items: start; }
-.board-toolbar { background: #0d0d11; border: 1px solid #26262d; border-radius: 6px; padding: 6px; grid-column: 1 / -1; }
+.board-toolbar { position: absolute; top: 8px; left: 8px; background: #0d0d11; border: 1px solid #26262d; border-radius: 6px; padding: 6px; z-index: 5; }
 .board-container { position: relative; background: #101012; border: 1px solid #2a2a2a; border-radius: 6px; overflow: hidden; height: 100%; }
 .board-inner { 
     position: relative; 
