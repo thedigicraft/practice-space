@@ -6,13 +6,20 @@
         <span class="text-muted small">Drag items anywhere; snap, zoom, and align.</span>
       </div>
       <div class="d-flex gap-2 align-items-center">
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" v-model="snap" id="snapSwitch">
-          <label class="form-check-label" for="snapSwitch">Snap</label>
-        </div>
-        <div class="input-group input-group-sm" style="width: 160px;">
-          <span class="input-group-text">Zoom</span>
-          <input type="range" min="50" max="200" step="10" v-model.number="zoomPercent" class="form-range" />
+        <button class="btn btn-outline-secondary btn-sm" @click="goStudio">Studio View</button>
+      </div>
+    </div>
+    <div class="canvas-wrapper">
+      <div class="board-toolbar d-flex align-items-center justify-content-between mb-2">
+        <div class="d-flex align-items-center gap-2">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" v-model="snap" id="snapSwitch">
+            <label class="form-check-label" for="snapSwitch">Snap</label>
+          </div>
+          <div class="input-group input-group-sm" style="width: 200px;">
+            <span class="input-group-text">Zoom</span>
+            <input type="range" min="50" max="200" step="10" v-model.number="zoomPercent" class="form-range" />
+          </div>
         </div>
         <div class="btn-group btn-group-sm">
           <button class="btn btn-outline-secondary" @click="alignLeft" :disabled="selectedKeys.length < 2" title="Align Left" aria-label="Align Left">
@@ -28,10 +35,7 @@
             <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="2" width="8" height="3" fill="#999"/><rect x="5" y="7.5" width="8" height="3" fill="#999"/><rect x="5" y="13" width="8" height="3" fill="#999"/></svg>
           </button>
         </div>
-        <button class="btn btn-outline-secondary btn-sm" @click="goStudio">Studio View</button>
       </div>
-    </div>
-    <div class="canvas-wrapper">
       <div class="board-container" ref="boardRef" @mousedown="onBoardMouseDown" @wheel.prevent="onWheel" @touchstart.passive="onTouchStart" @touchmove.prevent="onTouchMove" @touchend="onTouchEnd">
         <div class="board-inner" :style="boardTransformStyle">
           <div
@@ -96,8 +100,8 @@
         </div>
       </div>
       <div v-if="contextMenu.active" class="context-menu" :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }" @mousedown.stop>
-        <button class="dropdown-item" @click="editContextItem"><i class="fas fa-pen me-2"></i>Edit</button>
-        <button class="dropdown-item text-danger" @click="removeContextItem"><i class="fas fa-trash me-2"></i>Remove</button>
+        <button class="dropdown-item p-1" @click="editContextItem"><i class="fas fa-pen me-2"></i>Edit</button>
+        <button class="dropdown-item text-danger p-1" @click="removeContextItem"><i class="fas fa-trash me-2"></i>Remove</button>
       </div>
       <aside class="pool-container" ref="poolRef">
         <div class="pool-header d-flex align-items-center justify-content-between">
@@ -753,6 +757,7 @@ function onResizeUp() {
 .project-board-view { height: 100%; display: flex; flex-direction: column; }
 .header { padding: 6px 4px; }
 .canvas-wrapper { display: grid; grid-template-columns: 1fr 320px; gap: 8px; flex: 1; height: 100%; }
+.board-toolbar { background: #0d0d11; border: 1px solid #26262d; border-radius: 6px; padding: 6px; }
 .board-container { position: relative; background: #101012; border: 1px solid #2a2a2a; border-radius: 6px; overflow: hidden; height: 100%; }
 .board-inner { 
     position: relative; 
@@ -792,11 +797,11 @@ function onResizeUp() {
   border: 1px solid #2a2a2a;
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-  padding: 4px;
   min-width: 160px;
 }
 .context-menu .dropdown-item {
   color: #ddd;
+  font-size: 11px;
 }
 .context-menu .dropdown-item:hover {
   background: rgba(255,255,255,0.08);
