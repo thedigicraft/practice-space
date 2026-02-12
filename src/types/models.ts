@@ -14,6 +14,9 @@ export interface Source {
   title?: string // User-editable title (defaults to filename without extension)
   fileHandle?: FileSystemFileHandle // Web: File System Access API handle
   androidUri?: string // Android: SAF content URI or file path
+  blob?: Blob // In-app generated clip blob
+  isClip?: boolean // Indicates this Source is a generated clip
+  originSliceId?: string // If clip, references Slice.id
   duration: number // in seconds
   sampleRate: number
   numberOfChannels: number
@@ -35,12 +38,15 @@ export type AudioFile = Source;
 export interface Slice {
   id: string
   audioFileId: string // References Source (keeping field name for DB compatibility)
+  clipSourceId?: string // References generated clip Source.id
   title: string
   notes?: string
   startTime: number // Start time in seconds (was inPoint)
   endTime: number // End time in seconds (was outPoint)
   createdAt: number // timestamp
   updatedAt: number // timestamp
+  clipCreatedAt?: number
+  clipUpdatedAt?: number
   tags?: string[]
   type?: string // Type classification (e.g., "Etude", "Scale", "Exercise")
   composers?: string[] // Composer credits
@@ -107,7 +113,10 @@ export interface Project {
   color?: string // For visual organization
   // Freeform board layout positions for project items
   // Keys use prefixes: 'slice:<id>', 'tab:<id>', 'lyric:<id>'
-  boardLayout?: Record<string, { x: number; y: number; w?: number; h?: number }>
+  boardLayout?: Record<string, { x: number; y: number; w?: number; h?: number; fs?: number }>
+  // Board viewport settings (persisted)
+  boardZoom?: number // 50-200 (%), default 100
+  boardOffset?: { x: number; y: number }
 }
 
 /**

@@ -7,6 +7,10 @@
 
 import { openDB, DBSchema, IDBPDatabase } from 'idb'
 import type { AudioFile, Slice, Collection, SliceFolder, Project } from '@/types/models'
+import { getSourceArrayBuffer } from '@/services/platformAudio'
+import { loadAudioBuffer } from '@/services/audio'
+import { extractSlice, audioBufferToWavBlob } from '@/utils/audioExport'
+import { generateWaveformData } from '@/utils/helpers'
 
 interface PracticeSpaceDB extends DBSchema {
   audioFiles: {
@@ -108,17 +112,58 @@ export async function saveSlice(slice: Slice): Promise<void> {
   const cleanSlice: Slice = {
     id: slice.id,
     audioFileId: slice.audioFileId,
+    clipSourceId: slice.clipSourceId,
     title: slice.title,
     notes: slice.notes,
     startTime: slice.startTime,
     endTime: slice.endTime,
     createdAt: slice.createdAt,
     updatedAt: slice.updatedAt,
+    clipCreatedAt: slice.clipCreatedAt,
+    clipUpdatedAt: slice.clipUpdatedAt,
     tags: slice.tags ? [...slice.tags] : undefined,
     type: slice.type,
     composers: slice.composers ? [...slice.composers] : undefined,
     performers: slice.performers ? [...slice.performers] : undefined,
     writers: slice.writers ? [...slice.writers] : undefined
+  }
+  // Check existing slice to see if region changed or clip missing
+  const existing = await db.get('slices', slice.id)
+  const needsClipUpdate = !existing || !existing.clipSourceId || existing.startTime !== slice.startTime || existing.endTime !== slice.endTime
+  if (needsClipUpdate) {
+    try {
+      const src = await db.get('audioFiles', slice.audioFileId)
+      if (src) {
+        const arrayBuffer = await getSourceArrayBuffer(src)
+        const fullBuffer = await loadAudioBuffer(arrayBuffer)
+        const clipBuffer = extractSlice(fullBuffer, slice.startTime, slice.endTime)
+        const clipBlob = audioBufferToWavBlob(clipBuffer)
+        const waveformData = await generateWaveformData(clipBuffer, 800)
+        const clipSource: AudioFile = {
+          id: crypto.randomUUID(),
+          name: `${(src.title || src.name || 'source')}-slice-${slice.id}.wav`,
+          title: slice.title || `Slice ${slice.id}`,
+          blob: clipBlob,
+          isClip: true,
+          originSliceId: slice.id,
+          duration: clipBuffer.duration,
+          sampleRate: clipBuffer.sampleRate,
+          numberOfChannels: clipBuffer.numberOfChannels,
+          waveformData,
+          importedAt: Date.now(),
+          createdAt: Date.now(),
+          size: clipBlob.size,
+          location: 'clip',
+          notes: `Generated from ${src.id}`,
+        }
+        await db.put('audioFiles', clipSource)
+        cleanSlice.clipSourceId = clipSource.id
+        cleanSlice.clipCreatedAt = Date.now()
+        cleanSlice.clipUpdatedAt = Date.now()
+      }
+    } catch (err) {
+      console.warn('Failed to generate clip for slice', slice.id, err)
+    }
   }
   await db.put('slices', cleanSlice)
 }
@@ -141,6 +186,23 @@ export async function getSlicesByAudioFile(audioFileId: string): Promise<Slice[]
 export async function deleteSlice(id: string): Promise<void> {
   const db = await getDB()
   await db.delete('slices', id)
+}
+
+// One-time utility: generate clips for all existing slices
+export async function prewarmAllSliceClips(onProgress?: (done: number, total: number) => void): Promise<{ processed: number; updated: number }> {
+  const db = await getDB()
+  const all = await db.getAll('slices')
+  let processed = 0
+  let updated = 0
+  for (const s of all) {
+    const before = s.clipSourceId
+    await saveSlice(s)
+    const after = await db.get('slices', s.id)
+    if (!before && after?.clipSourceId) updated++
+    processed++
+    if (onProgress) onProgress(processed, all.length)
+  }
+  return { processed, updated }
 }
 
 // Collection operations
@@ -211,8 +273,10 @@ export async function saveProject(project: Project): Promise<void> {
       ? project.lyrics.map(l => ({ id: l.id, title: l.title, content: l.content, createdAt: l.createdAt, updatedAt: l.updatedAt }))
       : undefined,
     boardLayout: project.boardLayout
-      ? Object.fromEntries(Object.entries(project.boardLayout).map(([k, pos]) => [k, { x: pos.x, y: pos.y, w: pos.w, h: pos.h }]))
+      ? Object.fromEntries(Object.entries(project.boardLayout).map(([k, pos]) => [k, { x: pos.x, y: pos.y, w: pos.w, h: pos.h, fs: pos.fs }]))
       : undefined,
+    boardZoom: project.boardZoom,
+    boardOffset: project.boardOffset ? { x: project.boardOffset.x, y: project.boardOffset.y } : undefined,
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
     color: project.color,

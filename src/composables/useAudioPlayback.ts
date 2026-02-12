@@ -92,8 +92,13 @@ export function useAudioPlayback() {
     }
     currentlyPlayingFileId.value = audioFile.id
     currentlyPlayingSliceId.value = slice.id
-    const sliceDuration = slice.endTime - slice.startTime
-    play(slice.startTime, sliceDuration)
+    // If the source is a generated clip, play the full clip from 0
+    if ((audioFile as any).isClip && (audioFile as any).originSliceId === slice.id) {
+      play(0, audioFile.duration)
+    } else {
+      const sliceDuration = slice.endTime - slice.startTime
+      play(slice.startTime, sliceDuration)
+    }
   }
 
   /**

@@ -14,6 +14,10 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 }
 
 export async function getSourceArrayBuffer(source: Source): Promise<ArrayBuffer> {
+  // In-app clip blob
+  if (source.blob) {
+    return source.blob.arrayBuffer()
+  }
   // Web/Desktop path
   if (source.fileHandle) {
     const file = await getFileFromHandle(source.fileHandle)

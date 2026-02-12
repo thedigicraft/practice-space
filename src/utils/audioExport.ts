@@ -88,6 +88,13 @@ function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
 
   return arrayBuffer
 }
+/**
+ * Return a WAV Blob for a given AudioBuffer
+ */
+export function audioBufferToWavBlob(buffer: AudioBuffer): Blob {
+  const wavData = audioBufferToWav(buffer)
+  return new Blob([wavData], { type: 'audio/wav' })
+}
 
 /**
  * Extract a slice from an AudioBuffer

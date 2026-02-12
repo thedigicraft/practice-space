@@ -15,13 +15,20 @@
           <input type="range" min="50" max="200" step="10" v-model.number="zoomPercent" class="form-range" />
         </div>
         <div class="btn-group btn-group-sm">
-          <button class="btn btn-outline-secondary" @click="alignLeft" :disabled="selectedKeys.length < 2">Align Left</button>
-          <button class="btn btn-outline-secondary" @click="alignTop" :disabled="selectedKeys.length < 2">Align Top</button>
-          <button class="btn btn-outline-secondary" @click="distributeH" :disabled="selectedKeys.length < 3">Distribute H</button>
-          <button class="btn btn-outline-secondary" @click="distributeV" :disabled="selectedKeys.length < 3">Distribute V</button>
+          <button class="btn btn-outline-secondary" @click="alignLeft" :disabled="selectedKeys.length < 2" title="Align Left" aria-label="Align Left">
+            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><line x1="2" y1="2" x2="2" y2="16" stroke="#777" stroke-width="2"/><rect x="4" y="3" width="8" height="3" fill="#999"/><rect x="4" y="8" width="10" height="3" fill="#999"/><rect x="4" y="13" width="6" height="3" fill="#999"/></svg>
+          </button>
+          <button class="btn btn-outline-secondary" @click="alignTop" :disabled="selectedKeys.length < 2" title="Align Top" aria-label="Align Top">
+            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><line x1="2" y1="2" x2="16" y2="2" stroke="#777" stroke-width="2"/><rect x="3" y="4" width="3" height="6" fill="#999"/><rect x="8" y="4" width="3" height="10" fill="#999"/><rect x="13" y="4" width="3" height="4" fill="#999"/></svg>
+          </button>
+          <button class="btn btn-outline-secondary" @click="distributeH" :disabled="selectedKeys.length < 3" title="Distribute Horizontal" aria-label="Distribute Horizontal">
+            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="5" width="3" height="8" fill="#999"/><rect x="7.5" y="5" width="3" height="8" fill="#999"/><rect x="13" y="5" width="3" height="8" fill="#999"/></svg>
+          </button>
+          <button class="btn btn-outline-secondary" @click="distributeV" :disabled="selectedKeys.length < 3" title="Distribute Vertical" aria-label="Distribute Vertical">
+            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="2" width="8" height="3" fill="#999"/><rect x="5" y="7.5" width="8" height="3" fill="#999"/><rect x="5" y="13" width="8" height="3" fill="#999"/></svg>
+          </button>
         </div>
         <button class="btn btn-outline-secondary btn-sm" @click="goStudio">Studio View</button>
-        <button class="btn btn-primary btn-sm" @click="savePositions">Save Layout</button>
       </div>
     </div>
     <div class="canvas-wrapper">
@@ -33,31 +40,39 @@
             class="board-item"
             :class="[it.type, { selected: isSelected(it.key) }]"
             :style="itemStyle(it)"
-            @mousedown.stop="startDrag(it, $event)"
+            @mousedown.stop
             @dblclick="openItem(it)"
             @click.stop="toggleSelect(it.key, $event)"
           >
             <div v-if="it.type === 'lyric'" class="paper">
-              <div class="paper-header d-flex justify-content-between align-items-center">
+              <div class="paper-header d-flex align-items-center">
                 <span class="fw-bold">{{ it.title }}</span>
+                <div class="drag-handle flex-grow-1" @mousedown.stop="startDrag(it, $event)"></div>
               </div>
-              <div class="paper-content" v-html="getLyricHtml(it.id)"></div>
+              <div class="paper-content" :style="{ fontSize: lyricFontSize(it) + 'px' }" v-html="getLyricHtml(it.id)"></div>
+              <div class="resize-handle" @mousedown.stop="startResize(it, $event)"></div>
             </div>
             <div v-else-if="it.type === 'tab'" class="tab-card">
-              <div class="d-flex justify-content-between align-items-center">
+              <div class="tab-header d-flex align-items-center">
                 <span class="fw-bold">{{ it.title }}</span>
-                <button class="btn btn-sm btn-outline-secondary" @click.stop="openItem(it)"><i class="fas fa-pen"></i></button>
+                <div class="drag-handle flex-grow-1" @mousedown.stop="startDrag(it, $event)"></div>
+                <button class="btn btn-sm btn-outline-secondary" @mousedown.stop @click.stop="openItem(it)" title="Edit Tab" aria-label="Edit Tab"><i class="fas fa-pen"></i></button>
               </div>
-              <pre class="tab-content">{{ getTabAscii(it.id) }}</pre>
+              <pre class="tab-content" :style="{ fontSize: tabFontSize(it) + 'px' }">{{ getTabAscii(it.id) }}</pre>
               <div class="resize-handle" @mousedown.stop="startResize(it, $event)"></div>
             </div>
             <div v-else class="slice-card">
-              <div class="d-flex justify-content-between align-items-center">
+              <div class="slice-header d-flex align-items-center">
                 <span class="fw-bold">{{ it.title }}</span>
+                <div class="drag-handle flex-grow-1" @mousedown.stop="startDrag(it, $event)"></div>
                 <div class="btn-group btn-group-sm">
-                  <button class="btn btn-outline-secondary" @click.stop="playSliceOnBoard(it)"><i class="fas fa-play"></i></button>
-                  <button class="btn btn-outline-secondary" @click.stop="pauseAudio()"><i class="fas fa-pause"></i></button>
+                  <button class="btn btn-outline-secondary" @mousedown.stop @click.stop="playSliceOnBoard(it)" title="Play" aria-label="Play"><i class="fas fa-play"></i></button>
+                  <button class="btn btn-outline-secondary" @mousedown.stop @click.stop="pauseAudio()" title="Pause" aria-label="Pause"><i class="fas fa-pause"></i></button>
                 </div>
+              </div>
+              <div class="d-flex align-items-center gap-2 mb-1" v-if="!hasSource(it)">
+                <span class="badge bg-secondary">No source</span>
+                <button class="btn btn-sm btn-warning" @mousedown.stop @click.stop="regenerateSliceClip(it)" :disabled="isRegenerating(it.key)">Generate Clip</button>
               </div>
               <SliceWaveformViewer
                 :slice="getSlice(it.id)"
@@ -66,6 +81,11 @@
                 :isPlaying="isPlaying"
                 :width="viewerDims(it).w"
                 :height="viewerDims(it).h"
+                :active="isActiveViewer(it)"
+                @scrub-start="onViewerScrubStart(it)"
+                @scrub-end="onViewerScrubEnd(it)"
+                @seek="onViewerSeek(it, $event)"
+                v-if="getSourceForSlice(it.id)"
               />
               <div class="resize-handle" @mousedown.stop="startResize(it, $event)"></div>
             </div>
@@ -104,7 +124,7 @@
 <script setup lang="ts">
 import { onMounted, ref, reactive, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getProject, saveProject, getAllSlices, getAllAudioFiles } from '@/services/db'
+import { getProject, saveProject, getAllSlices, getAllAudioFiles, saveSlice } from '@/services/db'
 import type { Project, Slice } from '@/types/models'
 import TabEditor from '@/components/TabEditor.vue'
 import LyricsEditor from '@/components/LyricsEditor.vue'
@@ -121,7 +141,7 @@ const slices = ref<Slice[]>([])
 const boardRef = ref<HTMLElement | null>(null)
 const poolRef = ref<HTMLElement | null>(null)
 const sources = ref<any[]>([])
-const { isPlaying, currentTime, playSlice, pause } = useAudioPlayback()
+const { isPlaying, currentTime, playSlice, pause, seek, loadAudioFile, currentlyPlayingFileId, currentlyPlayingSliceId } = useAudioPlayback()
 
 onMounted(async () => {
   const id = String(route.params.id)
@@ -131,6 +151,12 @@ onMounted(async () => {
   // Prewarm waveform data for project slices
   await prewarmWaveformsForProject()
   hydrateDefaults()
+  // Restore viewport (zoom & pan) if previously saved
+  if (project.value?.boardZoom) zoomPercent.value = project.value.boardZoom
+  if (project.value?.boardOffset) {
+    offset.x = project.value.boardOffset.x || 0
+    offset.y = project.value.boardOffset.y || 0
+  }
 })
 
 const sliceMap = computed(() => new Map(slices.value.map(s => [s.id, s])))
@@ -198,6 +224,14 @@ const poolItems = computed<BoardItemVM[]>(() => {
 const itemStyle = (it: BoardItemVM) => ({ left: it.x + 'px', top: it.y + 'px', width: (project.value?.boardLayout?.[it.key]?.w || defaultW(it)) + 'px', height: (project.value?.boardLayout?.[it.key]?.h || defaultH(it)) + 'px' })
 function defaultW(it: BoardItemVM) { return it.type === 'tab' ? 280 : it.type === 'lyric' ? 220 : 300 }
 function defaultH(it: BoardItemVM) { return it.type === 'tab' ? 160 : it.type === 'lyric' ? 180 : 140 }
+function tabFontSize(it: BoardItemVM) {
+  const pos = project.value?.boardLayout?.[it.key]
+  const w = pos?.w || defaultW(it)
+  const h = pos?.h || defaultH(it)
+  const base = 12
+  const factor = Math.max(0.8, Math.min(2.0, Math.min(w / 280, h / 160)))
+  return Math.round(base * factor)
+}
 
 function hydrateDefaults() {
   if (!project.value) return
@@ -223,6 +257,19 @@ const zoomPercent = ref(100)
 const scale = computed(() => zoomPercent.value / 100)
 const offset = reactive({ x: 0, y: 0 })
 const boardTransformStyle = computed(() => ({ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale.value})` }))
+// Debounced auto-save for board changes (viewport & layout)
+let saveTimer: any = null
+function scheduleSave() {
+  if (!project.value) return
+  // Persist viewport
+  project.value.boardZoom = zoomPercent.value
+  project.value.boardOffset = { x: offset.x, y: offset.y }
+  project.value.updatedAt = Date.now()
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => {
+    if (project.value) saveProject(project.value)
+  }, 300)
+}
 function startDrag(it: BoardItemVM, e: MouseEvent) {
   e.preventDefault()
   dragging.key = it.key
@@ -275,6 +322,8 @@ function onUp() {
       delete project.value.boardLayout![dragging.key]
     }
   }
+  // Persist layout changes on drag end
+  scheduleSave()
   dragging.key = null
   dragging.fromPool = false
 }
@@ -288,10 +337,12 @@ function onWheel(e: WheelEvent) {
     const delta = Math.sign(e.deltaY)
     const next = Math.min(200, Math.max(50, zoomPercent.value - delta * 10))
     zoomPercent.value = next
+    scheduleSave()
   } else {
     // Pan the board
     offset.x -= e.deltaX
     offset.y -= e.deltaY
+    scheduleSave()
   }
 }
 
@@ -328,6 +379,7 @@ function onTouchMove(e: TouchEvent) {
   touchState.lastDistance = distance
   touchState.lastCenterX = centerX
   touchState.lastCenterY = centerY
+  scheduleSave()
 }
 function onTouchEnd() {
   touchState.active = false
@@ -396,12 +448,14 @@ function alignLeft() {
   const xs = selectedKeys.value.map(k => project.value!.boardLayout![k]?.x || 0)
   const minX = Math.min(...xs)
   for (const k of selectedKeys.value) { if (project.value.boardLayout![k]) project.value.boardLayout![k].x = minX }
+  scheduleSave()
 }
 function alignTop() {
   if (!project.value) return
   const ys = selectedKeys.value.map(k => project.value!.boardLayout![k]?.y || 0)
   const minY = Math.min(...ys)
   for (const k of selectedKeys.value) { if (project.value.boardLayout![k]) project.value.boardLayout![k].y = minY }
+  scheduleSave()
 }
 function distributeH() {
   if (!project.value) return
@@ -411,6 +465,7 @@ function distributeH() {
   const min = xs[0], max = xs[xs.length - 1]
   const step = xs.length > 1 ? (max - min) / (xs.length - 1) : 0
   keys.forEach((k, i) => { if (project.value!.boardLayout![k]) project.value!.boardLayout![k].x = Math.round((min + step * i) / gridSize) * gridSize })
+  scheduleSave()
 }
 function distributeV() {
   if (!project.value) return
@@ -420,6 +475,7 @@ function distributeV() {
   const min = ys[0], max = ys[ys.length - 1]
   const step = ys.length > 1 ? (max - min) / (ys.length - 1) : 0
   keys.forEach((k, i) => { if (project.value!.boardLayout![k]) project.value!.boardLayout![k].y = Math.round((min + step * i) / gridSize) * gridSize })
+  scheduleSave()
 }
 
 // Open editors inline
@@ -470,7 +526,15 @@ function getSlice(id: string): Slice | null {
 function getSourceForSlice(id: string) {
   const s = sliceMap.value.get(id)
   if (!s) return null
+  // Prefer generated clip source if available
+  if (s.clipSourceId) {
+    const clip = sources.value.find(src => src.id === s.clipSourceId)
+    if (clip) return clip
+  }
   return sources.value.find(src => src.id === s.audioFileId) || null
+}
+function hasSource(it: BoardItemVM) {
+  return !!getSourceForSlice(it.id)
 }
 function playSliceOnBoard(it: BoardItemVM) {
   if (it.type !== 'slice') return
@@ -483,11 +547,80 @@ function playSliceOnBoard(it: BoardItemVM) {
 }
 function pauseAudio() { pause() }
 
+function onViewerSeek(it: BoardItemVM, time: number) {
+  activeViewerKey.value = it.key
+  const slice = getSlice(it.id)
+  const src = slice ? getSourceForSlice(it.id) : null
+  if (!src) return
+  const ensureThenSeek = async () => {
+    if (currentlyPlayingFileId.value !== src.id) {
+      await loadAudioFile(src)
+    }
+    if (wasPlayingDuringScrub.value) {
+      // Resume playback smoothly from the target time
+      // Use play to avoid composable seek restart overhead
+      pause()
+      playSlice(slice!, src)
+      seek(time)
+      wasPlayingDuringScrub.value = false
+    } else {
+      seek(time)
+    }
+  }
+  ensureThenSeek()
+}
+
+// Track active viewer (interaction focus)
+const activeViewerKey = ref<string | null>(null)
+const wasPlayingDuringScrub = ref(false)
+function isActiveViewer(it: BoardItemVM) {
+  const src = getSourceForSlice(it.id)
+  const playingMatches = !!src && (currentlyPlayingFileId.value === src.id || currentlyPlayingSliceId.value === it.id)
+  return playingMatches || activeViewerKey.value === it.key
+}
+
+function onViewerScrubStart(it: BoardItemVM) {
+  activeViewerKey.value = it.key
+  wasPlayingDuringScrub.value = isPlaying.value
+  if (isPlaying.value) pause()
+}
+function onViewerScrubEnd(it: BoardItemVM) {
+  // no-op here; resume handled in onViewerSeek
+}
+
+// Regenerate clip for a single slice (quick fix)
+const regeneratingMap = reactive<Record<string, boolean>>({})
+function isRegenerating(key: string) { return !!regeneratingMap[key] }
+async function regenerateSliceClip(it: BoardItemVM) {
+  const s = sliceMap.value.get(it.id)
+  if (!s) return
+  regeneratingMap[it.key] = true
+  try {
+    await saveSlice({ ...s, updatedAt: Date.now() })
+    // Refresh slices and sources to pick up new clip
+    slices.value = await getAllSlices()
+    sources.value = await getAllAudioFiles()
+  } catch (err) {
+    console.warn('Failed to regenerate clip for slice', it.id, err)
+  } finally {
+    regeneratingMap[it.key] = false
+  }
+}
+
 function viewerDims(it: BoardItemVM) {
   const pos = project.value?.boardLayout?.[it.key]
   const w = (pos?.w || defaultW(it)) - 12 // account for card padding
   const h = Math.max(60, (pos?.h || defaultH(it)) - 48) // header + padding
   return { w: Math.max(120, w), h }
+}
+
+function lyricFontSize(it: BoardItemVM) {
+  const pos = project.value?.boardLayout?.[it.key]
+  const w = pos?.w || defaultW(it)
+  const h = pos?.h || defaultH(it)
+  const base = 14
+  const factor = Math.max(0.8, Math.min(2.0, Math.min(w / 220, h / 180)))
+  return Math.round(base * factor)
 }
 
 // Resize handle
@@ -542,6 +675,11 @@ watch(sources, async () => {
   }
 })
 
+// Persist when zoom changes via slider
+watch(zoomPercent, () => {
+  scheduleSave()
+})
+
 async function prewarmWaveformsForProject() {
   if (!project.value) return
   for (const sid of project.value.sliceIds || []) {
@@ -569,6 +707,8 @@ function onResizeMove(e: MouseEvent) {
 function onResizeUp() {
   window.removeEventListener('mousemove', onResizeMove)
   window.removeEventListener('mouseup', onResizeUp)
+  // Persist layout changes on resize end
+  scheduleSave()
   resizing.key = null
 }
 </script>
@@ -595,6 +735,7 @@ function onResizeUp() {
 /* Content cards */
 .paper { background: #fff; color: #222; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.25); height: 100%; display: flex; flex-direction: column; }
 .paper-header { padding: 6px 8px; border-bottom: 1px solid #eee; background: #fafafa; }
+.drag-handle { cursor: grab; height: 24px; }
 .paper-content { padding: 8px; overflow: auto; white-space: pre-wrap; }
 
 .tab-card { background: #161616; color: #ddd; border-radius: 6px; border: 1px solid #2a2a2a; height: 100%; position: relative; padding: 6px; }
