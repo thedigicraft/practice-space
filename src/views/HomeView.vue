@@ -119,7 +119,8 @@ const recentGroupedSlices = computed(() => getRecentGroupedSlices(5))
 
 // Show only 3 most recent sources
 const recentSources = computed(() => {
-  return [...props.sources]
+  return props.sources
+    .filter(s => !s.isClip)
     .sort((a, b) => b.importedAt - a.importedAt)
     .slice(0, 5)
 })

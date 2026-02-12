@@ -21,7 +21,8 @@ export function useSourceFiltering(options: SourceFilterOptions) {
 
   // Filter and sort sources based on criteria
   const filteredSources = computed(() => {
-    let filtered = [...sources.value]
+    // Exclude generated slice clips from general source listings
+    let filtered = sources.value.filter(s => !s.isClip)
 
     // Apply search filter
     if (searchQuery.value) {

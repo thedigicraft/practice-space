@@ -48,7 +48,7 @@
       </table>
 
       <div v-if="filteredSources.length > 0" class="results-info mt-3 text-muted">
-        Showing {{ filteredSources.length }} of {{ sources.length }} sources
+        Showing {{ filteredSources.length }} of {{ nonClipCount }} sources
       </div>
     </div>
 
@@ -101,6 +101,8 @@ const { uniqueLocations, filteredSources } = useSourceFiltering({
   locationFilter,
   sortBy
 })
+
+const nonClipCount = computed(() => props.sources.filter(s => !s.isClip).length)
 
 const openSource = (sourceId: string) => {
   router.push(`/source/${sourceId}`)

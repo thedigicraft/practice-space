@@ -91,7 +91,7 @@
         ref="fileBrowserRef"
         :slices="slices"
         :folders="folders"
-        :audioFiles="sources"
+        :audioFiles="nonClipSources"
         :currentlyPlayingSliceId="currentlyPlayingSliceId"
         :isPlaying="isPlaying"
         @selectSlice="handleSelectSlice"
@@ -142,6 +142,9 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+// Exclude generated clip sources from the FileBrowser
+const nonClipSources = computed(() => props.sources.filter(s => !s.isClip))
 
 const emit = defineEmits<{
   back: []
