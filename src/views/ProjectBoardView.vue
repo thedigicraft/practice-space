@@ -11,14 +11,18 @@
     </div>
     <div class="canvas-wrapper">
       <div class="board-container" ref="boardRef" @mousedown="onBoardMouseDown" @wheel.prevent="onWheel" @touchstart.passive="onTouchStart" @touchmove.prevent="onTouchMove" @touchend="onTouchEnd">
-        <div class="board-toolbar d-flex align-items-center justify-content-between">
+           <div class="board-toolbar d-flex align-items-center justify-content-between"
+             @mousedown.stop
+             @click.stop
+             @wheel.stop
+             @touchstart.stop>
           <div class="d-flex align-items-center gap-2">
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" v-model="snap" id="snapSwitch">
               <label class="form-check-label" for="snapSwitch">Snap</label>
             </div>
-            <div class="input-group input-group-sm" style="width: 200px;">
-              <span class="input-group-text">Zoom</span>
+            <div class="xinput-group input-group-sm mx-2" style="width: 200px;">
+              <span class="xinput-group-text d-none">Zoom</span>
               <input type="range" min="50" max="200" step="10" v-model.number="zoomPercent" class="form-range" />
             </div>
           </div>
