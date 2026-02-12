@@ -756,8 +756,8 @@ function onResizeUp() {
 <style scoped>
 .project-board-view { height: 100%; display: flex; flex-direction: column; }
 .header { padding: 6px 4px; }
-.canvas-wrapper { display: grid; grid-template-columns: 1fr 320px; gap: 8px; flex: 1; height: 100%; }
-.board-toolbar { background: #0d0d11; border: 1px solid #26262d; border-radius: 6px; padding: 6px; }
+.canvas-wrapper { display: grid; grid-template-columns: 1fr 320px; grid-template-rows: auto 1fr; gap: 8px; flex: 1; height: 100%; align-items: start; }
+.board-toolbar { background: #0d0d11; border: 1px solid #26262d; border-radius: 6px; padding: 6px; grid-column: 1 / -1; }
 .board-container { position: relative; background: #101012; border: 1px solid #2a2a2a; border-radius: 6px; overflow: hidden; height: 100%; }
 .board-inner { 
     position: relative; 
