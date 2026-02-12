@@ -41,6 +41,7 @@
             :class="[it.type, { selected: isSelected(it.key) }]"
             :style="itemStyle(it)"
             @mousedown.stop
+            @contextmenu.prevent.stop="onItemContextMenu(it, $event)"
             @dblclick="openItem(it)"
             @click.stop="toggleSelect(it.key, $event)"
           >
@@ -93,6 +94,10 @@
           <div v-if="marquee.active" class="marquee" :style="marqueeStyle"></div>
           
         </div>
+      </div>
+      <div v-if="contextMenu.active" class="context-menu" :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }" @mousedown.stop>
+        <button class="dropdown-item" @click="editContextItem"><i class="fas fa-pen me-2"></i>Edit</button>
+        <button class="dropdown-item text-danger" @click="removeContextItem"><i class="fas fa-trash me-2"></i>Remove</button>
       </div>
       <aside class="pool-container" ref="poolRef">
         <div class="pool-header d-flex align-items-center justify-content-between">
@@ -390,6 +395,10 @@ const marquee = reactive<{ active: boolean; x: number; y: number; w: number; h: 
 const marqueeStyle = computed(() => ({ left: marquee.x + 'px', top: marquee.y + 'px', width: marquee.w + 'px', height: marquee.h + 'px' }))
 function onBoardMouseDown(e: MouseEvent) {
   e.preventDefault()
+  // Close any open context menu
+  closeContextMenu()
+  // Only start marquee on left-click
+  if (e.button !== 0) return
   const origin = boardOrigin()
   const sx = (e.clientX - origin.x - offset.x) / scale.value
   const sy = (e.clientY - origin.y - offset.y) / scale.value
@@ -430,6 +439,33 @@ function onMarqueeUp() {
 }
 function intersects(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+}
+
+// Context menu state and handlers
+const contextMenu = reactive<{ active: boolean; x: number; y: number; item: BoardItemVM | null }>({ active: false, x: 0, y: 0, item: null })
+function onItemContextMenu(it: BoardItemVM, e: MouseEvent) {
+  e.preventDefault()
+  const rect = boardRef.value?.getBoundingClientRect()
+  contextMenu.x = (e.clientX - (rect?.left || 0))
+  contextMenu.y = (e.clientY - (rect?.top || 0))
+  contextMenu.item = it
+  contextMenu.active = true
+}
+function closeContextMenu() { contextMenu.active = false; contextMenu.item = null }
+function editContextItem() {
+  if (!contextMenu.item) return
+  openItem(contextMenu.item)
+  closeContextMenu()
+}
+function removeContextItem() {
+  if (!project.value || !contextMenu.item) return
+  const key = contextMenu.item.key
+  if (project.value.boardLayout && project.value.boardLayout[key]) {
+    delete project.value.boardLayout[key]
+    project.value.updatedAt = Date.now()
+    scheduleSave()
+  }
+  closeContextMenu()
 }
 
 // Selection & alignment
@@ -748,4 +784,21 @@ function onResizeUp() {
 .pool-header { padding: 4px 2px; }
 .pool-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
 .pool-item { cursor: grab; }
+
+.context-menu {
+  position: absolute;
+  z-index: 1000;
+  background: #1c1c22;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  padding: 4px;
+  min-width: 160px;
+}
+.context-menu .dropdown-item {
+  color: #ddd;
+}
+.context-menu .dropdown-item:hover {
+  background: rgba(255,255,255,0.08);
+}
 </style>
