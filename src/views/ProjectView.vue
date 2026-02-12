@@ -53,7 +53,15 @@
               :is-playing="currentlyPlayingSliceId === slice.id && isPlaying"
               @play="handlePlaySlice(slice)"
               @view-source="handleViewSource(slice.audioFileId)"
-            />
+            >
+              <template #footer>
+                <div class="d-flex justify-content-end">
+                  <button class="btn btn-sm btn-outline-danger" @click="removeSliceFromProject(slice)" title="Remove from Project" aria-label="Remove from Project">
+                    <i class="fas fa-trash me-1"></i> Remove from Project
+                  </button>
+                </div>
+              </template>
+            </SliceListItem>
           </div>
         </div>
       </section>
@@ -76,7 +84,10 @@
             <div v-for="t in project.tabs" :key="t.id" class="tab-item p-2 border rounded">
               <div class="d-flex align-items-center">
                 <strong class="me-auto">{{ t.title }}</strong>
-                <button class="btn btn-sm btn-outline-secondary" @click="editTab(t)"><i class="fas fa-pen"></i></button>
+                <div class="btn-group btn-group-sm">
+                  <button class="btn btn-outline-secondary" @click="editTab(t)" title="Edit Tab" aria-label="Edit Tab"><i class="fas fa-pen"></i></button>
+                  <button class="btn btn-outline-danger" @click="removeTab(t)" title="Remove Tab" aria-label="Remove Tab"><i class="fas fa-trash"></i></button>
+                </div>
               </div>
               <pre class="small mt-2">{{ t.content }}</pre>
             </div>
@@ -102,7 +113,10 @@
             <div v-for="l in project.lyrics" :key="l.id" class="lyrics-item p-2 border rounded">
               <div class="d-flex align-items-center">
                 <strong class="me-auto">{{ l.title }}</strong>
-                <button class="btn btn-sm btn-outline-secondary" @click="editLyrics(l)"><i class="fas fa-pen"></i></button>
+                <div class="btn-group btn-group-sm">
+                  <button class="btn btn-outline-secondary" @click="editLyrics(l)" title="Edit Lyrics" aria-label="Edit Lyrics"><i class="fas fa-pen"></i></button>
+                  <button class="btn btn-outline-danger" @click="removeLyrics(l)" title="Remove Lyrics" aria-label="Remove Lyrics"><i class="fas fa-trash"></i></button>
+                </div>
               </div>
               <div class="lyrics-content small mt-2" v-html="l.content"></div>
             </div>
@@ -285,6 +299,43 @@ const saveLyrics = async (l: ProjectLyricItem) => {
   await saveProject(updated)
   projects.value = await getAllProjects()
   editingLyrics.value = null
+}
+
+// Remove actions
+const removeSliceFromProject = async (slice: Slice) => {
+  if (!project.value) return
+  const now = Date.now()
+  const sliceIds = (project.value.sliceIds || []).filter(id => id !== slice.id)
+  const updated: Project = { ...project.value, sliceIds, updatedAt: now }
+  if (updated.boardLayout) {
+    delete updated.boardLayout[`slice:${slice.id}`]
+  }
+  await saveProject(updated)
+  projects.value = await getAllProjects()
+}
+
+const removeTab = async (t: ProjectTabItem) => {
+  if (!project.value) return
+  const now = Date.now()
+  const tabs = (project.value.tabs || []).filter(x => x.id !== t.id)
+  const updated: Project = { ...project.value, tabs, updatedAt: now }
+  if (updated.boardLayout) {
+    delete updated.boardLayout[`tab:${t.id}`]
+  }
+  await saveProject(updated)
+  projects.value = await getAllProjects()
+}
+
+const removeLyrics = async (l: ProjectLyricItem) => {
+  if (!project.value) return
+  const now = Date.now()
+  const lyrics = (project.value.lyrics || []).filter(x => x.id !== l.id)
+  const updated: Project = { ...project.value, lyrics, updatedAt: now }
+  if (updated.boardLayout) {
+    delete updated.boardLayout[`lyric:${l.id}`]
+  }
+  await saveProject(updated)
+  projects.value = await getAllProjects()
 }
 </script>
 
