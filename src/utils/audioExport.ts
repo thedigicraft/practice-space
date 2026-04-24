@@ -434,3 +434,47 @@ export async function exportAudioBufferAsWav(
   
   setTimeout(() => URL.revokeObjectURL(url), 100)
 }
+
+/**
+ * Compute peak absolute sample across all channels
+ */
+export function computePeak(buffer: AudioBuffer): number {
+  let peak = 0
+  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+    const data = buffer.getChannelData(ch)
+    for (let i = 0; i < data.length; i++) {
+      const v = Math.abs(data[i])
+      if (v > peak) peak = v
+    }
+  }
+  return peak
+}
+
+/**
+ * Normalize an AudioBuffer to a target peak level (linear 0..1)
+ * Returns a new AudioBuffer with scaled samples; original is unchanged.
+ */
+export function normalizeAudioBuffer(buffer: AudioBuffer, targetPeak: number = 0.98): AudioBuffer {
+  const currentPeak = computePeak(buffer)
+  if (currentPeak <= 0) {
+    // Silence or invalid; return a copy
+    const copy = new AudioContext().createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate)
+    for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+      copy.getChannelData(ch).set(buffer.getChannelData(ch))
+    }
+    return copy
+  }
+
+  const gain = Math.min(targetPeak / currentPeak, 4) // safety cap
+  const out = new AudioContext().createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate)
+  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+    const src = buffer.getChannelData(ch)
+    const dst = out.getChannelData(ch)
+    for (let i = 0; i < src.length; i++) {
+      // Clip just in case of rounding error
+      const s = src[i] * gain
+      dst[i] = s < -1 ? -1 : s > 1 ? 1 : s
+    }
+  }
+  return out
+}

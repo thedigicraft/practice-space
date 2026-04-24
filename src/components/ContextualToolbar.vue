@@ -22,6 +22,16 @@
             Create Slice
           </button>
           <button class="btn btn-secondary" disabled>Export</button>
+          <div class="btn-group ms-2" role="group">
+            <button class="btn btn-outline-success dropdown-toggle btn-sm" type="button" @click="toggleRegionNormalize">
+              <i class="fas fa-level-up-alt me-1"></i> Normalize
+            </button>
+            <ul class="dropdown-menu show" v-if="regionNormalizeOpen" style="min-width: 220px;">
+              <li><button class="dropdown-item" @click="emit('normalizeRegion', -1)">Normalize to -1 dBFS</button></li>
+              <li><button class="dropdown-item" @click="emit('normalizeRegion', -3)">Normalize to -3 dBFS</button></li>
+              <li><button class="dropdown-item" @click="emit('normalizeRegion', 0)">Normalize to 0 dBFS (safe 0.98)</button></li>
+            </ul>
+          </div>
         </div>
         <button @click.stop="emit('clearSelection')" class="btn btn-sm btn-outline-secondary visually-hidden">✕</button>
       </template>
@@ -70,6 +80,16 @@
           <button @click="emit('deleteSlice', slice.id)" class="btn btn-danger rounded-circle p-0" style="width: 40px; height: 40px;" title="Delete slice">
             <i class="fas fa-trash"></i>
           </button>
+          <div class="btn-group ms-2" role="group" v-if="slice">
+            <button class="btn btn-outline-success dropdown-toggle btn-sm" type="button" @click="toggleSliceNormalize">
+              <i class="fas fa-level-up-alt me-1"></i> Normalize Slice
+            </button>
+            <ul class="dropdown-menu show" v-if="sliceNormalizeOpen" style="min-width: 220px;">
+              <li><button class="dropdown-item" @click="emit('normalizeSlice', -1)">Normalize to -1 dBFS</button></li>
+              <li><button class="dropdown-item" @click="emit('normalizeSlice', -3)">Normalize to -3 dBFS</button></li>
+              <li><button class="dropdown-item" @click="emit('normalizeSlice', 0)">Normalize to 0 dBFS (safe 0.98)</button></li>
+            </ul>
+          </div>
         </div>
         <button @click.stop="emit('clearSelection')" class="btn btn-sm btn-outline-secondary visually-hidden">✕</button>
       </template>
@@ -109,6 +129,8 @@ const emit = defineEmits<{
   deleteSlice: [sliceId: string]
   clearSelection: []
   'update:title': [value: string]
+  normalizeSlice: [presetDbfs: number]
+  normalizeRegion: [presetDbfs: number]
 }>()
 
 // Inline metadata editing state
@@ -153,6 +175,18 @@ const saveWithMetadata = () => {
 const cancelEditMetadata = () => {
   setInputsFromSlice(props.slice)
   editingMetadata.value = false
+}
+
+// Normalize dropdown toggles
+const sliceNormalizeOpen = ref(false)
+const regionNormalizeOpen = ref(false)
+const toggleSliceNormalize = () => {
+  sliceNormalizeOpen.value = !sliceNormalizeOpen.value
+  regionNormalizeOpen.value = false
+}
+const toggleRegionNormalize = () => {
+  regionNormalizeOpen.value = !regionNormalizeOpen.value
+  sliceNormalizeOpen.value = false
 }
 </script>
 

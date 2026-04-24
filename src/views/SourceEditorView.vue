@@ -12,6 +12,16 @@
             <i class="fas fa-link me-1"></i>
             <span>Copy Link</span>
           </button>
+          <button
+            class="btn btn-sm btn-primary"
+            @click="normalizeCurrentSource"
+            :disabled="!source"
+            title="Create a normalized copy (non-destructive)"
+            aria-label="Normalize Source"
+          >
+            <i class="fas fa-level-up-alt me-1"></i>
+            <span>Normalize</span>
+          </button>
         </div>
       </template>
     </PanelHeader>
@@ -140,6 +150,8 @@
               @save-slice="handleSaveSliceFromToolbar"
               @delete-slice="handleDeleteSlice"
               @clear-selection="clearSelection"
+              @normalize-slice="handleNormalizeSlice"
+              @normalize-region="handleNormalizeRegion"
             />
 
             <div v-if="selectedRegion || selectedSlice" class="slice-preview-area border-bottom">
@@ -216,6 +228,7 @@ import SourceMetadataBar from '../components/SourceMetadataBar.vue'
 import { formatTime, formatFileSize } from '../utils/helpers'
 import PanelHeader from '@/components/PanelHeader.vue'
 import { useAppSettings } from '@/composables/useAppSettings'
+import { createNormalizedSource, getAllAudioFiles, normalizeSlice } from '@/services/db'
 
 const router = useRouter()
 const route = useRoute()
@@ -302,6 +315,77 @@ const copyShareLink = async () => {
     // Fallback: prompt on failure
     window.prompt('Copy link:', window.location.href)
   }
+}
+
+const normalizeCurrentSource = async () => {
+  if (!source.value) return
+  try {
+    const newSrc = await createNormalizedSource(source.value, 0.98)
+    // Refresh injected sources list
+    const all = await getAllAudioFiles()
+    sources.value.splice(0, sources.value.length, ...all)
+    // Navigate to new source
+    router.push(`/source/${newSrc.id}`)
+  } catch (e) {
+    console.error('Failed to normalize source:', e)
+    alert('Failed to normalize this source.')
+  }
+}
+
+function dbfsToLinear(dbfs: number): number {
+  if (dbfs === 0) return 0.98 // safe near 0 dBFS
+  return Math.pow(10, dbfs / 20)
+}
+
+const handleNormalizeSlice = async (presetDbfs: number) => {
+  if (!selectedSlice.value) return
+  try {
+    const linear = dbfsToLinear(presetDbfs)
+    const updated = await normalizeSlice(selectedSlice.value, linear)
+    emit('updateSlice', updated)
+    // Refresh slices by emitting update (App reloads slices on update) or reloading list here
+    // Since App.vue reloads slices on saveSlice, ensure UI reflects new clip by updating selection
+    // Just reset selection region to slice's bounds
+    if (waveformRef.value) {
+      waveformRef.value.setRegion(selectedSlice.value.startTime, selectedSlice.value.endTime)
+    }
+  } catch (e) {
+    console.error('Failed to normalize slice:', e)
+    alert('Failed to normalize slice.')
+  }
+}
+
+const handleNormalizeRegion = async (presetDbfs: number) => {
+  // Create a new slice from current region, then normalize it
+  if (!selectedRegion.value || !source.value) return
+  // Create slice
+  const slicePayload = {
+    audioFileId: source.value.id,
+    title: newSliceTitle.value.trim() || 'Untitled Slice',
+    startTime: selectedRegion.value.startTime,
+    endTime: selectedRegion.value.endTime,
+    composers: [],
+    performers: [],
+    type: '',
+  }
+  const newSliceId = await emit('createSlice', slicePayload)
+  // Find newly created slice and normalize it
+  setTimeout(async () => {
+    const createdSlice = sourceSlices.value.find(s => s.audioFileId === source.value!.id &&
+      Math.abs(s.startTime - slicePayload.startTime) < 0.001 &&
+      Math.abs(s.endTime - slicePayload.endTime) < 0.001)
+    if (createdSlice) {
+      try {
+        const linear = dbfsToLinear(presetDbfs)
+        const updated = await normalizeSlice(createdSlice, linear)
+        emit('updateSlice', updated)
+        handleSelectSlice(updated)
+      } catch (e) {
+        console.error('Failed to normalize created slice:', e)
+        alert('Failed to normalize created slice.')
+      }
+    }
+  }, 100)
 }
 // Source title inline edit refs (prevent compile errors)
 const editingSourceName = ref(false)

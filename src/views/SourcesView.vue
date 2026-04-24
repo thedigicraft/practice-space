@@ -14,6 +14,21 @@
           @update:sort="sortBy = $event as 'importedAt' | 'title' | 'name' | 'duration' | 'size'"
         />
       </template>
+      <template #right>
+        <div class="d-flex align-items-center gap-2">
+          <div class="btn-group" role="group">
+            <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button" @click="toggleBatchNormalize">
+              <i class="fas fa-level-up-alt me-1"></i>
+              <span>Normalize Filtered</span>
+            </button>
+            <ul class="dropdown-menu show" v-if="batchNormalizeOpen" style="min-width: 240px; right: 0; left: auto;">
+              <li><button class="dropdown-item" @click="batchNormalize(-1)">Normalize to -1 dBFS</button></li>
+              <li><button class="dropdown-item" @click="batchNormalize(-3)">Normalize to -3 dBFS</button></li>
+              <li><button class="dropdown-item" @click="batchNormalize(0)">Normalize to 0 dBFS (safe 0.98)</button></li>
+            </ul>
+          </div>
+        </div>
+      </template>
     </PanelHeader>
     <div class="sources-content flex-fill overflow-auto">
 
@@ -62,6 +77,7 @@
     <!-- Bottom Action Bar -->
     <div class="action-bar d-flex justify-content-center gap-3">
       <ImportControls @filesImported="handleFilesImported" />
+      <RecordControls @filesImported="handleFilesImported" />
     </div>
   </div>
 </template>
@@ -71,12 +87,14 @@ import { ref, computed, toRef, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Source, Slice } from '@/types/models'
 import ImportControls from '@/components/ImportControls.vue'
+import RecordControls from '@/components/RecordControls.vue'
 import SourceMetadataEditor from '@/components/SourceMetadataEditor.vue'
 import SourceTableRow from '@/components/SourceTableRow.vue'
 import FilterBar from '@/components/FilterBar.vue'
 import PanelHeader from '@/components/PanelHeader.vue'
 import { useSourceFiltering } from '@/composables/useSourceFiltering'
 import { formatTime, formatFileSize } from '@/utils/helpers'
+import { createNormalizedSource, getAllAudioFiles } from '@/services/db'
 
 interface Props {
   sources: Source[]
@@ -137,6 +155,40 @@ const slices = inject<Ref<Slice[]>>('slices')!
 const getSliceCount = (sourceId: string) => {
   if (!slices?.value) return 0
   return slices.value.filter(s => s.audioFileId === sourceId).length
+}
+
+// Batch normalize
+const batchNormalizeOpen = ref(false)
+const toggleBatchNormalize = () => { batchNormalizeOpen.value = !batchNormalizeOpen.value }
+function dbfsToLinear(dbfs: number): number { return dbfs === 0 ? 0.98 : Math.pow(10, dbfs / 20) }
+const isBatching = ref(false)
+const batchStatus = ref('')
+const batchNormalize = async (presetDbfs: number) => {
+  if (filteredSources.value.length === 0) return
+  const confirmMsg = `Normalize ${filteredSources.value.length} filtered source(s)? This creates new normalized copies.`
+  if (!confirm(confirmMsg)) return
+  try {
+    isBatching.value = true
+    batchStatus.value = 'Starting normalization…'
+    const linear = dbfsToLinear(presetDbfs)
+    let done = 0
+    for (const s of filteredSources.value) {
+      if (s.isClip) continue // skip clips
+      batchStatus.value = `Normalizing: ${s.title || s.name}`
+      await createNormalizedSource(s, linear)
+      done++
+    }
+    // Refresh injected sources list via emit
+    emit('filesImported', []) // trigger update path
+    // Also optimistic update if parent doesn’t reload automatically
+    // Parent App.vue will reload sources on filesImported
+    batchStatus.value = `Normalized ${done} source(s).`
+    setTimeout(() => { batchStatus.value = ''; isBatching.value = false; batchNormalizeOpen.value = false }, 1500)
+  } catch (e) {
+    console.error('Batch normalize failed:', e)
+    batchStatus.value = 'Batch normalize failed.'
+    setTimeout(() => { batchStatus.value = ''; isBatching.value = false }, 2000)
+  }
 }
 </script>
 

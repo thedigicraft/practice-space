@@ -9,7 +9,7 @@ import { openDB, DBSchema, IDBPDatabase } from 'idb'
 import type { AudioFile, Slice, Collection, SliceFolder, Project } from '@/types/models'
 import { getSourceArrayBuffer } from '@/services/platformAudio'
 import { loadAudioBuffer } from '@/services/audio'
-import { extractSlice, audioBufferToWavBlob } from '@/utils/audioExport'
+import { extractSlice, audioBufferToWavBlob, normalizeAudioBuffer } from '@/utils/audioExport'
 import { generateWaveformData } from '@/utils/helpers'
 
 interface PracticeSpaceDB extends DBSchema {
@@ -264,6 +264,9 @@ export async function saveProject(project: Project): Promise<void> {
           beatUnit: t.beatUnit,
           bars: t.bars,
           grid: t.grid ? t.grid.map(row => row.map(v => v)) : undefined,
+          repeatSections: t.repeatSections
+            ? t.repeatSections.map(s => ({ id: s.id, title: s.title, startBar: s.startBar, barCount: s.barCount, repeats: s.repeats }))
+            : undefined,
           createdAt: t.createdAt,
           updatedAt: t.updatedAt,
         })
@@ -272,8 +275,11 @@ export async function saveProject(project: Project): Promise<void> {
     lyrics: project.lyrics
       ? project.lyrics.map(l => ({ id: l.id, title: l.title, content: l.content, createdAt: l.createdAt, updatedAt: l.updatedAt }))
       : undefined,
+    sections: project.sections
+      ? project.sections.map(s => ({ id: s.id, title: s.title, color: s.color, createdAt: s.createdAt, updatedAt: s.updatedAt }))
+      : undefined,
     boardLayout: project.boardLayout
-      ? Object.fromEntries(Object.entries(project.boardLayout).map(([k, pos]) => [k, { x: pos.x, y: pos.y, w: pos.w, h: pos.h, fs: pos.fs }]))
+      ? Object.fromEntries(Object.entries(project.boardLayout).map(([k, pos]) => [k, { x: pos.x, y: pos.y, w: pos.w, h: pos.h, fs: pos.fs, parent: pos.parent }]))
       : undefined,
     boardZoom: project.boardZoom,
     boardOffset: project.boardOffset ? { x: project.boardOffset.x, y: project.boardOffset.y } : undefined,
@@ -297,6 +303,81 @@ export async function getAllProjects(): Promise<Project[]> {
 export async function deleteProject(id: string): Promise<void> {
   const db = await getDB()
   await db.delete('songProjects', id)
+}
+
+// Create a normalized copy of a Source as a new Source entry (non-destructive)
+export async function createNormalizedSource(original: AudioFile, targetPeak: number = 0.98): Promise<AudioFile> {
+  const db = await getDB()
+  const arrayBuffer = await getSourceArrayBuffer(original)
+  const buffer = await loadAudioBuffer(arrayBuffer)
+  const normalized = normalizeAudioBuffer(buffer, targetPeak)
+  const blob = audioBufferToWavBlob(normalized)
+  const waveformData = await generateWaveformData(normalized, 800)
+
+  const now = Date.now()
+  const baseName = (original.title || original.name || 'source')
+  const name = `${baseName}-normalized.wav`
+  const newSource: AudioFile = {
+    id: crypto.randomUUID(),
+    name,
+    title: `${baseName} (Normalized)`,
+    blob,
+    isClip: false,
+    duration: normalized.duration,
+    sampleRate: normalized.sampleRate,
+    numberOfChannels: normalized.numberOfChannels,
+    waveformData,
+    importedAt: now,
+    createdAt: now,
+    size: blob.size,
+    location: 'Edited',
+    notes: `Normalized copy of ${original.id}`,
+  }
+
+  await db.put('audioFiles', newSource)
+  return newSource
+}
+
+// Normalize a slice region and update the slice to point to the new normalized clip
+export async function normalizeSlice(slice: Slice, targetPeak: number = 0.98): Promise<Slice> {
+  const db = await getDB()
+  const src = await db.get('audioFiles', slice.audioFileId)
+  if (!src) throw new Error('Source not found for slice')
+  const arrayBuffer = await getSourceArrayBuffer(src)
+  const fullBuffer = await loadAudioBuffer(arrayBuffer)
+  const clipBuffer = extractSlice(fullBuffer, slice.startTime, slice.endTime)
+  const normalized = normalizeAudioBuffer(clipBuffer, targetPeak)
+  const clipBlob = audioBufferToWavBlob(normalized)
+  const waveformData = await generateWaveformData(normalized, 800)
+
+  const clipSource: AudioFile = {
+    id: crypto.randomUUID(),
+    name: `${(src.title || src.name || 'source')}-slice-${slice.id}-normalized.wav`,
+    title: `${slice.title || `Slice ${slice.id}`} (Normalized)`,
+    blob: clipBlob,
+    isClip: true,
+    originSliceId: slice.id,
+    duration: normalized.duration,
+    sampleRate: normalized.sampleRate,
+    numberOfChannels: normalized.numberOfChannels,
+    waveformData,
+    importedAt: Date.now(),
+    createdAt: Date.now(),
+    size: clipBlob.size,
+    location: 'clip',
+    notes: `Normalized from ${src.id}`,
+  }
+  await db.put('audioFiles', clipSource)
+
+  const updated: Slice = {
+    ...slice,
+    clipSourceId: clipSource.id,
+    clipCreatedAt: Date.now(),
+    clipUpdatedAt: Date.now(),
+    updatedAt: Date.now(),
+  }
+  await db.put('slices', updated)
+  return updated
 }
 
 // Folder operations

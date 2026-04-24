@@ -88,6 +88,8 @@ export interface ProjectTabItem {
   bars?: number
   // Allow numeric frets or technique tokens (e.g., 'x', '7h', '10/').
   grid?: Array<Array<number | string | null>> // rows x cols; null when empty
+  // Repeat sections spanning bars
+  repeatSections?: Array<{ id: string; title: string; startBar: number; barCount: number; repeats: number }>
   createdAt: number
   updatedAt: number
 }
@@ -100,6 +102,14 @@ export interface ProjectLyricItem {
   updatedAt: number
 }
 
+export interface ProjectSectionItem {
+  id: string
+  title: string
+  color?: string
+  createdAt: number
+  updatedAt: number
+}
+
 export interface Project {
   id: string
   name: string
@@ -108,12 +118,13 @@ export interface Project {
   groups?: { type: string; title: string }[] // Optional grouped slice references
   tabs?: ProjectTabItem[]
   lyrics?: ProjectLyricItem[]
+  sections?: ProjectSectionItem[]
   createdAt: number
   updatedAt: number
   color?: string // For visual organization
   // Freeform board layout positions for project items
   // Keys use prefixes: 'slice:<id>', 'tab:<id>', 'lyric:<id>'
-  boardLayout?: Record<string, { x: number; y: number; w?: number; h?: number; fs?: number }>
+  boardLayout?: Record<string, { x: number; y: number; w?: number; h?: number; fs?: number; parent?: string }>
   // Board viewport settings (persisted)
   boardZoom?: number // 50-200 (%), default 100
   boardOffset?: { x: number; y: number }

@@ -1,8 +1,8 @@
 <template>
   <div class="project-board-view">
-    <div class="header d-flex align-items-center justify-content-between mb-2">
+    <div class="header d-flex align-items-center justify-content-between px-3 xmb-2">
       <div class="d-flex align-items-center gap-2">
-        <h4 class="m-0">{{ project?.name || 'Project' }} — Board View</h4>
+        <div class="m-0">{{ project?.name || 'Project' }} — Board View</div>
         <span class="text-muted small">Drag items anywhere; snap, zoom, and align.</span>
       </div>
       <div class="d-flex gap-2 align-items-center">
@@ -42,14 +42,36 @@
             v-for="it in boardItems"
             :key="it.key"
             class="board-item"
-            :class="[it.type, { selected: isSelected(it.key) }]"
+            :class="[it.type, { selected: isSelected(it.key), 'menu-open': it.type === 'section' && isSectionMenuOpen(it.key) }]"
             :style="itemStyle(it)"
             @mousedown.stop
             @contextmenu.prevent.stop="onItemContextMenu(it, $event)"
             @dblclick="openItem(it)"
             @click.stop="toggleSelect(it.key, $event)"
           >
-            <div v-if="it.type === 'lyric'" class="paper">
+            <div v-if="it.type === 'section'" class="section-card" :style="sectionCardStyle(it)">
+              <div class="section-header d-flex align-items-center" :style="sectionHeaderStyle(it)">
+                <template v-if="editingSectionId === it.id">
+                  <input class="form-control form-control-sm section-title-input" v-model="editingSectionTitle" @blur="saveSectionTitle(it.id)" @keydown.enter.prevent="saveSectionTitle(it.id)" @keydown.esc.prevent="cancelEditSection()" />
+                </template>
+                <template v-else>
+                  <span class="fw-bold section-title" @dblclick.stop="beginEditSection(it.id)">{{ it.title }}</span>
+                </template>
+                <div class="drag-handle flex-grow-1" @mousedown.stop="startDrag(it, $event)"></div>
+                <button class="section-menu-btn" @mousedown.stop @click.stop="toggleSectionMenu(it.key)"><i class="fas fa-ellipsis-v"></i></button>
+                <div v-if="isSectionMenuOpen(it.key)" class="section-menu">
+                  <button class="dropdown-item p-1" @mousedown.stop @click.stop="toggleSectionColorPalette(it.id)">Change color</button>
+                  <button class="dropdown-item p-1" @mousedown.stop @click.stop="removeSection(it.key, false)">Remove Section</button>
+                  <button class="dropdown-item text-danger p-1" @mousedown.stop @click.stop="removeSection(it.key, true)">Remove Section and Return items</button>
+                  <div v-if="colorPaletteFor === it.id" class="color-palette">
+                    <button v-for="c in sectionColors" :key="c" class="color-swatch" :style="{ background: c }" @mousedown.stop @click.stop="chooseSectionColor(it.id, c)"></button>
+                  </div>
+                </div>
+              </div>
+              <div class="section-content"></div>
+              <div class="resize-handle" @mousedown.stop="startResize(it, $event)"></div>
+            </div>
+            <div v-else-if="it.type === 'lyric'" class="paper">
               <div class="paper-header d-flex align-items-center">
                 <span class="fw-bold">{{ it.title }}</span>
                 <div class="drag-handle flex-grow-1" @mousedown.stop="startDrag(it, $event)"></div>
@@ -104,24 +126,62 @@
         <button class="dropdown-item text-danger p-1" @click="removeContextItem"><i class="fas fa-trash me-2"></i>Remove</button>
       </div>
       <aside class="pool-container" ref="poolRef">
-        <div class="pool-header d-flex align-items-center justify-content-between">
-          <strong>Pool</strong>
-          <small class="text-muted">New items appear here</small>
-        </div>
-        <div class="pool-grid">
-          <div
-            v-for="it in poolItems"
-    
-            :key="it.key"
-            class="pool-item card"
-            :class="it.type"
-            @mousedown.stop="startPoolDrag(it, $event)"
-          >
-            <div class="card-body p-2">
-              <div class="item-title fw-bold">{{ it.title }}</div>
-              <div class="item-meta text-muted small">{{ it.typeLabel }}</div>
+        <div class="pool-sections">
+          <SidebarPanel title="Slices" :showMenu="true">
+            <div class="pool-grid">
+              <div v-for="it in poolSlices" :key="it.key" class="pool-item card slice" @mousedown.stop="startPoolDrag(it, $event)">
+                <div class="card-body p-2">
+                  <div class="item-title fw-bold">{{ it.title }}</div>
+                  <div class="item-meta text-muted small">Slice</div>
+                </div>
+              </div>
+              <div v-if="poolSlices.length === 0" class="pool-item card empty">
+                <div class="card-body p-2">
+                  <div class="item-title fw-bold">No more slices available</div>
+                </div>
+              </div>
             </div>
-          </div>
+          </SidebarPanel>
+          <SidebarPanel title="Lyrics" :showMenu="true">
+            <div class="pool-grid">
+              <div v-for="it in poolLyrics" :key="it.key" class="pool-item card lyric" @mousedown.stop="startPoolDrag(it, $event)">
+                <div class="card-body p-2">
+                  <div class="item-title fw-bold">{{ it.title }}</div>
+                  <div class="item-meta text-muted small">Lyrics</div>
+                </div>
+              </div>
+              <div v-if="poolLyrics.length === 0" class="pool-item card empty">
+                <div class="card-body p-2">
+                  <div class="item-title fw-bold">No more lyrics available</div>
+                </div>
+              </div>
+            </div>
+          </SidebarPanel>
+          <SidebarPanel title="Tabs" :showMenu="true">
+            <div class="pool-grid">
+              <div v-for="it in poolTabs" :key="it.key" class="pool-item card tab" @mousedown.stop="startPoolDrag(it, $event)">
+                <div class="card-body p-2">
+                  <div class="item-title fw-bold">{{ it.title }}</div>
+                  <div class="item-meta text-muted small">Tab</div>
+                </div>
+              </div>
+              <div v-if="poolTabs.length === 0" class="pool-item card empty">
+                <div class="card-body p-2">
+                  <div class="item-title fw-bold">No more tabs available</div>
+                </div>
+              </div>
+            </div>
+          </SidebarPanel>
+          <SidebarPanel title="Tools" :showMenu="true">
+            <div class="pool-grid">
+              <div class="pool-item card tool" @mousedown.stop="startSectionToolDrag($event)">
+                <div class="card-body p-2">
+                  <div class="item-title fw-bold">Section</div>
+                  <div class="item-meta text-muted small">Container</div>
+                </div>
+              </div>
+            </div>
+          </SidebarPanel>
         </div>
       </aside>
     </div>
@@ -142,6 +202,7 @@ import { useAudioPlayback } from '@/composables/useAudioPlayback'
 import { getSourceArrayBuffer } from '@/services/platformAudio'
 import { loadAudioBuffer } from '@/services/audio'
 import { generateWaveformData } from '@/utils/helpers'
+import SidebarPanel from '@/components/SidebarPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -172,7 +233,7 @@ const sliceMap = computed(() => new Map(slices.value.map(s => [s.id, s])))
 
 interface BoardItemVM {
   key: string
-  type: 'slice' | 'tab' | 'lyric'
+  type: 'slice' | 'tab' | 'lyric' | 'section'
   typeLabel: string
   id: string
   title: string
@@ -184,6 +245,12 @@ const boardItems = computed<BoardItemVM[]>(() => {
   if (!project.value) return []
   const items: BoardItemVM[] = []
   const layout = project.value.boardLayout || {}
+  // sections first (ensure they render under other items)
+  for (const s of project.value.sections || []) {
+    const pos = layout[`section:${s.id}`]
+    if (!pos) continue
+    items.push({ key: `section:${s.id}`, type: 'section', typeLabel: 'Section', id: s.id, title: s.title, x: pos.x, y: pos.y })
+  }
   // slices with positions
   for (const sid of project.value.sliceIds || []) {
     const pos = layout[`slice:${sid}`]
@@ -230,9 +297,13 @@ const poolItems = computed<BoardItemVM[]>(() => {
   return items
 })
 
+const poolSlices = computed(() => poolItems.value.filter(i => i.type === 'slice'))
+const poolLyrics = computed(() => poolItems.value.filter(i => i.type === 'lyric'))
+const poolTabs = computed(() => poolItems.value.filter(i => i.type === 'tab'))
+
 const itemStyle = (it: BoardItemVM) => ({ left: it.x + 'px', top: it.y + 'px', width: (project.value?.boardLayout?.[it.key]?.w || defaultW(it)) + 'px', height: (project.value?.boardLayout?.[it.key]?.h || defaultH(it)) + 'px' })
-function defaultW(it: BoardItemVM) { return it.type === 'tab' ? 280 : it.type === 'lyric' ? 220 : 300 }
-function defaultH(it: BoardItemVM) { return it.type === 'tab' ? 160 : it.type === 'lyric' ? 180 : 140 }
+function defaultW(it: BoardItemVM) { return it.type === 'tab' ? 280 : it.type === 'lyric' ? 220 : it.type === 'section' ? 360 : 300 }
+function defaultH(it: BoardItemVM) { return it.type === 'tab' ? 160 : it.type === 'lyric' ? 180 : it.type === 'section' ? 240 : 140 }
 function tabFontSize(it: BoardItemVM) {
   const pos = project.value?.boardLayout?.[it.key]
   const w = pos?.w || defaultW(it)
@@ -259,7 +330,7 @@ async function savePositions() {
 }
 
 // Dragging
-const dragging = reactive<{ key: string | null; dx: number; dy: number; fromPool?: boolean; lastX?: number; lastY?: number }>({ key: null, dx: 0, dy: 0, fromPool: false, lastX: 0, lastY: 0 })
+const dragging = reactive<{ key: string | null; dx: number; dy: number; fromPool?: boolean; lastX?: number; lastY?: number; enteredBoard?: boolean; prevX?: number; prevY?: number; lastClientX?: number; lastClientY?: number }>({ key: null, dx: 0, dy: 0, fromPool: false, lastX: 0, lastY: 0, enteredBoard: false, prevX: 0, prevY: 0, lastClientX: 0, lastClientY: 0 })
 const snap = ref(true)
 const gridSize = 20
 const zoomPercent = ref(100)
@@ -301,21 +372,59 @@ function startPoolDrag(it: BoardItemVM, e: MouseEvent) {
   const my = (e.clientY - origin.y - offset.y) / scale.value
   dragging.dx = 0
   dragging.dy = 0
+  dragging.enteredBoard = false
+  window.addEventListener('mousemove', onMove)
+  window.addEventListener('mouseup', onUp)
+}
+function startSectionToolDrag(e: MouseEvent) {
+  e.preventDefault()
+  if (!project.value) return
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2,7)}`
+  const now = Date.now()
+  project.value.sections = project.value.sections || []
+  project.value.sections.push({ id, title: 'Section', createdAt: now, updatedAt: now })
+  // Set dragging key to the new section
+  dragging.key = `section:${id}`
+  dragging.fromPool = true
+  dragging.dx = 0
+  dragging.dy = 0
+  dragging.enteredBoard = false
   window.addEventListener('mousemove', onMove)
   window.addEventListener('mouseup', onUp)
 }
 function onMove(e: MouseEvent) {
   if (!dragging.key || !project.value) return
+  dragging.lastClientX = e.clientX
+  dragging.lastClientY = e.clientY
   const origin = boardOrigin()
   const mx = (e.clientX - origin.x - offset.x) / scale.value
   const my = (e.clientY - origin.y - offset.y) / scale.value
   const x = mx - dragging.dx
   const y = my - dragging.dy
   const pos = (project.value.boardLayout![dragging.key] ||= { x: 0, y: 0 })
+  const prevX = pos.x || 0
+  const prevY = pos.y || 0
   pos.x = snap.value ? Math.round(x / gridSize) * gridSize : x
   pos.y = snap.value ? Math.round(y / gridSize) * gridSize : y
   dragging.lastX = x
   dragging.lastY = y
+  dragging.prevX = prevX
+  dragging.prevY = prevY
+  // Track if cursor entered board bounds
+  dragging.enteredBoard = pos.x >= 0 && pos.y >= 0 && pos.x <= BOARD_W && pos.y <= BOARD_H
+  // If dragging a section, move children by delta
+  if (dragging.key.startsWith('section:')) {
+    const deltaX = pos.x - prevX
+    const deltaY = pos.y - prevY
+    if (deltaX !== 0 || deltaY !== 0) {
+      for (const [k, child] of Object.entries(project.value.boardLayout!)) {
+        if (child.parent === dragging.key) {
+          child.x = (child.x || 0) + deltaX
+          child.y = (child.y || 0) + deltaY
+        }
+      }
+    }
+  }
 }
 const BOARD_W = 2000
 const BOARD_H = 1200
@@ -327,7 +436,21 @@ function onUp() {
     const x = dragging.lastX ?? 0
     const y = dragging.lastY ?? 0
     const inBounds = x >= 0 && y >= 0 && x <= BOARD_W && y <= BOARD_H
-    if (!inBounds) {
+    if (!inBounds || !dragging.enteredBoard) {
+      delete project.value.boardLayout![dragging.key]
+      // if a tool created a section but never entered board, also remove from sections
+      if (dragging.key.startsWith('section:')) {
+        const id = dragging.key.split(':')[1]
+        project.value.sections = (project.value.sections || []).filter(s => s.id !== id)
+      }
+    }
+  } else if (dragging.key && project.value && poolRef.value) {
+    // If dropped over the pool sidebar, return item to pool (remove from layout)
+    const rect = poolRef.value.getBoundingClientRect()
+    const cx = dragging.lastClientX || 0
+    const cy = dragging.lastClientY || 0
+    const overPool = cx >= rect.left && cx <= rect.right && cy >= rect.top && cy <= rect.bottom
+    if (overPool && !dragging.key.startsWith('section:')) {
       delete project.value.boardLayout![dragging.key]
     }
   }
@@ -335,6 +458,7 @@ function onUp() {
   scheduleSave()
   dragging.key = null
   dragging.fromPool = false
+  dragging.enteredBoard = false
 }
 function boardOrigin() {
   const rect = boardRef.value?.getBoundingClientRect()
@@ -445,6 +569,60 @@ function intersects(a: { x: number; y: number; w: number; h: number }, b: { x: n
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
 }
 
+// When an item drag ends, assign containment to a section if dropped inside
+watch(() => dragging.key, (key, prev) => {
+  // Only handle on transition from a non-null to null after drop
+  if (prev && !key && project.value) {
+    // last dragged item key is prev
+    const pos = project.value.boardLayout?.[prev]
+    if (!pos) return
+    // If it is a section, skip
+    if (prev.startsWith('section:')) return
+    // Determine section under drop center
+    const center = { x: (pos.x || 0) + ((pos.w || 120) / 2), y: (pos.y || 0) + ((pos.h || 80) / 2) }
+    let targetSection: string | null = null
+    for (const s of project.value.sections || []) {
+      const sp = project.value.boardLayout?.[`section:${s.id}`]
+      if (!sp) continue
+      const sw = sp.w || 200
+      const sh = sp.h || 160
+      if (center.x >= (sp.x || 0) && center.x <= (sp.x || 0) + sw && center.y >= (sp.y || 0) && center.y <= (sp.y || 0) + sh) {
+        targetSection = `section:${s.id}`
+        break
+      }
+    }
+    // Assign or clear parent
+    pos.parent = targetSection || undefined
+    // If assigned to a section, auto-grow the section to fit if needed
+    if (targetSection) {
+      const sp = project.value.boardLayout?.[targetSection]
+      if (sp) {
+        const itemW = pos.w || 120
+        const itemH = pos.h || 80
+        const secW = sp.w || 200
+        const secH = sp.h || 160
+        const left = sp.x || 0
+        const top = sp.y || 0
+        const itemRight = (pos.x || 0) + itemW
+        const itemBottom = (pos.y || 0) + itemH
+        const secRight = left + secW
+        const secBottom = top + secH
+        const margin = 10
+        const needGrowRight = itemRight > secRight
+        const needGrowBottom = itemBottom > secBottom
+        // Only expand width/height; keep section's top-left unchanged
+        if (needGrowRight) {
+          sp.w = Math.max(secW, itemRight - left + margin)
+        }
+        if (needGrowBottom) {
+          sp.h = Math.max(secH, itemBottom - top + margin)
+        }
+      }
+    }
+    scheduleSave()
+  }
+})
+
 // Context menu state and handlers
 const contextMenu = reactive<{ active: boolean; x: number; y: number; item: BoardItemVM | null }>({ active: false, x: 0, y: 0, item: null })
 function onItemContextMenu(it: BoardItemVM, e: MouseEvent) {
@@ -466,6 +644,14 @@ function removeContextItem() {
   const key = contextMenu.item.key
   if (project.value.boardLayout && project.value.boardLayout[key]) {
     delete project.value.boardLayout[key]
+    if (key.startsWith('section:')) {
+      const id = key.split(':')[1]
+      project.value.sections = (project.value.sections || []).filter(s => s.id !== id)
+      // Clear parent for any children of this section
+      for (const child of Object.values(project.value.boardLayout)) {
+        if (child.parent === key) child.parent = undefined
+      }
+    }
     project.value.updatedAt = Date.now()
     scheduleSave()
   }
@@ -530,8 +716,7 @@ async function openItem(it: BoardItemVM) {
     const lyr = project.value.lyrics?.find(l => l.id === it.id)
     if (lyr) editingLyrics.value = { ...lyr }
   } else {
-    // slices: navigate to studio view for full context
-    router.push({ name: 'project', params: { id: project.value.id } })
+    // No-op for slice and section on double-click
   }
 }
 async function saveTabInline(t: any) {
@@ -739,8 +924,28 @@ function onResizeMove(e: MouseEvent) {
   const dh = my - resizing.startY
   const key = resizing.key
   const vm = boardItems.value.find(b => b.key === key)
-  const minW = vm ? 160 : 120
-  const minH = vm ? 100 : 80
+  let minW = vm ? 160 : 120
+  let minH = vm ? 100 : 80
+  // If resizing a section, ensure it cannot be smaller than its children bounds
+  if (key.startsWith('section:')) {
+    const children = Object.entries(project.value.boardLayout!)
+      .filter(([, child]) => child.parent === key)
+      .map(([, child]) => child)
+    if (children.length > 0) {
+      const left = pos.x || 0
+      const top = pos.y || 0
+      let maxRight = left + minW
+      let maxBottom = top + minH
+      for (const child of children) {
+        const cw = child.w || 120
+        const ch = child.h || 80
+        maxRight = Math.max(maxRight, (child.x || 0) + cw)
+        maxBottom = Math.max(maxBottom, (child.y || 0) + ch)
+      }
+      minW = Math.max(minW, maxRight - left + 10)
+      minH = Math.max(minH, maxBottom - top + 10)
+    }
+  }
   pos.w = Math.max(minW, resizing.startW + dw)
   pos.h = Math.max(minH, resizing.startH + dh)
 }
@@ -750,6 +955,107 @@ function onResizeUp() {
   // Persist layout changes on resize end
   scheduleSave()
   resizing.key = null
+}
+
+// Section helpers: editing title, colors, and menu actions
+const editingSectionId = ref<string | null>(null)
+const editingSectionTitle = ref<string>('')
+function beginEditSection(id: string) {
+  const s = getSectionById(id)
+  if (!s) return
+  editingSectionId.value = id
+  editingSectionTitle.value = s.title || ''
+}
+function cancelEditSection() {
+  editingSectionId.value = null
+  editingSectionTitle.value = ''
+}
+async function saveSectionTitle(id: string) {
+  if (!project.value) return
+  const now = Date.now()
+  project.value.sections = (project.value.sections || []).map(s => s.id === id ? { ...s, title: editingSectionTitle.value, updatedAt: now } : s)
+  project.value.updatedAt = now
+  await saveProject(project.value)
+  cancelEditSection()
+}
+function getSectionById(id: string) {
+  return project.value?.sections?.find(s => s.id === id)
+}
+function hexToRgba(hex: string, alpha: number) {
+  const h = hex.replace('#','')
+  const full = h.length === 3 ? h.split('').map(ch => ch + ch).join('') : h
+  const r = parseInt(full.slice(0,2), 16)
+  const g = parseInt(full.slice(2,4), 16)
+  const b = parseInt(full.slice(4,6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+function sectionColor(id: string): string | null {
+  const s = getSectionById(id)
+  return s?.color || null
+}
+function sectionCardStyle(it: BoardItemVM) {
+  if (it.type !== 'section') return {}
+  const col = sectionColor(it.id)
+  if (!col) return {}
+  return { background: hexToRgba(col, 0.06), borderColor: hexToRgba(col, 0.25) }
+}
+function sectionHeaderStyle(it: BoardItemVM) {
+  if (it.type !== 'section') return {}
+  const col = sectionColor(it.id)
+  if (!col) return {}
+  return { background: hexToRgba(col, 0.15), borderBottomColor: hexToRgba(col, 0.3) }
+}
+const sectionMenuKey = ref<string | null>(null)
+function toggleSectionMenu(key: string) { sectionMenuKey.value = sectionMenuKey.value === key ? null : key }
+function isSectionMenuOpen(key: string) { return sectionMenuKey.value === key }
+// Close section menu on outside click
+function onGlobalMouseDown(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (!target) return
+  const inside = !!target.closest('.section-menu, .section-menu-btn')
+  if (!inside) {
+    sectionMenuKey.value = null
+    colorPaletteFor.value = null
+  }
+}
+watch(sectionMenuKey, (key) => {
+  if (key) {
+    window.addEventListener('mousedown', onGlobalMouseDown)
+  } else {
+    window.removeEventListener('mousedown', onGlobalMouseDown)
+  }
+})
+const sectionColors = ['#4da3ff', '#50e3a4', '#e350a4', '#f5a623', '#b0b0b0', '#9b59b6']
+const colorPaletteFor = ref<string | null>(null)
+function toggleSectionColorPalette(id: string) { colorPaletteFor.value = colorPaletteFor.value === id ? null : id }
+async function chooseSectionColor(id: string, color: string) {
+  if (!project.value) return
+  const now = Date.now()
+  project.value.sections = (project.value.sections || []).map(s => s.id === id ? { ...s, color, updatedAt: now } : s)
+  project.value.updatedAt = now
+  await saveProject(project.value)
+  colorPaletteFor.value = null
+}
+function removeSection(key: string, returnItems: boolean) {
+  if (!project.value) return
+  // Remove section record
+  if (key.startsWith('section:')) {
+    const id = key.split(':')[1]
+    project.value.sections = (project.value.sections || []).filter(s => s.id !== id)
+  }
+  // Handle children: either return to pool (delete layout) or leave on board (clear parent)
+  for (const [k, child] of Object.entries(project.value.boardLayout || {})) {
+    if (child.parent === key) {
+      if (returnItems) delete project.value.boardLayout![k]
+      else child.parent = undefined
+    }
+  }
+  // Also remove section layout
+  if (project.value.boardLayout && project.value.boardLayout[key]) delete project.value.boardLayout[key]
+  project.value.updatedAt = Date.now()
+  scheduleSave()
+  // Close any open menus
+  sectionMenuKey.value = null
 }
 </script>
 
@@ -761,7 +1067,7 @@ function onResizeUp() {
 .board-toolbar .btn,
 .board-toolbar input,
 .board-toolbar label { pointer-events: auto; }
-.board-container { position: relative; background: #101012; border: 1px solid #2a2a2a; border-radius: 6px; overflow: hidden; height: 100%; }
+.board-container { position: relative; background: #101012; border: 1px solid #2a2a2a;  overflow: hidden; height: 100%; }
 .board-inner { 
     position: relative; 
     width: 2000px; height: 1200px; 
@@ -773,6 +1079,9 @@ function onResizeUp() {
 .board-item.slice { border-left: 4px solid #4da3ff; }
 .board-item.tab { border-left: 4px solid #50e3a4; }
 .board-item.lyric { border-left: 4px solid #e350a4; }
+.board-item.section { border-left: 4px solid #b0b0b0; z-index: 1; }
+.board-item.section.menu-open { z-index: 10; }
+.board-item:not(.section) { z-index: 2; }
 .item-title { font-size: 0.95rem; }
 .marquee { position: absolute; border: 1px dashed #5aa2ff; background: rgba(90,162,255,0.1); }
 
@@ -788,10 +1097,25 @@ function onResizeUp() {
 
 .slice-card { background: #161616; color: #ddd; border-radius: 6px; border: 1px solid #2a2a2a; height: 100%; padding: 6px; display: flex; flex-direction: column; gap: 6px; position: relative; }
 
-.pool-container { background: #0d0d11; border: 1px solid #26262d; border-radius: 6px; padding: 6px; }
-.pool-header { padding: 4px 2px; }
+.section-card { background: #0f0f13; color: #ddd; border-radius: 6px; border: 1px dashed #3a3a45; height: 100%; display: flex; flex-direction: column; position: relative; }
+.section-header { padding: 6px 8px; border-bottom: 1px solid #2a2a2a; background: #121218; position: relative; }
+.section-content { flex: 1; }
+.section-title-input { height: 24px; font-size: 12px; padding: 2px 6px; }
+.section-title { cursor: text; }
+.section-menu-btn { border: none; background: transparent; color: #bbb; padding: 2px 6px; }
+.section-menu-btn:hover { color: #fff; }
+.section-menu { position: absolute; top: 30px; right: 6px; background: #1c1c22; border: 1px solid #2a2a2a; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); min-width: 180px; z-index: 100; }
+.section-menu .dropdown-item { color: #ddd; font-size: 11px; }
+.section-menu .dropdown-item:hover { background: rgba(255,255,255,0.08); }
+.color-palette { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; padding: 6px; }
+.color-swatch { width: 20px; height: 20px; border: none; border-radius: 4px; cursor: pointer; }
+
+.pool-container { background: #0d0d11; border: 1px solid #26262d;  padding: 0; }
+.pool-sections { display: flex; flex-direction: column; gap: 0; }
 .pool-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
 .pool-item { cursor: grab; }
+.pool-item.card { background: #161616; border: 1px solid #2a2a2a; color: #ddd; border-radius: 6px; }
+.pool-item.card.empty { background: #121218; border-style: dashed; color: #888; }
 
 .context-menu {
   position: absolute;
