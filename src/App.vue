@@ -6,6 +6,7 @@ import { processAudioFile } from './services/audio'
 import { useAudioPlayback } from './composables/useAudioPlayback'
 import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
 import { useDragAndDrop } from './composables/useDragAndDrop'
+import GeminiChatDrawer from './components/GeminiChatDrawer.vue'
 import type { Source, Slice, SliceFolder, Collection, Project } from './types/models'
 
 const router = useRouter()
@@ -49,6 +50,7 @@ const folders = ref<SliceFolder[]>([])
 const collections = ref<Collection[]>([])
 const projects = ref<Project[]>([])
 const selectedSlice = ref<Slice | null>(null)
+const isChatDrawerOpen = ref(false)
 
 // Provide data to child components
 provide('sources', sources)
@@ -255,6 +257,10 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
   
   return names[routeName] || ''
 }
+
+const toggleChatDrawer = () => {
+  isChatDrawerOpen.value = !isChatDrawerOpen.value
+}
 </script>
 
 <template>
@@ -291,6 +297,17 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
           <router-link to="/projects" class="activity-item" :class="{ active: $route.name === 'projects' || $route.name === 'project' }" aria-label="Projects">
             <i class="fa-solid fa-music"></i>
           </router-link>
+        </li>
+        <li>
+          <button
+            class="activity-item activity-item--button"
+            :class="{ active: isChatDrawerOpen }"
+            aria-label="AI Chat"
+            @click="toggleChatDrawer"
+            type="button"
+          >
+            <i class="fa-solid fa-robot"></i>
+          </button>
         </li>
       </ul>
       <div class="mt-auto w-100">
@@ -336,6 +353,8 @@ const getViewName = (routeName: string | symbol | null | undefined): string => {
         @back="navigateToHome"
       />
     </main>
+
+    <GeminiChatDrawer :open="isChatDrawerOpen" @update:open="isChatDrawerOpen = $event" />
 
     <!-- Drag and Drop Overlay -->
     <div v-if="isDragging" class="drop-overlay d-flex align-items-center justify-content-center">
@@ -394,6 +413,12 @@ body {
   color: #adb5bd;
   text-decoration: none;
   transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.activity-item--button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .activity-item:hover {

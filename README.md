@@ -135,11 +135,31 @@ cd practice-space
 # Install dependencies
 npm install
 
+# Configure optional Gemini chat support
+cp .env.example .env
+# Then set VITE_GEMINI_API_KEY in .env
+
 # Start development server
 npm run dev
 ```
 
 The app will run at `http://localhost:5173`.
+
+## Gemini Chat Drawer (Optional)
+
+Practice Space now includes an AI chat drawer powered by the Gemini API.
+
+- Open it from the robot icon in the left activity bar
+- Add your API key in `.env` using `VITE_GEMINI_API_KEY`
+- Optionally set `VITE_GEMINI_MODEL` (defaults to `gemini-2.0-flash`)
+
+Current implementation notes:
+
+- Requests are sent directly from the client to the Gemini REST API
+- The key is read from Vite environment variables
+- If no key is configured, the drawer remains visible but chat is disabled with setup guidance
+
+For production hardening, consider moving Gemini requests behind a backend or edge function so API keys are not exposed in a client bundle.
 
 ### Building for Production
 
